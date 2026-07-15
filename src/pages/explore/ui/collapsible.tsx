@@ -1,14 +1,15 @@
 import { SymbolView } from 'expo-symbols';
-import { PropsWithChildren, useState } from 'react';
+import { type PropsWithChildren, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ThemedText } from '@/shared/ui/themed-text';
+import { ThemedView } from '@/shared/ui/themed-view';
+import { Spacing, useTheme } from '@/shared/ui/theme';
 
-export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
+type CollapsibleProps = PropsWithChildren<{ title: string }>;
+
+export function Collapsible({ children, title }: CollapsibleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const theme = useTheme();
 
@@ -41,14 +42,8 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
 }
 
 const styles = StyleSheet.create({
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  pressedHeading: {
-    opacity: 0.7,
-  },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  pressedHeading: { opacity: 0.7 },
   button: {
     width: Spacing.four,
     height: Spacing.four,

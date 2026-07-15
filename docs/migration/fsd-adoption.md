@@ -1,18 +1,18 @@
 # Incremental FSD adoption for the existing structure
 
-## Current state
+## Migration status
 
-At the time of writing, this project is close to the Expo SDK 57 starter and uses the following legacy technical directories:
+The starter-structure migration was completed on 2026-07-15. The active source tree now follows the project FSD standard:
 
 ```text
 src/
-├── app/
-├── components/
-├── constants/
-└── hooks/
+├── app/          # Expo Router adapters only
+├── _app/         # Providers, routes, and global styles
+├── pages/        # Home and Explore screen slices
+└── shared/       # Reusable, business-agnostic UI modules
 ```
 
-Do not move every existing file at once. Use the target structure for new product functionality, and migrate existing starter code when it is actually modified. Do not mix a large architecture-only move with feature changes in one pull request.
+The legacy `src/components`, `src/constants`, and `src/hooks` directories have been removed. Do not recreate them. Classify new code with the placement algorithm in [Feature-Sliced Design project standard](../architecture/feature-sliced-design.md).
 
 ## Target
 
@@ -27,7 +27,9 @@ src/
 └── shared/
 ```
 
-## Migration stages
+## Completed migration stages
+
+The stages below record how the starter structure was migrated. They remain useful when classifying similar starter code introduced by future upgrades.
 
 ### 1. Separate routes from screens
 
@@ -74,13 +76,13 @@ Shared may grow during the initial migration. Move code used by one page back in
 
 Create entities, features, and widgets based on code actually reused by more than one page. Do not pre-classify every starter component into a layer based only on its name.
 
-## Allowed transitional state
+## Post-migration rules
 
-- `src/components`, `src/hooks`, and `src/constants` may temporarily coexist with new FSD layers.
-- Existing files may remain in legacy paths until they are modified.
-- Do not add new files to legacy directories.
-- A new FSD slice may temporarily import a legacy module, but legacy code must not deep-import internals from a new higher layer.
-- Add a TODO with a clear removal condition or a work-tracking link for temporary dependencies.
+- `src/components`, `src/hooks`, and `src/constants` are no longer allowed transitional paths.
+- Expo Router files under `src/app` must remain thin adapters to `_app` or `pages` Public APIs.
+- Every new slice must expose an explicit, minimal Public API from its root `index.ts`.
+- Add `widgets`, `features`, or `entities` only when current product code meets the reuse and responsibility criteria.
+- If an Expo upgrade reintroduces starter files, classify them individually instead of restoring the legacy directory structure.
 
 ## Do not
 
@@ -93,13 +95,13 @@ Create entities, features, and widgets based on code actually reused by more tha
 
 ## Completion criteria
 
-- `src/app` contains only routes and Expo Router-special files.
-- `_app` composes global providers and initialization.
-- Screen implementations are separated into page slices.
-- Legacy `components`, `hooks`, and `constants` directories are removed.
-- Every slice has an explicit Public API.
-- No same-layer slice imports or deep imports remain.
-- Lint and typecheck pass.
+- [x] `src/app` contains only routes and Expo Router-special files.
+- [x] `_app` composes global providers and initialization.
+- [x] Screen implementations are separated into page slices.
+- [x] Legacy `components`, `hooks`, and `constants` directories are removed.
+- [x] Every slice has an explicit Public API.
+- [x] No same-layer slice imports or deep imports remain.
+- [x] Lint and typecheck pass.
 
 ## Sources
 

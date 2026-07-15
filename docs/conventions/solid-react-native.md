@@ -6,6 +6,15 @@ Apply the intent of SOLID to functions, React components, custom hooks, modules,
 
 SOLID complements the project's Feature-Sliced Design (FSD) rules; it does not replace them. FSD determines where code belongs and which dependency directions are allowed. This guide helps decide how responsibilities and contracts should be shaped inside those boundaries. When extracting code, continue to follow [Feature-Sliced Design project standard](../architecture/feature-sliced-design.md) and [Module boundaries and import rules](module-boundaries.md).
 
+Apply the two standards in this order:
+
+1. Use FSD to identify the owning layer, slice, and segment from the code's current product scope.
+2. Check that every dependency points to an allowed lower layer and that external slices are consumed through their Public APIs.
+3. Apply SOLID inside those boundaries to separate change reasons and shape focused contracts.
+4. Extract code to another slice or layer only when its actual reuse or responsibility justifies the new scope.
+
+SOLID is not an exception to an FSD rule. A SOLID-motivated refactor must not introduce an upward import, a same-layer cross-slice import, a deep import into another slice, or a new architecture layer such as `repositories` or `use-cases`.
+
 ## SRP: Single Responsibility Principle
 
 A component, hook, or module should have one clear reason to change. Judge responsibility by change reasons and concepts, not by file length alone. Code that changes together and expresses one coherent concept may remain together even when the file is not small.
@@ -114,6 +123,23 @@ Introduce such a boundary when one or more of these conditions applies:
 
 Do not create an interface or dependency-injection container for every function. A single stable implementation behind a straightforward project-owned module is often sufficient. Follow the placement rules in [State and data placement](../frameworks/state-and-data.md): technical adapters generally belong in a focused `shared` boundary, while product meaning and orchestration remain in their owning page, feature, or entity.
 
+### FSD placement guardrails for dependency inversion
+
+Dependency inversion changes what higher-level code knows about a dependency; it does not reverse the project's allowed import direction.
+
+| Boundary | Typical placement |
+| --- | --- |
+| Business-agnostic SDK or transport adapter | Focused module under `shared/api` or `shared/lib` |
+| Product-specific request, gateway, policy, or contract | `api` or `model` segment of the owning page, feature, or entity |
+| Application-wide initialization or implementation selection | Appropriate `_app` segment |
+
+Keep the boundary at the lowest layer that can describe it without importing product meaning from a higher layer. In particular:
+
+- Do not move a product-specific contract into `shared` merely so multiple modules can import it.
+- Do not make a `shared` adapter import a type from a page, feature, widget, or entity.
+- When a higher-level contract is genuinely useful, let the owning slice adapt a lower-level technical function or satisfy the contract through structural typing at the higher-level composition point.
+- Keep a direct dependency when it is stable, local, and harmless; a new boundary must still meet one of the concrete conditions above.
+
 ## Avoid over-engineering
 
 SOLID does not require any of the following by default:
@@ -176,6 +202,8 @@ Run affected tests and verify behavior on each relevant platform. Then confirm:
 - [ ] Shared component and function variants preserve the same behavioral contract.
 - [ ] Props, hook results, store selectors, and dependency objects expose only what consumers need.
 - [ ] Business logic depends on project-owned boundaries when direct SDK coupling would be harmful.
+- [ ] No SOLID-motivated abstraction introduces an upward import, same-layer cross-slice import, or deep import.
+- [ ] Technical adapters remain business-agnostic, while product-specific contracts and orchestration stay in their owning slice.
 - [ ] No unnecessary interface, wrapper chain, layer, generic component, or dependency-injection mechanism was added.
 - [ ] Types are explicit, hooks are valid, derived state is not duplicated, and effects are necessary.
 - [ ] Async races, navigation away from the screen, and relevant platform differences were considered.

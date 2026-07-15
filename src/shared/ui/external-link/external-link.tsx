@@ -4,19 +4,21 @@ import { type ComponentProps } from 'react';
 
 type ExternalLinkProps = Omit<ComponentProps<typeof Link>, 'href'> & { href: Href & string };
 
-export function ExternalLink({ href, ...rest }: ExternalLinkProps) {
+export function ExternalLink({ href, onPress, ...rest }: ExternalLinkProps) {
   return (
     <Link
       target="_blank"
       {...rest}
       href={href}
-      onPress={async (event) => {
-        if (process.env.EXPO_OS !== 'web') {
-          event.preventDefault();
-          await openBrowserAsync(href, {
-            presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
-          });
-        }
+      onPress={(event) => {
+        onPress?.(event);
+
+        if (process.env.EXPO_OS === 'web' || event.defaultPrevented) return;
+
+        event.preventDefault();
+        void openBrowserAsync(href, {
+          presentationStyle: WebBrowserPresentationStyle.AUTOMATIC,
+        });
       }}
     />
   );

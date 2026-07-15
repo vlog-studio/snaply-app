@@ -15,7 +15,7 @@ export function HintRow({ title, hint }: HintRowProps) {
     <View style={styles.stepRow}>
       <ThemedText type="small">{title}</ThemedText>
       <ThemedView type="backgroundSelected" style={styles.codeSnippet}>
-        <ThemedText themeColor="textSecondary">{hint}</ThemedText>
+        {hint}
       </ThemedView>
     </View>
   );

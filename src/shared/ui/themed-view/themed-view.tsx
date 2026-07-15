@@ -3,8 +3,6 @@ import { View, type ViewProps } from 'react-native';
 import { type ThemeColor, useTheme } from '@/shared/ui/theme';
 
 export type ThemedViewProps = ViewProps & {
-  lightColor?: string;
-  darkColor?: string;
   type?: ThemeColor;
 };
 

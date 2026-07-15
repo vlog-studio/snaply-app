@@ -9,6 +9,7 @@ This file is an index of task-specific documentation, not the full body of the p
 | Expo Router, layouts, navigation, providers, and platform variants | [`docs/frameworks/expo-router.md`](docs/frameworks/expo-router.md) | Integration rules for Expo SDK 57 and FSD |
 | APIs, TanStack Query, Zustand, forms, and persistent storage | [`docs/frameworks/state-and-data.md`](docs/frameworks/state-and-data.md) | Placement rules for state and data code |
 | New features, refactoring, and code review | [`docs/workflows/feature-development.md`](docs/workflows/feature-development.md) | Classification order, implementation workflow, and completion checklist |
+| Any user-visible feature addition, behavior change, removal, or implementation-status change | [`docs/features/README.md`](docs/features/README.md) and the affected feature document(s) | Current product behavior, routes, ownership, platform support, limitations, and documentation maintenance rules |
 | Designing or reviewing components, hooks, modules, services, and dependency boundaries | [`docs/conventions/solid-react-native.md`](docs/conventions/solid-react-native.md) | Practical SOLID principles for React Native, evidence-based abstractions, and implementation safeguards |
 | Cleanup of existing `components`, `hooks`, and `constants` | [`docs/migration/fsd-adoption.md`](docs/migration/fsd-adoption.md) | Incremental migration order and transitional-state rules |
 
@@ -24,6 +25,10 @@ Write all documentation intended for agents in English. This includes `AGENTS.md
 4. General framework conventions
 
 If documentation and implementation diverge, do not spread an undocumented exception. Update the relevant documentation with the implementation or report the discrepancy.
+
+## Feature documentation maintenance
+
+Treat feature documentation as part of the feature implementation, not as optional follow-up work. Whenever a change adds, modifies, removes, or completes user-visible behavior, update the affected document under `docs/features` in the same change. Keep its routes, behavior, ownership map, platform support, persistence, implementation status, and known limitations consistent with the code. Add a new feature document and link it from `docs/features/README.md` when no existing document owns the behavior.
 
 ## External sources of truth
 

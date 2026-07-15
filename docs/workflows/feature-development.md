@@ -11,6 +11,8 @@ Before creating files, answer each of these in one sentence or confirm them in t
 
 Find slice candidates through product language, not library names or component types.
 
+Before implementation, read [`docs/features/README.md`](../features/README.md) and every feature document affected by the flow. Identify which documented behavior, route, ownership boundary, platform path, persistence rule, status, or limitation will change.
+
 ## 2. Start with the route and page
 
 When a new URL or screen is required, use this order:
@@ -85,6 +87,8 @@ For route changes, also verify that:
 
 For native modules or config-plugin changes, use the Expo SDK 57 documentation to check development-build and prebuild implications.
 
+Update the affected feature document in the same change. A feature is not complete until its documentation describes the implemented behavior accurately and distinguishes functional behavior from partial or prototype behavior.
+
 ## Code-review checklist
 
 - [ ] Slice names express product terms or user actions.
@@ -97,14 +101,20 @@ For native modules or config-plugin changes, use the Expo SDK 57 documentation t
 - [ ] No collection directories named `utils`, `helpers`, `types`, `components`, or `hooks` were introduced.
 - [ ] Server, client, and form state use tools and locations appropriate to their roles.
 - [ ] SDK APIs match the Expo SDK 57 documentation.
+- [ ] Every affected document under `docs/features` matches the implemented behavior, routes, ownership, platform support, persistence, status, and limitations.
+- [ ] A new feature document is linked from `docs/features/README.md` when no existing document owns the behavior.
 - [ ] Lint, typecheck, and affected-platform verification results are available.
 
 ## When to update documentation
 
 Update the relevant documentation together with code when a change:
 
+- Adds, changes, removes, or completes user-visible behavior.
+- Changes a feature route, route parameter, ownership boundary, supported platform, persistence behavior, implementation status, or known limitation.
 - Introduces a new architecture exception.
 - Adds a shared segment or shared-library category.
 - Changes the responsibility boundary between the route adapter and `_app`.
 - Changes the state-management or API standard.
 - Completes a migration stage and changes the allowed legacy paths.
+
+For product behavior, update the affected document under `docs/features`. Cross-feature changes may require more than one document. For example, persisting an edited capture in the archive requires updates to both the capture-flow and recording-archive documents. If review confirms that existing feature documentation remains accurate, record that review result in the task or pull-request notes.

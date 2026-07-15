@@ -1,14 +1,22 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DefaultTheme, ThemeProvider } from 'expo-router';
 import type { PropsWithChildren } from 'react';
 
-import { useColorScheme } from '@/shared/ui/theme';
+import { Colors } from '@/shared/ui/theme';
 
 export function AppProviders({ children }: PropsWithChildren) {
-  const colorScheme = useColorScheme();
+  const palette = Colors.light;
+  const navigationTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: palette.primary,
+      background: palette.background,
+      card: palette.backgroundElement,
+      text: palette.text,
+      border: palette.border,
+      notification: palette.ai,
+    },
+  };
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      {children}
-    </ThemeProvider>
-  );
+  return <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>;
 }

@@ -1,7 +1,6 @@
-import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -24,7 +23,11 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
+  const mark = (
+    <View style={styles.mark}>
+      <Text style={styles.bolt}>ϟ</Text>
+    </View>
+  );
 
   return animate ? (
     <Animated.View
@@ -33,7 +36,7 @@ export function AnimatedSplashOverlay() {
         if (finished) scheduleOnRN(setVisible, false);
       })}
       style={styles.splashOverlay}>
-      {image}
+      {mark}
     </Animated.View>
   ) : (
     <View
@@ -41,16 +44,25 @@ export function AnimatedSplashOverlay() {
         void SplashScreen.hideAsync().finally(() => setAnimate(true));
       }}
       style={styles.splashOverlay}>
-      {image}
+      {mark}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  image: { width: 76, height: 71 },
+  mark: {
+    width: 82,
+    height: 82,
+    borderRadius: 26,
+    borderCurve: 'continuous',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bolt: { color: '#FF6B35', fontSize: 54, fontWeight: '900', lineHeight: 58 },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#208AEF',
+    backgroundColor: '#FF6B35',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

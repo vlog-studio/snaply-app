@@ -7,22 +7,37 @@ export function AppTabs() {
 
   return (
     <NativeTabs
-      backgroundColor={theme.background}
-      indicatorColor={theme.backgroundElement}
-      labelStyle={{ selected: { color: theme.text } }}>
+      backgroundColor={theme.backgroundElement}
+      blurEffect="systemMaterial"
+      disableTransparentOnScrollEdge
+      iconColor={{ default: theme.textSecondary, selected: theme.primary }}
+      indicatorColor={theme.backgroundSelected}
+      labelStyle={{
+        default: { color: theme.textSecondary },
+        selected: { color: theme.primary, fontWeight: '700' },
+      }}
+      labelVisibilityMode="labeled"
+      minimizeBehavior="onScrollDown">
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
+          sf={{ default: 'house', selected: 'house.fill' }}
+          md="home"
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="explore">
-        <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="capture">
+        <NativeTabs.Trigger.Label selectedStyle={{ color: theme.primary, fontWeight: '800' }}>
+          촬영
+        </NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="plus.circle.fill" md="add_circle" selectedColor={theme.primary} />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="archive">
+        <NativeTabs.Trigger.Label>보관함</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
+          sf={{ default: 'rectangle.stack', selected: 'rectangle.stack.fill' }}
+          md="video_library"
         />
       </NativeTabs.Trigger>
     </NativeTabs>

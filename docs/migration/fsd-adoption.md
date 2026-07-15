@@ -8,7 +8,8 @@ The starter-structure migration was completed on 2026-07-15. The active source t
 src/
 ├── app/          # Expo Router adapters only
 ├── _app/         # Providers, routes, and global styles
-├── pages/        # Home and Explore screen slices
+├── pages/        # Product screens such as Home, Capture, Archive, and Settings
+├── entities/     # Reused product models such as the capture session
 └── shared/       # Reusable, business-agnostic UI modules
 ```
 

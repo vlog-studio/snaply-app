@@ -3,6 +3,7 @@ export {
   Colors,
   Fonts,
   MaxContentWidth,
+  Radius,
   Spacing,
 } from './theme';
 export type { ThemeColor } from './theme';

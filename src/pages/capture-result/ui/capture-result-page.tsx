@@ -1,14 +1,20 @@
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 
 import {
   getCaptureMoodLabel,
   normalizeCaptureDuration,
   normalizeCaptureMood,
 } from '@/entities/capture-session';
+import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import {
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type CaptureResultPageProps = {
@@ -19,6 +25,7 @@ type CaptureResultPageProps = {
 export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPageProps) {
   const router = useRouter();
   const theme = useTheme();
+  const topInset = useTopContentInset();
   const mood = normalizeCaptureMood(moodValue);
   const duration = normalizeCaptureDuration(durationValue);
 
@@ -26,10 +33,14 @@ export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPag
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.content}>
-      <Animated.View entering={ZoomIn.duration(360)} style={styles.successMark}>
+      contentContainerStyle={[styles.content, { paddingTop: Spacing.seven + topInset }]}>
+      <FadeInView
+        duration={360}
+        fromScale={0.6}
+        offsetY={0}
+        style={[styles.successMark, { backgroundColor: theme.successSoft }]}>
         <ThemedText selectable={false} style={[styles.check, { color: theme.success }]}>✓</ThemedText>
-      </Animated.View>
+      </FadeInView>
       <View style={styles.headerCopy}>
         <ThemedText type="title" style={styles.centerText}>찰나가 완성됐어요.</ThemedText>
         <ThemedText themeColor="textSecondary" style={styles.centerText}>
@@ -37,7 +48,7 @@ export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPag
         </ThemedText>
       </View>
 
-      <Animated.View entering={FadeInDown.delay(100).duration(420)} style={[styles.preview, { backgroundColor: '#C4875B' }]}>
+      <FadeInView delay={100} duration={420} style={[styles.preview, { backgroundColor: '#C4875B' }]}>
         <View style={[styles.previewGlow, { backgroundColor: theme.primary }]} />
         <View style={styles.previewTopRow}>
           <View style={styles.previewBadge}>
@@ -53,7 +64,7 @@ export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPag
         <View style={styles.playButton}>
           <ThemedText selectable={false} style={styles.playIcon}>▶</ThemedText>
         </View>
-      </Animated.View>
+      </FadeInView>
 
       <View style={styles.editSummary}>
         <ThemedText type="smallBold" themeColor="textSecondary">자동 편집된 요소</ThemedText>
@@ -80,7 +91,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.seven,
     paddingBottom: Spacing.eight,
     gap: Spacing.five,
   },
@@ -88,7 +98,6 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#E8F8F0',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',

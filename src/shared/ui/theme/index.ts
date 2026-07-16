@@ -7,4 +7,7 @@ export {
   Spacing,
 } from './theme';
 export type { ThemeColor } from './theme';
-export { useTheme } from './use-theme';
+export { useSetThemeMode, useThemeMode } from './theme-mode';
+export type { ThemeMode } from './theme-mode';
+export { useResolvedColorScheme, useTheme } from './use-theme';
+export { useTopContentInset } from './use-top-content-inset';

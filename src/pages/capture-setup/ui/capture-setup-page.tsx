@@ -5,7 +5,14 @@ import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 
 import type { CaptureDuration, CaptureMood } from '@/entities/capture-session';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { BottomTabInset, MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type CaptureSetupPageProps = {
@@ -26,6 +33,7 @@ const moodOptions: {
 
 export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
   const theme = useTheme();
+  const topInset = useTopContentInset();
   const [mood, setMood] = useState<CaptureMood>('hip');
   const [duration, setDuration] = useState<CaptureDuration>(3);
 
@@ -40,7 +48,10 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: BottomTabInset + Spacing.six },
+        {
+          paddingTop: Spacing.six + topInset,
+          paddingBottom: BottomTabInset + Spacing.six,
+        },
       ]}>
       <View style={styles.hero}>
         <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
@@ -151,7 +162,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
     gap: Spacing.six,
   },
   hero: { flexDirection: 'row', gap: Spacing.four, alignItems: 'flex-start' },

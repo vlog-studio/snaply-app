@@ -1,13 +1,21 @@
 import { Link } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { BottomTabInset, MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 export function HomePage() {
   const theme = useTheme();
+  const topInset = useTopContentInset();
   const today = new Intl.DateTimeFormat('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -20,7 +28,10 @@ export function HomePage() {
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: BottomTabInset + Spacing.six },
+        {
+          paddingTop: Spacing.six + topInset,
+          paddingBottom: BottomTabInset + Spacing.six,
+        },
       ]}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
@@ -38,14 +49,14 @@ export function HomePage() {
               pressed && styles.pressed,
             ]}>
             <ThemedText selectable={false} style={styles.settingsIcon}>
-              ⚙
+              ⚙️
             </ThemedText>
           </Pressable>
         </Link>
       </View>
 
-      <Animated.View
-        entering={FadeInDown.duration(420)}
+      <FadeInView
+        duration={420}
         style={[styles.contextCard, { backgroundColor: theme.media }]}>
         <View style={[styles.glow, { backgroundColor: theme.primary }]} />
         <View style={styles.contextTopRow}>
@@ -67,7 +78,7 @@ export function HomePage() {
         <Link href={{ pathname: '/capture', params: { context: 'cafe' } }} asChild>
           <SnaplyButton title="3초 남기기" icon="●" />
         </Link>
-      </Animated.View>
+      </FadeInView>
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -159,7 +170,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
     gap: Spacing.six,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },

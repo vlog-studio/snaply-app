@@ -78,7 +78,9 @@ After install, Expo Go stays on each device across sessions; just re-run `npx ex
 
 ### Expo Go limitations
 
-Only native modules bundled in Expo Go work, and `expo-dev-client` configuration is ignored. Custom native behavior (e.g. `expo-camera` config-plugin options, `expo-glass-effect`) may differ from a real build or be unavailable. Observed example: on iOS Expo Go the home hero card (which uses a glass/blur effect) can render empty while it renders on Android. When a feature depends on such modules, verify it with EAS Build instead.
+Only native modules bundled in Expo Go work, and `expo-dev-client` configuration is ignored. Custom native behavior (e.g. `expo-camera` config-plugin options, `expo-glass-effect`) may differ from a real build or be unavailable. When a feature depends on such modules, verify it with EAS Build instead.
+
+Known Expo Go pitfall confirmed in this project: Reanimated `entering` presets (`FadeInDown`, `ZoomIn`, …) never start on iOS in Expo Go, leaving those views stuck at opacity 0 (Android runs them fine). Use the shared `FadeInView` (`src/shared/ui/fade-in-view`), which animates a shared value on mount and works on both platforms.
 
 ## Full native verification — EAS Build (cloud dev build)
 

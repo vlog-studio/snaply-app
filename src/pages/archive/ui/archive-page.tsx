@@ -1,7 +1,6 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -11,8 +10,16 @@ import {
   useLocalRecordings,
 } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
+import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { BottomTabInset, MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import {
+  BottomTabInset,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type ArchiveView = 'recordings' | 'vlogs';
@@ -27,6 +34,7 @@ const sampleClips = [
 export function ArchivePage() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const topInset = useTopContentInset();
   const [archiveView, setArchiveView] = useState<ArchiveView>('recordings');
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
   const {
@@ -64,7 +72,10 @@ export function ArchivePage() {
         style={{ backgroundColor: theme.background }}
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: BottomTabInset + Spacing.six },
+          {
+            paddingTop: Spacing.six + topInset,
+            paddingBottom: BottomTabInset + Spacing.six,
+          },
         ]}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
@@ -106,7 +117,7 @@ export function ArchivePage() {
         </View>
 
         {archiveView === 'recordings' ? (
-          <Animated.View entering={FadeInDown.duration(260)} style={styles.recordingList}>
+          <FadeInView duration={260} style={styles.recordingList}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionCopy}>
                 <ThemedText type="heading">앱에 저장된 촬영 원본</ThemedText>
@@ -199,9 +210,9 @@ export function ArchivePage() {
                 원본은 이 기기의 Snaply 앱 안에 저장되며 앱을 삭제하면 함께 삭제돼요.
               </ThemedText>
             ) : null}
-          </Animated.View>
+          </FadeInView>
         ) : (
-          <Animated.View entering={FadeInDown.duration(260)} style={styles.vlogList}>
+          <FadeInView duration={260} style={styles.vlogList}>
             <View style={[styles.vlogCard, { backgroundColor: theme.media }]}>
               <View style={styles.vlogPreview}>
                 {sampleClips.map((clip) => (
@@ -227,7 +238,7 @@ export function ArchivePage() {
                 <ThemedText themeColor="textSecondary">아직 완성된 영상이 없어요.</ThemedText>
               </View>
             </View>
-          </Animated.View>
+          </FadeInView>
         )}
       </ScrollView>
 
@@ -275,7 +286,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
     gap: Spacing.five,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
@@ -319,7 +329,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
-  emptyIconText: { color: '#7C3AED', fontSize: 24 },
+  emptyIconText: { fontSize: 24 },
   emptyCopy: { flex: 1, gap: Spacing.one, alignItems: 'center' },
   recordingCard: {
     minHeight: 86,

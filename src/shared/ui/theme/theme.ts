@@ -16,6 +16,7 @@ export const Colors = {
     media: '#12172E',
     warmSurface: '#FFF3EE',
     success: '#2EAD71',
+    successSoft: '#E8F8F0',
     danger: '#E24B4B',
   },
   dark: {
@@ -33,6 +34,7 @@ export const Colors = {
     media: '#090C1B',
     warmSurface: '#2B2026',
     success: '#4AC98A',
+    successSoft: '#1E3A2C',
     danger: '#FF7373',
   },
 } as const;

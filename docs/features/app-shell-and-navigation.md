@@ -11,8 +11,8 @@ Snaply opens into a three-tab application with Home, Capture, and Archive destin
 | Web tab navigation | `Functional` | Web uses a custom floating tab bar built with `expo-router/ui`. |
 | Native animated splash transition | `Functional` | The system splash is hidden after the overlay lays out, then the overlay fades out. |
 | Web splash transition | `Functional` | The overlay intentionally renders nothing on web. |
-| Light application theme | `Functional` | The provider always selects `Colors.light`. |
-| User-selectable or system dark theme | `Prototype` | Dark tokens exist, but they are not selected by the application provider. |
+| Light and dark application theme | `Functional` | The resolved scheme follows the user's theme mode (`system`, `light`, `dark`) from Settings; `system` follows the OS appearance (`userInterfaceStyle: "automatic"`). |
+| Theme-aware status bar and navigation theme | `Functional` | `AppProviders` derives the Expo Router navigation theme and `expo-status-bar` style from the resolved scheme. |
 
 ## Route map
 
@@ -31,13 +31,14 @@ Snaply opens into a three-tab application with Home, Capture, and Archive destin
 ## Composition and ownership
 
 - `src/app/_layout.tsx` exposes `RootLayout` from the `_app` Public API.
-- `src/_app/providers/app-providers.tsx` creates the Expo Router navigation theme from Snaply light-theme tokens.
+- `src/_app/providers/app-providers.tsx` derives the Expo Router navigation theme and status-bar style from the resolved color scheme.
 - `src/_app/routes/root-layout.tsx` composes providers, splash behavior, and stack presentations.
 - `src/_app/routes/app-tabs.tsx` and `app-tabs.web.tsx` preserve the same export while implementing platform-specific navigation.
-- `src/shared/ui/theme` owns colors, spacing, radii, content width, bottom-tab inset, and theme access.
+- `src/shared/ui/theme` owns colors, spacing, radii, content width, bottom-tab inset, theme access, the persisted theme-mode store, and the Android top content inset helper.
+- `src/shared/ui/fade-in-view` owns the mount fade-in used instead of Reanimated `entering` presets, which never start on iOS in Expo Go and left content invisible.
 
 ## Known limitations
 
 - The native tab implementation uses an unstable Expo Router API and should be verified when Expo Router changes.
-- The configured application style is light-only even though a dark palette is defined.
 - The splash animation is native-only.
+- The theme mode persists through the SecureStore-backed adapter in `shared/lib/secure-storage` (localStorage on web); the first frame before rehydration uses the system scheme.

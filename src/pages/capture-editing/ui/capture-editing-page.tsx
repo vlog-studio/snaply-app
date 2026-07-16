@@ -1,15 +1,21 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import {
   getCaptureMoodLabel,
   normalizeCaptureDuration,
   normalizeCaptureMood,
 } from '@/entities/capture-session';
+import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import {
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type CaptureEditingPageProps = {
@@ -19,6 +25,7 @@ type CaptureEditingPageProps = {
 
 export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingPageProps) {
   const theme = useTheme();
+  const topInset = useTopContentInset();
   const mood = normalizeCaptureMood(moodValue);
   const duration = normalizeCaptureDuration(durationValue);
   const [progress, setProgress] = useState(0);
@@ -42,16 +49,16 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.media }}
-      contentContainerStyle={styles.content}>
-      <Animated.View entering={FadeIn.duration(400)} style={styles.brandRow}>
+      contentContainerStyle={[styles.content, { paddingTop: Spacing.six + topInset }]}>
+      <FadeInView duration={400} offsetY={0} style={styles.brandRow}>
         <View style={[styles.aiMark, { backgroundColor: theme.ai }]}>
           <ThemedText selectable={false} style={styles.aiMarkText}>✦</ThemedText>
         </View>
         <ThemedText type="eyebrow" style={styles.violetText}>SNAPLY AI</ThemedText>
-      </Animated.View>
+      </FadeInView>
 
       <View style={styles.centerArea}>
-        <Animated.View entering={FadeInDown.duration(480)} style={styles.previewStack}>
+        <FadeInView duration={480} style={styles.previewStack}>
           <View style={[styles.previewBack, { backgroundColor: '#4D3B65' }]} />
           <View style={[styles.previewMiddle, { backgroundColor: '#824E42' }]} />
           <View style={[styles.previewFront, { backgroundColor: '#C4875B' }]}>
@@ -59,7 +66,7 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
             <View style={styles.sparkOne}><ThemedText selectable={false} style={styles.spark}>✦</ThemedText></View>
             <View style={styles.sparkTwo}><ThemedText selectable={false} style={styles.spark}>✧</ThemedText></View>
           </View>
-        </Animated.View>
+        </FadeInView>
 
         <View style={styles.statusCopy}>
           <ThemedText type="title" style={styles.whiteText}>
@@ -81,14 +88,14 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
         </View>
 
         {isComplete ? (
-          <Animated.View entering={FadeInDown.duration(300)} style={styles.resultAction}>
+          <FadeInView duration={300} style={styles.resultAction}>
             <Link
               href={{ pathname: '/capture/result', params: { mood, duration: String(duration) } }}
               replace
               asChild>
               <SnaplyButton title="완성본 보기" variant="ai" icon="▶" />
             </Link>
-          </Animated.View>
+          </FadeInView>
         ) : (
           <View style={styles.tipRow}>
             <ThemedText selectable={false} style={styles.tipIcon}>♬</ThemedText>
@@ -107,7 +114,6 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
     paddingBottom: Spacing.seven,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },

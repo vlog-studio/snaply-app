@@ -43,7 +43,7 @@ export function ThemedText({
         type === 'eyebrow' && styles.eyebrow,
         type === 'button' && styles.button,
         type === 'link' && styles.link,
-        type === 'linkPrimary' && styles.linkPrimary,
+        type === 'linkPrimary' && [styles.linkPrimary, { color: theme.primary }],
         type === 'code' && styles.code,
         themeColor && { color: theme[themeColor] },
         style,

@@ -39,6 +39,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
   const theme = useTheme();
   const cameraRef = useRef<CameraView>(null);
   const isRecording = useRef(false);
+  const isClosing = useRef(false);
   const hasRequestedRecordingPermissions = useRef(false);
   const mood = normalizeCaptureMood(moodValue);
   const duration = normalizeCaptureDuration(durationValue);
@@ -145,6 +146,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
       }
 
       const result = await cameraRef.current.recordAsync({ maxDuration: duration });
+      if (isClosing.current) return;
       if (!result?.uri) {
         setCaptureError('촬영 결과를 가져오지 못했어요. 다시 시도해 주세요.');
         setStage('idle');
@@ -177,6 +179,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
   };
 
   const closePage = () => {
+    isClosing.current = true;
     if (isRecording.current) cameraRef.current?.stopRecording();
     router.back();
   };
@@ -291,7 +294,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         ) : null}
         {stage === 'review' && selectedRecording && !isLibraryVisible ? (
           <RecordingPreview
-            key={`${selectedRecording.id}-${soundEnabled ? 'sound' : 'muted'}`}
+            key={selectedRecording.id}
             muted={!soundEnabled}
             uri={selectedRecording.uri}
           />
@@ -324,7 +327,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             <View style={styles.recordingStatus}>
               <View style={[styles.recordingDot, { backgroundColor: theme.primary }]} />
               <ThemedText type="smallBold" style={styles.whiteText}>REC</ThemedText>
-              <ThemedText style={[styles.whiteText, styles.tabularNumber]}>{remaining}s</ThemedText>
+              <ThemedText style={[styles.whiteText, styles.tabularNumber]}>
+                {remaining > 0 ? `${remaining}s` : '마무리 중…'}
+              </ThemedText>
             </View>
           ) : null}
           {stage === 'saving' ? (
@@ -386,7 +391,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                 accessibilityRole="button"
                 disabled={isBusy}
                 onPress={() => {
-                  setIsCameraReady(false);
+                  // iOS keeps the capture session alive across facing changes and never
+                  // re-emits onCameraReady; only Android recreates the camera and re-fires it.
+                  if (process.env.EXPO_OS === 'android') setIsCameraReady(false);
                   setFacing((current) => (current === 'back' ? 'front' : 'back'));
                 }}
                 style={[styles.sideControl, isBusy && styles.disabledControl]}>

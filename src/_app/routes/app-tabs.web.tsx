@@ -35,12 +35,15 @@ export function AppTabs() {
 
 function CustomTabList(props: TabListProps) {
   const tabBarHidden = useTabBarHidden();
+  const theme = useTheme();
 
   return (
     <View
       {...props}
       style={[styles.tabBarWrap, tabBarHidden && styles.tabBarHidden]}>
-      <View style={styles.tabBar}>{props.children}</View>
+      <View style={[styles.tabBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        {props.children}
+      </View>
     </View>
   );
 }
@@ -106,8 +109,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     borderRadius: Radius.xlarge,
     borderCurve: 'continuous',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    boxShadow: '0 12px 35px rgba(18,23,46,0.16)',
+    borderWidth: 1,
+    boxShadow: '0 12px 35px rgba(9,12,27,0.24)',
     paddingHorizontal: Spacing.four,
   },
   tabButton: {

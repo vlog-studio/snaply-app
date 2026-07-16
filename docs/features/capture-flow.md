@@ -32,7 +32,7 @@ The optional `context=cafe` parameter only displays a recommendation banner. Con
 | --- | --- | --- |
 | Camera and microphone permission flow | `Functional` | iOS and Android request missing permissions and can open system settings after denial. |
 | 3- or 5-second video recording | `Functional` | iOS and Android record at 720p and stop at the selected maximum duration; users can stop early. |
-| Sound toggle | `Functional` | Recording can be muted; enabling sound requires microphone permission. |
+| Sound toggle | `Functional` | Recording can be muted; enabling sound requires microphone permission. During review the toggle mutes/unmutes the looping playback without restarting it. |
 | Front/back camera toggle | `Functional` | Available while the recorder is idle. |
 | Automatic local persistence | `Functional` | A completed temporary recording is moved into the app document directory before review. |
 | Recording review and retake | `Functional` | The saved original loops in the review stage; retake returns to the camera without deleting that saved original. |
@@ -40,6 +40,10 @@ The optional `context=cafe` parameter only displays a recommendation banner. Con
 | Web recording | `Prototype` | The shutter is disabled and the UI explains that recording requires iOS or Android. |
 
 The page uses four explicit stages: `idle`, `recording`, `saving`, and `review`. Capture and recording-library failures are displayed inside the camera screen and can be dismissed.
+
+Closing the recorder mid-recording stops the camera and discards the in-flight clip; nothing is persisted. The on-screen countdown is display-only — the actual stop is driven by the native `maxDuration`, so after the counter reaches zero the badge shows a finishing state until the recording completes.
+
+The camera-permission-denied screen still exposes the recording library, so users can browse, select (which enters the review stage), and delete saved originals without camera permission.
 
 ## Editing and result presentation
 

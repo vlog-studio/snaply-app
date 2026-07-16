@@ -63,3 +63,4 @@ The “브이로그” segment is a `Prototype`.
 - There is no thumbnail extraction; recording rows use a generic play tile.
 - There is no share/export action, media-library save, cloud backup, or recovery after app deletion.
 - Deleting an original is permanent and is not mediated by a trash state.
+- The delete confirmation uses `Alert.alert`, which is a no-op on react-native-web; this is currently unreachable on web because the web adapter lists no recordings, but a web persistence implementation must also replace the confirmation UI.

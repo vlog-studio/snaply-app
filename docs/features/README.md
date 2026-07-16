@@ -4,7 +4,7 @@
 
 This directory is the product-level source of truth for behavior that is currently represented in the Snaply application. It complements the architecture guides: architecture documents define how code should be organized, while these documents record what users can currently do, which code owns that behavior, and which experiences are still prototypes.
 
-The inventory reflects the codebase as of 2026-07-15.
+The inventory reflects the codebase as of 2026-07-16.
 
 ## Implementation status vocabulary
 
@@ -60,11 +60,11 @@ Home or Capture tab
 | Layer | Current modules | Responsibility |
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
-| `src/_app` | `providers`, `routes`, `styles` | Compose the light navigation theme, splash overlay, root stack, and platform-specific tab navigation. |
+| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack, and platform-specific tab navigation. |
 | `src/pages` | `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `archive`, `settings` | Own screen composition and screen-specific state. |
 | `src/features` | `manage-recordings` | Reuse local-recording loading, saving, deletion, formatting, and video preview across capture and archive screens. |
 | `src/entities` | `capture-session` | Define supported capture moods and durations and normalize route values. |
-| `src/shared` | `lib/recording-files`, UI modules | Provide the platform-specific file adapter, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
+| `src/shared` | `lib/recording-files`, `lib/secure-storage`, UI modules | Provide the platform-specific file and secure-storage adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
 
 No `widgets` layer is currently needed. Page-specific blocks remain inside their owning page slices.
 

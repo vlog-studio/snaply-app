@@ -9,6 +9,7 @@ src/
 ├── app/          # Expo Router adapters only
 ├── _app/         # Providers, routes, and global styles
 ├── pages/        # Product screens such as Home, Capture, Archive, and Settings
+├── features/     # Reused user actions such as manage-recordings
 ├── entities/     # Reused product models such as the capture session
 └── shared/       # Reusable, business-agnostic UI modules
 ```

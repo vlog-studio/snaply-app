@@ -1,17 +1,17 @@
 import * as Haptics from 'expo-haptics';
-import { Link } from 'expo-router';
-import { useState } from 'react';
+import { Link, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { CaptureDuration, CaptureMood } from '@/entities/capture-session';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
+import { useSetTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import {
-  BottomTabInset,
   MaxContentWidth,
   Radius,
   Spacing,
   useTheme,
-  useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -33,9 +33,17 @@ const moodOptions: {
 
 export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
   const theme = useTheme();
-  const topInset = useTopContentInset();
+  const insets = useSafeAreaInsets();
+  const setTabBarHidden = useSetTabBarHidden();
   const [mood, setMood] = useState<CaptureMood>('hip');
   const [duration, setDuration] = useState<CaptureDuration>(3);
+
+  useFocusEffect(
+    useCallback(() => {
+      setTabBarHidden(true);
+      return () => setTabBarHidden(false);
+    }, [setTabBarHidden]),
+  );
 
   const selectMood = (nextMood: CaptureMood) => {
     setMood(nextMood);
@@ -43,128 +51,171 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
   };
 
   return (
-    <ScrollView
-      contentInsetAdjustmentBehavior="automatic"
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={[
-        styles.content,
-        {
-          paddingTop: Spacing.six + topInset,
-          paddingBottom: BottomTabInset + Spacing.six,
-        },
-      ]}>
-      <View style={styles.hero}>
-        <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
-          <ThemedText selectable={false} style={styles.brandBolt}>ϟ</ThemedText>
+    <View style={[styles.screen, { backgroundColor: theme.background }]}>
+      {/* The footer wrapper keeps this ScrollView from being the screen root,
+          so iOS automatic content-inset adjustment no longer applies here;
+          safe-area padding is set explicitly instead. */}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Spacing.six + insets.top },
+        ]}>
+        <View style={styles.hero}>
+          <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
+            <ThemedText selectable={false} style={styles.brandBolt}>ϟ</ThemedText>
+          </View>
+          <View style={styles.heroCopy}>
+            <ThemedText type="eyebrow" themeColor="primary">SNAP IN A MOMENT</ThemedText>
+            <ThemedText type="title">오늘은 어떤{`\n`}분위기예요?</ThemedText>
+            <ThemedText themeColor="textSecondary">두 가지만 고르면 바로 촬영할 수 있어요.</ThemedText>
+          </View>
+          <Link href="/" asChild>
+            <Pressable
+              accessibilityLabel="촬영 설정 닫기"
+              style={({ pressed }) => [
+                styles.closeButton,
+                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                pressed && styles.pressed,
+              ]}>
+              <ThemedText selectable={false} style={styles.closeIcon} themeColor="textSecondary">
+                ✕
+              </ThemedText>
+            </Pressable>
+          </Link>
         </View>
-        <View style={styles.heroCopy}>
-          <ThemedText type="eyebrow" themeColor="primary">SNAP IN A MOMENT</ThemedText>
-          <ThemedText type="title">오늘은 어떤{`\n`}분위기예요?</ThemedText>
-          <ThemedText themeColor="textSecondary">두 가지만 고르면 바로 촬영할 수 있어요.</ThemedText>
-        </View>
-      </View>
 
-      {context === 'cafe' ? (
-        <View style={[styles.contextHint, { backgroundColor: theme.warmSurface }]}>
-          <ThemedText selectable={false} style={styles.contextEmoji}>☕</ThemedText>
-          <View style={styles.contextHintCopy}>
-            <ThemedText type="smallBold">카페 무드를 감지했어요</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">힙한 감성을 먼저 추천할게요.</ThemedText>
+        {context === 'cafe' ? (
+          <View style={[styles.contextHint, { backgroundColor: theme.warmSurface }]}>
+            <ThemedText selectable={false} style={styles.contextEmoji}>☕</ThemedText>
+            <View style={styles.contextHintCopy}>
+              <ThemedText type="smallBold">카페 무드를 감지했어요</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">힙한 감성을 먼저 추천할게요.</ThemedText>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.section}>
+          <ThemedText type="heading">무드</ThemedText>
+          <View style={styles.optionList}>
+            {moodOptions.map((option) => {
+              const isSelected = mood === option.id;
+              return (
+                <Pressable
+                  key={option.id}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: isSelected }}
+                  onPress={() => selectMood(option.id)}
+                  style={({ pressed }) => [
+                    styles.moodOption,
+                    {
+                      backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
+                      borderColor: isSelected ? option.accent : theme.border,
+                    },
+                    pressed && styles.pressed,
+                  ]}>
+                  <View style={[styles.moodIcon, { backgroundColor: `${option.accent}18` }]}>
+                    <ThemedText selectable={false} style={styles.moodEmoji}>{option.emoji}</ThemedText>
+                  </View>
+                  <View style={styles.moodCopy}>
+                    <ThemedText type="heading">{option.label}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">{option.description}</ThemedText>
+                  </View>
+                  <View
+                    style={[
+                      styles.radio,
+                      { borderColor: isSelected ? option.accent : theme.border },
+                      isSelected && { backgroundColor: option.accent },
+                    ]}>
+                    {isSelected ? <View style={styles.radioDot} /> : null}
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
-      ) : null}
 
-      <View style={styles.section}>
-        <ThemedText type="heading">무드</ThemedText>
-        <View style={styles.optionList}>
-          {moodOptions.map((option) => {
-            const isSelected = mood === option.id;
-            return (
-              <Pressable
-                key={option.id}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-                onPress={() => selectMood(option.id)}
-                style={({ pressed }) => [
-                  styles.moodOption,
-                  {
-                    backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
-                    borderColor: isSelected ? option.accent : theme.border,
-                  },
-                  pressed && styles.pressed,
-                ]}>
-                <View style={[styles.moodIcon, { backgroundColor: `${option.accent}18` }]}>
-                  <ThemedText selectable={false} style={styles.moodEmoji}>{option.emoji}</ThemedText>
-                </View>
-                <View style={styles.moodCopy}>
-                  <ThemedText type="heading">{option.label}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">{option.description}</ThemedText>
-                </View>
-                <View
+        <View style={styles.section}>
+          <ThemedText type="heading">영상 길이</ThemedText>
+          <View style={[styles.durationGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+            {([3, 5] as const).map((seconds) => {
+              const isSelected = duration === seconds;
+              return (
+                <Pressable
+                  key={seconds}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: isSelected }}
+                  onPress={() => setDuration(seconds)}
                   style={[
-                    styles.radio,
-                    { borderColor: isSelected ? option.accent : theme.border },
-                    isSelected && { backgroundColor: option.accent },
+                    styles.durationButton,
+                    isSelected && { backgroundColor: theme.text },
                   ]}>
-                  {isSelected ? <View style={styles.radioDot} /> : null}
-                </View>
-              </Pressable>
-            );
-          })}
+                  <ThemedText
+                    selectable={false}
+                    type="heading"
+                    style={{ color: isSelected ? theme.background : theme.text }}>
+                    {seconds}초
+                  </ThemedText>
+                  <ThemedText
+                    selectable={false}
+                    type="small"
+                    style={{ color: isSelected ? theme.background : theme.textSecondary }}>
+                    {seconds === 3 ? '짧고 강렬하게' : '조금 더 여유롭게'}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
+      </ScrollView>
 
-      <View style={styles.section}>
-        <ThemedText type="heading">영상 길이</ThemedText>
-        <View style={[styles.durationGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          {([3, 5] as const).map((seconds) => {
-            const isSelected = duration === seconds;
-            return (
-              <Pressable
-                key={seconds}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-                onPress={() => setDuration(seconds)}
-                style={[
-                  styles.durationButton,
-                  isSelected && { backgroundColor: theme.text },
-                ]}>
-                <ThemedText
-                  selectable={false}
-                  type="heading"
-                  style={{ color: isSelected ? theme.background : theme.text }}>
-                  {seconds}초
-                </ThemedText>
-                <ThemedText
-                  selectable={false}
-                  type="small"
-                  style={{ color: isSelected ? theme.background : theme.textSecondary }}>
-                  {seconds === 3 ? '짧고 강렬하게' : '조금 더 여유롭게'}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.background,
+            borderTopColor: theme.border,
+            paddingBottom: insets.bottom + Spacing.four,
+          },
+        ]}>
+        <Link
+          href={{ pathname: '/capture/record', params: { mood, duration: String(duration) } }}
+          asChild>
+          <SnaplyButton title={`${duration}초 촬영 시작`} icon="●" />
+        </Link>
       </View>
-
-      <Link
-        href={{ pathname: '/capture/record', params: { mood, duration: String(duration) } }}
-        asChild>
-        <SnaplyButton title={`${duration}초 촬영 시작`} icon="●" />
-      </Link>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
+    paddingBottom: Spacing.six,
     gap: Spacing.six,
   },
+  footer: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.four,
+  },
   hero: { flexDirection: 'row', gap: Spacing.four, alignItems: 'flex-start' },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeIcon: { fontSize: 18, fontWeight: '700' },
   brandMark: {
     width: 54,
     height: 54,

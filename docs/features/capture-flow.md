@@ -22,6 +22,8 @@ The supported capture options are owned by `entities/capture-session`:
 
 `pages/capture-setup` owns the setup form as local React state. Selecting a mood triggers selection haptics on iOS. The page passes the selected mood and duration as route parameters to `/capture/record`.
 
+The setup screen presents full-screen: while `/capture` is focused, the page hides the tab bar through the shared tab-bar-visibility store and restores it on blur. A close button in the hero returns to the Home tab. The start-recording button is docked in a fixed footer below the scrollable option list, padded by the bottom safe area, so it stays visible without scrolling. Its label reflects the selected duration.
+
 The optional `context=cafe` parameter only displays a recommendation banner. Context detection itself is not implemented.
 
 ## Camera recording and review

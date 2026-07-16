@@ -8,6 +8,7 @@ import {
 } from 'expo-router/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { useTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -33,8 +34,12 @@ export function AppTabs() {
 }
 
 function CustomTabList(props: TabListProps) {
+  const tabBarHidden = useTabBarHidden();
+
   return (
-    <View {...props} style={styles.tabBarWrap}>
+    <View
+      {...props}
+      style={[styles.tabBarWrap, tabBarHidden && styles.tabBarHidden]}>
       <View style={styles.tabBar}>{props.children}</View>
     </View>
   );
@@ -91,6 +96,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     pointerEvents: 'box-none',
   },
+  tabBarHidden: { display: 'none' },
   tabBar: {
     width: '100%',
     maxWidth: 430,

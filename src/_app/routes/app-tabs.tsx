@@ -1,12 +1,15 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
+import { useTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import { useTheme } from '@/shared/ui/theme';
 
 export function AppTabs() {
   const theme = useTheme();
+  const tabBarHidden = useTabBarHidden();
 
   return (
     <NativeTabs
+      hidden={tabBarHidden}
       backgroundColor={theme.backgroundElement}
       blurEffect="systemMaterial"
       disableTransparentOnScrollEdge

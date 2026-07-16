@@ -71,6 +71,23 @@ After install, Expo Go stays on each device across sessions; just re-run `npx ex
   ~/Library/Android/sdk/platform-tools/adb -s emulator-5554 exec-out screencap -p > /tmp/android.png
   ```
 
+### iOS Simulator touch automation — idb
+
+`xcrun simctl` cannot inject touches. For automated taps/swipes on the iOS Simulator, this machine has [idb](https://fbidb.io) set up (screen-coordinate tools like `cliclick` proved unreliable for in-app taps):
+
+- `idb-companion` is installed via Homebrew (`brew install facebook/fb/idb-companion`).
+- The `fb-idb` Python client lives in a dedicated venv at `~/.venvs/fb-idb` because it is incompatible with the system Python 3.14 out of the box — `idb/cli/main.py` in that venv is patched to replace `asyncio.get_event_loop()` with `asyncio.new_event_loop()`. Recreating the venv requires re-applying that one-line patch.
+
+```bash
+IDB=~/.venvs/fb-idb/bin/idb
+$IDB list-targets                                   # find the booted simulator UDID
+$IDB ui tap 285 723 --udid <UDID>                   # coordinates in device points (iPhone 16: 393x852)
+$IDB ui swipe 200 600 200 300 --udid <UDID>         # scroll
+$IDB ui text "hello" --udid <UDID>                  # type into the focused field
+```
+
+Verify each interaction with `xcrun simctl io "iPhone 16" screenshot <path>`. To bypass permission dialogs during automation, grant them directly: `xcrun simctl privacy booted grant camera host.exp.Exponent` (same for `microphone`).
+
 ### Notes when targeting the emulator specifically
 
 - If physical Android devices are also connected over adb, target the emulator explicitly with `-s emulator-5554`; a bare `adb shell` errors with "more than one device".

@@ -1,56 +1,48 @@
-# Welcome to your Expo app 👋
+# Snaply
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Snaply is a short-form daily-vlog app: users pick a mood and a 3- or 5-second duration, record a clip with the camera, review the saved original, and walk through a (currently simulated) AI-editing flow to a result screen. Recordings persist only in the app's local document directory.
 
-## Get started
+Built with Expo SDK 57 (React Native 0.86, expo-router) and organized by Feature-Sliced Design v2.1.
 
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Getting started
 
 ```bash
-npm run reset-project
+npm install
+npx expo start --go
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+**Do not run `npx expo run:ios` on the current development machine** — Expo SDK 57 needs the Swift 6.2 toolchain and the machine's Xcode 16.4 cannot build it. Use Expo Go on the iOS Simulator and Android emulator instead; see [docs/workflows/local-development-and-testing.md](docs/workflows/local-development-and-testing.md) for the full procedure (boot commands, first-time Expo Go install, EAS Build fallback for native modules).
 
-### Other setup steps
+Web (`expo start --web`) runs but is not the reference runtime; recording is disabled there.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+## Project structure
 
-## Learn more
+Routes live under `src/app/` as thin adapters; all real code lives in FSD layers:
 
-To learn more about developing your project with Expo, look at the following resources:
+```text
+src/
+├── app/        Expo Router route files (thin re-exports / param parsing only)
+├── _app/       Providers, root stack, splash, platform tab navigation
+├── pages/      Screen composition and screen state (home, capture-*, archive, settings)
+├── features/   Reusable user actions (manage-recordings)
+├── entities/   Domain models (capture-session)
+└── shared/     Design tokens, UI kit, platform adapters (recording-files, secure-storage)
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Documentation
 
-## Join the community
+[AGENTS.md](AGENTS.md) indexes the task-specific guides. Key entry points:
 
-Join our community of developers creating universal apps.
+- [docs/architecture/feature-sliced-design.md](docs/architecture/feature-sliced-design.md) — layer rules for any change under `src/`
+- [docs/conventions/module-boundaries.md](docs/conventions/module-boundaries.md) — imports, public APIs, naming
+- [docs/features/README.md](docs/features/README.md) — what the product currently does, and the doc-maintenance contract
+- [docs/workflows/feature-development.md](docs/workflows/feature-development.md) — implementation workflow and completion checklist
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `npx expo start --go` | Start Metro for Expo Go (default runtime) |
+| `npm run web` | Start the web target (not the reference runtime) |
+| `npm run lint` | ESLint via `expo lint` |
+| `npx tsc --noEmit` | Type check |

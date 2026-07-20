@@ -10,15 +10,14 @@ The Home tab presents a quick daily summary and entry points into capture, archi
 | --- | --- | --- |
 | Localized current date | `Functional` | The heading formats the device date with the `ko-KR` locale. |
 | Settings navigation | `Functional` | The header action opens `/settings`. |
-| Floating capture button | `Functional` | A circular shutter button docked at the bottom-center over the tab bar (between the two tabs) opens `/capture` (the capture modal). It is the primary always-visible capture entry point now that Capture is no longer a tab. |
-| Contextual quick capture | `Partial` | The card opens `/capture?context=cafe`; the detected location and time are static. |
+| Contextual quick capture | `Partial` | The hero context card's "3초 남기기" button opens `/capture?context=cafe`; the detected location and time are static. It is the only capture entry point on Home. |
 | Daily moment progress | `Prototype` | The `2 / 4` count, progress, cards, labels, and times are fixtures. |
 | Daily-vlog readiness | `Prototype` | The preview frames and “two more moments” message are static. |
 | Archive navigation | `Functional` | The daily-vlog card opens `/archive`. |
 
-The floating capture button opens `/capture` without a context parameter; the contextual card still opens `/capture?context=cafe`. When `context=cafe` reaches Capture Setup, that page displays a cafe recommendation banner. The value does not come from device location or a context-detection service, and it does not change the default mood because the default is already `hip`.
+The contextual card's "3초 남기기" button opens `/capture?context=cafe`. When `context=cafe` reaches Capture Setup, that page displays a cafe recommendation banner. The value does not come from device location or a context-detection service, and it does not change the default mood because the default is already `hip`.
 
-Because Capture is now reached only from Home (there is no Capture tab), the floating button is the entry point available regardless of scroll position; starting a capture from the Archive tab requires returning to Home first.
+Because Capture is reached only from Home (there is no Capture tab), the contextual card is the sole capture entry point; it scrolls with the page rather than staying pinned, and starting a capture from the Archive tab requires returning to Home first.
 
 ## Ownership
 

@@ -1,10 +1,9 @@
 import { Link } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import {
-  BottomTabInset,
   MaxContentWidth,
   Radius,
   Spacing,
@@ -23,142 +22,121 @@ export function HomePage() {
   }).format(new Date());
 
   return (
-    <>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={{ backgroundColor: theme.background }}
-        contentContainerStyle={[
-          styles.content,
-          {
-            paddingTop: Spacing.six + topInset,
-            paddingBottom: BottomTabInset + Spacing.seven,
-          },
-        ]}>
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <ThemedText type="eyebrow" themeColor="primary">
-              {today}
-            </ThemedText>
-            <ThemedText type="title">오늘도 찰나를 남겨요.</ThemedText>
-          </View>
-          <Link href="/settings" asChild>
-            <Pressable
-              accessibilityLabel="설정 열기"
-              style={({ pressed }) => [
-                styles.settingsButton,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                pressed && styles.pressed,
-              ]}>
-              <ThemedText selectable={false} style={styles.settingsIcon}>
-                ⚙️
-              </ThemedText>
-            </Pressable>
-          </Link>
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      style={{ backgroundColor: theme.background }}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingTop: Spacing.six + topInset,
+          paddingBottom: Spacing.seven,
+        },
+      ]}>
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <ThemedText type="eyebrow" themeColor="primary">
+            {today}
+          </ThemedText>
+          <ThemedText type="title">오늘도 찰나를 남겨요.</ThemedText>
         </View>
-  
-        <FadeInView
-          duration={420}
-          style={[styles.contextCard, { backgroundColor: theme.media }]}>
-          <View style={[styles.glow, { backgroundColor: theme.primary }]} />
-          <View style={styles.contextTopRow}>
-            <View style={styles.contextBadge}>
-              <ThemedText selectable={false} style={styles.contextBadgeText}>
-                📍 카페 · 오후
-              </ThemedText>
-            </View>
-            <ThemedText style={styles.spark}>✦</ThemedText>
-          </View>
-          <View style={styles.contextCopy}>
-            <ThemedText type="heading" style={styles.whiteText}>
-              지금 이 분위기,{`\n`}3초면 충분해요.
-            </ThemedText>
-            <ThemedText style={styles.mutedWhite}>
-              힙한 무드로 바로 시작할까요?
-            </ThemedText>
-          </View>
-          <Link href={{ pathname: '/capture', params: { context: 'cafe' } }} asChild>
-            <SnaplyButton title="3초 남기기" icon="●" />
-          </Link>
-        </FadeInView>
-  
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="heading">오늘의 순간</ThemedText>
-            <ThemedText type="smallBold" themeColor="primary">
-              2 / 4
-            </ThemedText>
-          </View>
-          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-            <View style={[styles.progressValue, { backgroundColor: theme.primary }]} />
-          </View>
-          <View style={styles.momentRow}>
-            <MomentCard emoji="☕" label="카페 감성" time="14:34" color="#D7915D" />
-            <MomentCard emoji="🌇" label="퇴근길" time="18:15" color="#765A8E" />
-            <View style={[styles.emptyMoment, { borderColor: theme.border }]}>
-              <ThemedText selectable={false} style={styles.emptyIcon} themeColor="textSecondary">
-                ＋
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                다음 순간
-              </ThemedText>
-            </View>
-          </View>
-        </View>
-  
-        <View style={[styles.vlogCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          <View style={styles.vlogInfo}>
-            <View style={[styles.aiBadge, { backgroundColor: theme.aiSoft }]}>
-              <ThemedText type="eyebrow" themeColor="ai">
-                AI DAILY VLOG
-              </ThemedText>
-            </View>
-            <ThemedText type="heading">오늘의 브이로그</ThemedText>
-            <ThemedText themeColor="textSecondary">
-              순간을 두 개 더 모으면 자동으로 이어드려요.
-            </ThemedText>
-          </View>
-          <View style={styles.vlogPreview}>
-            {['☕', '🌇', '·', '·'].map((item, index) => (
-              <View
-                key={`${item}-${index}`}
-                style={[
-                  styles.vlogFrame,
-                  {
-                    backgroundColor: index < 2 ? ['#D7915D', '#765A8E'][index] : theme.background,
-                    borderColor: theme.border,
-                  },
-                ]}>
-                <ThemedText selectable={false} style={styles.vlogEmoji}>
-                  {item}
-                </ThemedText>
-              </View>
-            ))}
-          </View>
-          <Link href="/archive" asChild>
-            <SnaplyButton title="보관함 둘러보기" variant="secondary" />
-          </Link>
-        </View>
-      </ScrollView>
-
-      <View style={styles.shutterDock} pointerEvents="box-none">
-        <Link href="/capture" asChild>
+        <Link href="/settings" asChild>
           <Pressable
-            accessibilityLabel="촬영 시작"
-            accessibilityRole="button"
-            style={({ pressed }) => pressed && styles.shutterPressed}>
-            <View
-              style={[
-                styles.shutter,
-                { backgroundColor: theme.primary, borderColor: theme.background },
-              ]}>
-              <View style={styles.shutterRing}>
-                <View style={[styles.shutterCore, { backgroundColor: theme.onPrimary }]} />
-              </View>
-            </View>
+            accessibilityLabel="설정 열기"
+            style={({ pressed }) => [
+              styles.settingsButton,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText selectable={false} style={styles.settingsIcon}>
+              ⚙️
+            </ThemedText>
           </Pressable>
         </Link>
       </View>
-    </>
+
+      <FadeInView
+        duration={420}
+        style={[styles.contextCard, { backgroundColor: theme.media }]}>
+        <View style={[styles.glow, { backgroundColor: theme.primary }]} />
+        <View style={styles.contextTopRow}>
+          <View style={styles.contextBadge}>
+            <ThemedText selectable={false} style={styles.contextBadgeText}>
+              📍 카페 · 오후
+            </ThemedText>
+          </View>
+          <ThemedText style={styles.spark}>✦</ThemedText>
+        </View>
+        <View style={styles.contextCopy}>
+          <ThemedText type="heading" style={styles.whiteText}>
+            지금 이 분위기,{`\n`}3초면 충분해요.
+          </ThemedText>
+          <ThemedText style={styles.mutedWhite}>
+            힙한 무드로 바로 시작할까요?
+          </ThemedText>
+        </View>
+        <Link href={{ pathname: '/capture', params: { context: 'cafe' } }} asChild>
+          <SnaplyButton title="3초 남기기" icon="●" />
+        </Link>
+      </FadeInView>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <ThemedText type="heading">오늘의 순간</ThemedText>
+          <ThemedText type="smallBold" themeColor="primary">
+            2 / 4
+          </ThemedText>
+        </View>
+        <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
+          <View style={[styles.progressValue, { backgroundColor: theme.primary }]} />
+        </View>
+        <View style={styles.momentRow}>
+          <MomentCard emoji="☕" label="카페 감성" time="14:34" color="#D7915D" />
+          <MomentCard emoji="🌇" label="퇴근길" time="18:15" color="#765A8E" />
+          <View style={[styles.emptyMoment, { borderColor: theme.border }]}>
+            <ThemedText selectable={false} style={styles.emptyIcon} themeColor="textSecondary">
+              ＋
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              다음 순간
+            </ThemedText>
+          </View>
+        </View>
+      </View>
+
+      <View style={[styles.vlogCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+        <View style={styles.vlogInfo}>
+          <View style={[styles.aiBadge, { backgroundColor: theme.aiSoft }]}>
+            <ThemedText type="eyebrow" themeColor="ai">
+              AI DAILY VLOG
+            </ThemedText>
+          </View>
+          <ThemedText type="heading">오늘의 브이로그</ThemedText>
+          <ThemedText themeColor="textSecondary">
+            순간을 두 개 더 모으면 자동으로 이어드려요.
+          </ThemedText>
+        </View>
+        <View style={styles.vlogPreview}>
+          {['☕', '🌇', '·', '·'].map((item, index) => (
+            <View
+              key={`${item}-${index}`}
+              style={[
+                styles.vlogFrame,
+                {
+                  backgroundColor: index < 2 ? ['#D7915D', '#765A8E'][index] : theme.background,
+                  borderColor: theme.border,
+                },
+              ]}>
+              <ThemedText selectable={false} style={styles.vlogEmoji}>
+                {item}
+              </ThemedText>
+            </View>
+          ))}
+        </View>
+        <Link href="/archive" asChild>
+          <SnaplyButton title="보관함 둘러보기" variant="secondary" />
+        </Link>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -288,40 +266,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vlogEmoji: { fontSize: 24 },
-  shutterDock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    // Centered over the tab bar and lowered so only a thin sliver overlaps its
-    // top edge — the shutter reads as docked into the bar between the two tabs
-    // while its tap target stays clear of the bar, which sits in a separate
-    // stacking context and would otherwise swallow taps on the overlap. The
-    // native bar is anchored to the screen bottom (height ~= BottomTabInset);
-    // the web bar floats a little higher, so each platform gets its own offset.
-    bottom: Platform.select({ web: 80, android: -6, default: BottomTabInset - 6 }),
-  },
-  shutter: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    // The ring is filled with the page background so the shutter appears cut
-    // into the bar rather than floating on top of it.
-    borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 10px 24px rgba(9,12,27,0.32)',
-  },
-  shutterRing: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 2.5,
-    borderColor: 'rgba(255,255,255,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shutterCore: { width: 26, height: 26, borderRadius: 13 },
-  shutterPressed: { transform: [{ scale: 0.92 }], opacity: 0.9 },
   pressed: { opacity: 0.68 },
 });

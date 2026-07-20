@@ -2,10 +2,10 @@
 
 ## User goal and screen flow
 
-Users open capture from the Home floating button (or the Home contextual card), choose a mood and clip duration, record a short video, review the saved original, and continue through an AI-editing presentation to a result screen.
+Users open capture from the Home contextual card, choose a mood and clip duration, record a short video, review the saved original, and continue through an AI-editing presentation to a result screen.
 
 ```text
-/ (Home floating button or contextual card)
+/ (Home contextual card)
   -- open capture --> /capture (root-stack modal)
   -- mood + duration --> /capture/record
   -- saved recording --> /capture/editing

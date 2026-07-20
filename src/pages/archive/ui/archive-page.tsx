@@ -13,7 +13,6 @@ import type { LocalRecording } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import {
-  BottomTabInset,
   MaxContentWidth,
   Radius,
   Spacing,
@@ -74,7 +73,7 @@ export function ArchivePage() {
           styles.content,
           {
             paddingTop: Spacing.six + topInset,
-            paddingBottom: BottomTabInset + Spacing.six,
+            paddingBottom: Spacing.six,
           },
         ]}>
         <View style={styles.header}>

@@ -124,9 +124,9 @@ import type { Photo } from '@/entities/photo/@x/album';
 React Native and Expo platform extensions are implementation variants of the same FSD module.
 
 ```text
-shared/ui/app-tabs/
-├── app-tabs.tsx
-├── app-tabs.web.tsx
+shared/ui/date-picker/
+├── date-picker.tsx
+├── date-picker.web.tsx
 └── index.ts
 ```
 

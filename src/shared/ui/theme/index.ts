@@ -1,11 +1,4 @@
-export {
-  BottomTabInset,
-  Colors,
-  Fonts,
-  MaxContentWidth,
-  Radius,
-  Spacing,
-} from './theme';
+export { Colors, Fonts, MaxContentWidth, Radius, Spacing } from './theme';
 export type { ThemeColor } from './theme';
 export { useSetThemeMode, useThemeMode } from './theme-mode';
 export type { ThemeMode } from './theme-mode';

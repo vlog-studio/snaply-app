@@ -10,7 +10,7 @@ Snaply opens into a three-tab application with Home, Capture, and Archive destin
 | Native tab navigation | `Functional` | iOS and Android use `expo-router/unstable-native-tabs`. |
 | Web tab navigation | `Functional` | Web uses a custom floating tab bar built with `expo-router/ui`. |
 | Full-screen Capture tab | `Functional` | `pages/capture-setup` hides the tab bar on focus via the `shared/ui/tab-bar-visibility` store (`hidden` on `NativeTabs`; `display: none` on the web tab list) and restores it on blur. |
-| Native animated splash transition | `Functional` | The system splash is hidden after the overlay lays out, then the overlay fades out. |
+| Native animated splash transition | `Functional` | The system splash is hidden after the overlay lays out, then the overlay — the Snaply brand mark (`assets/images/brand-glyph-orange.png`) on the primary background — fades out. |
 | Web splash transition | `Functional` | The overlay intentionally renders nothing on web. |
 | Light and dark application theme | `Functional` | The resolved scheme follows the user's theme mode (`system`, `light`, `dark`) from Settings; `system` follows the OS appearance (`userInterfaceStyle: "automatic"`). |
 | Theme-aware status bar and navigation theme | `Functional` | `AppProviders` derives the Expo Router navigation theme and `expo-status-bar` style from the resolved scheme. |

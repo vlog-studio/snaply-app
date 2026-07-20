@@ -1,6 +1,7 @@
+import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
@@ -25,7 +26,11 @@ export function AnimatedSplashOverlay() {
 
   const mark = (
     <View style={styles.mark}>
-      <Text style={styles.bolt}>ϟ</Text>
+      <Image
+        contentFit="contain"
+        source={require('@/assets/images/brand-glyph-orange.png')}
+        style={styles.glyph}
+      />
     </View>
   );
 
@@ -59,7 +64,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bolt: { color: '#FF6B35', fontSize: 54, fontWeight: '900', lineHeight: 58 },
+  glyph: { width: 46, height: 46 },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: '#FF6B35',

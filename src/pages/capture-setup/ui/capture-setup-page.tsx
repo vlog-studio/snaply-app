@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -62,7 +63,11 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
         ]}>
         <View style={styles.hero}>
           <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
-            <ThemedText selectable={false} style={styles.brandBolt}>ϟ</ThemedText>
+            <Image
+              contentFit="contain"
+              source={require('@/assets/images/brand-glyph-white.png')}
+              style={styles.brandGlyph}
+            />
           </View>
           <View style={styles.heroCopy}>
             <ThemedText type="eyebrow" themeColor="primary">SNAP IN A MOMENT</ThemedText>
@@ -224,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandBolt: { color: '#FFFFFF', fontSize: 34, fontWeight: '900', lineHeight: 36 },
+  brandGlyph: { width: 30, height: 30 },
   heroCopy: { flex: 1, gap: Spacing.two },
   contextHint: {
     flexDirection: 'row',

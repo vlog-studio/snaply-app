@@ -10,7 +10,7 @@ The Home tab presents a quick daily summary and entry points into capture, archi
 | --- | --- | --- |
 | Localized current date | `Functional` | The heading formats the device date with the `ko-KR` locale. |
 | Settings navigation | `Functional` | The header action opens `/settings`. |
-| Floating capture button | `Functional` | A floating action button pinned above the tab bar opens `/capture` (the capture modal). It is the primary always-visible capture entry point now that Capture is no longer a tab. |
+| Floating capture button | `Functional` | A circular shutter button docked at the bottom-center over the tab bar (between the two tabs) opens `/capture` (the capture modal). It is the primary always-visible capture entry point now that Capture is no longer a tab. |
 | Contextual quick capture | `Partial` | The card opens `/capture?context=cafe`; the detected location and time are static. |
 | Daily moment progress | `Prototype` | The `2 / 4` count, progress, cards, labels, and times are fixtures. |
 | Daily-vlog readiness | `Prototype` | The preview frames and “two more moments” message are static. |

@@ -140,19 +140,20 @@ export function HomePage() {
         </View>
       </ScrollView>
 
-      <View style={styles.fabWrap} pointerEvents="box-none">
+      <View style={styles.shutterDock} pointerEvents="box-none">
         <Link href="/capture" asChild>
           <Pressable
             accessibilityLabel="촬영 시작"
             accessibilityRole="button"
-            style={({ pressed }) => pressed && styles.fabPressed}>
-            <View style={[styles.fab, { backgroundColor: theme.primary }]}>
-              <ThemedText selectable={false} style={[styles.fabIcon, { color: theme.onPrimary }]}>
-                ●
-              </ThemedText>
-              <ThemedText selectable={false} type="button" style={{ color: theme.onPrimary }}>
-                촬영
-              </ThemedText>
+            style={({ pressed }) => pressed && styles.shutterPressed}>
+            <View
+              style={[
+                styles.shutter,
+                { backgroundColor: theme.primary, borderColor: theme.background },
+              ]}>
+              <View style={styles.shutterRing}>
+                <View style={[styles.shutterCore, { backgroundColor: theme.onPrimary }]} />
+              </View>
             </View>
           </Pressable>
         </Link>
@@ -287,26 +288,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vlogEmoji: { fontSize: 24 },
-  fabWrap: {
+  shutterDock: {
     position: 'absolute',
-    right: Spacing.five,
-    // iOS/web draw the tab bar over full-screen content, so the button must
-    // clear the whole bar; Android insets content above an opaque tab bar, so
-    // the button only needs a small margin from that already-raised edge.
-    bottom: Platform.select({ android: Spacing.four, default: BottomTabInset + Spacing.four }),
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    // Centered over the tab bar and lowered so only a thin sliver overlaps its
+    // top edge — the shutter reads as docked into the bar between the two tabs
+    // while its tap target stays clear of the bar, which sits in a separate
+    // stacking context and would otherwise swallow taps on the overlap. The
+    // native bar is anchored to the screen bottom (height ~= BottomTabInset);
+    // the web bar floats a little higher, so each platform gets its own offset.
+    bottom: Platform.select({ web: 80, android: -6, default: BottomTabInset - 6 }),
   },
-  fab: {
-    minHeight: 56,
-    borderRadius: Radius.pill,
-    borderCurve: 'continuous',
-    flexDirection: 'row',
+  shutter: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    // The ring is filled with the page background so the shutter appears cut
+    // into the bar rather than floating on top of it.
+    borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    boxShadow: '0 14px 32px rgba(255,107,53,0.42)',
+    boxShadow: '0 10px 24px rgba(9,12,27,0.32)',
   },
-  fabPressed: { opacity: 0.85 },
-  fabIcon: { fontSize: 15, lineHeight: 20 },
+  shutterRing: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shutterCore: { width: 26, height: 26, borderRadius: 13 },
+  shutterPressed: { transform: [{ scale: 0.92 }], opacity: 0.9 },
   pressed: { opacity: 0.68 },
 });

@@ -38,6 +38,12 @@ src/
 - [docs/features/README.md](docs/features/README.md) — what the product currently does, and the doc-maintenance contract
 - [docs/workflows/feature-development.md](docs/workflows/feature-development.md) — implementation workflow and completion checklist
 
+### Developer guides (한국어)
+
+Guides under `docs/guides/` are written in Korean for human developers and are not part of the agent documentation indexed by `AGENTS.md`:
+
+- [docs/guides/android-wireless-debugging.md](docs/guides/android-wireless-debugging.md) — 실제 Android 기기 무선(Wi-Fi) 연동 및 Expo Go 실행 가이드
+
 ## Commands
 
 | Command | Purpose |

@@ -18,6 +18,8 @@ This file is an index of task-specific documentation, not the full body of the p
 
 Write all documentation intended for agents in English. This includes `AGENTS.md` and every guide indexed by it. Preserve code identifiers and product terms where translation would change their technical meaning.
 
+Documentation intended for human developers lives under `docs/guides/`, is written in Korean, and is linked from `README.md` — not from this index. Do not translate those guides into English or add them to the table above. When a change invalidates the procedures they describe, update them in Korean.
+
 ## Rule precedence
 
 1. The user's current request

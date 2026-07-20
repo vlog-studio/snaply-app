@@ -3,4 +3,8 @@
 /.expo
 /android
 /ios
+/.claude
 package-lock.json
+
+# Docs are maintained by hand (bilingual, table-aligned) — don't reflow.
+**/*.md

@@ -44,7 +44,8 @@ export function RecordingLibrary({
       animationType="slide"
       onRequestClose={onClose}
       presentationStyle="fullScreen"
-      visible={visible}>
+      visible={visible}
+    >
       <View
         style={[
           styles.screen,
@@ -53,7 +54,8 @@ export function RecordingLibrary({
             paddingTop: insets.top + Spacing.three,
             paddingBottom: insets.bottom,
           },
-        ]}>
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.titleBlock}>
             <ThemedText type="heading">내 촬영 영상</ThemedText>
@@ -65,8 +67,11 @@ export function RecordingLibrary({
             accessibilityLabel="영상 보관함 닫기"
             accessibilityRole="button"
             onPress={onClose}
-            style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText selectable={false} style={styles.closeIcon}>×</ThemedText>
+            style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}
+          >
+            <ThemedText selectable={false} style={styles.closeIcon}>
+              ×
+            </ThemedText>
           </Pressable>
         </View>
 
@@ -81,7 +86,9 @@ export function RecordingLibrary({
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={[styles.emptyIcon, { backgroundColor: theme.backgroundElement }]}>
-                <ThemedText selectable={false} style={styles.emptyIconText}>▶</ThemedText>
+                <ThemedText selectable={false} style={styles.emptyIconText}>
+                  ▶
+                </ThemedText>
               </View>
               <ThemedText type="heading">
                 {isLoading ? '영상을 불러오는 중' : '아직 저장된 영상이 없어요'}
@@ -99,16 +106,20 @@ export function RecordingLibrary({
                 style={[
                   styles.recordingRow,
                   { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                ]}>
+                ]}
+              >
                 <Pressable
                   accessibilityHint="영상을 재생하고 사용할 수 있어요"
                   accessibilityLabel={`${formatRecordingDate(item.createdAt)} 촬영 영상`}
                   accessibilityRole="button"
                   disabled={isDeleting}
                   onPress={() => onSelect(item)}
-                  style={styles.recordingMain}>
+                  style={styles.recordingMain}
+                >
                   <View style={[styles.playIcon, { backgroundColor: theme.media }]}>
-                    <ThemedText selectable={false} style={styles.playIconText}>▶</ThemedText>
+                    <ThemedText selectable={false} style={styles.playIconText}>
+                      ▶
+                    </ThemedText>
                   </View>
                   <View style={styles.recordingCopy}>
                     <ThemedText type="smallBold">{formatRecordingDate(item.createdAt)}</ThemedText>
@@ -122,7 +133,8 @@ export function RecordingLibrary({
                   accessibilityRole="button"
                   disabled={isDeleting}
                   onPress={() => confirmDelete(item)}
-                  style={styles.deleteButton}>
+                  style={styles.deleteButton}
+                >
                   <ThemedText type="smallBold" themeColor="danger">
                     {isDeleting ? '삭제 중' : '삭제'}
                   </ThemedText>
@@ -162,7 +174,13 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: Spacing.five, paddingBottom: Spacing.five, gap: Spacing.three },
   emptyListContent: { flexGrow: 1, justifyContent: 'center' },
   emptyState: { alignItems: 'center', gap: Spacing.three, padding: Spacing.six },
-  emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyIconText: { fontSize: 26 },
   emptyDescription: { textAlign: 'center' },
   recordingRow: {
@@ -181,7 +199,13 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.three,
   },
-  playIcon: { width: 54, height: 54, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
+  playIcon: {
+    width: 54,
+    height: 54,
+    borderRadius: Radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   playIconText: { color: '#FFFFFF', fontSize: 20 },
   recordingCopy: { flex: 1, gap: Spacing.one },
   deleteButton: { minWidth: 64, minHeight: 64, alignItems: 'center', justifyContent: 'center' },

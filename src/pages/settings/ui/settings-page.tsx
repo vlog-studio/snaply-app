@@ -41,9 +41,12 @@ export function SettingsPage() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.content}>
+      contentContainerStyle={styles.content}
+    >
       <View style={styles.intro}>
-        <ThemedText type="eyebrow" themeColor="primary">SMART REMINDER</ThemedText>
+        <ThemedText type="eyebrow" themeColor="primary">
+          SMART REMINDER
+        </ThemedText>
         <ThemedText type="heading">필요한 순간에만 알려드려요.</ThemedText>
         <ThemedText themeColor="textSecondary">
           선택한 시간대와 상황을 바탕으로 촬영하기 좋은 순간을 제안합니다.
@@ -57,11 +60,16 @@ export function SettingsPage() {
             style={[
               styles.settingRow,
               index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
-            ]}>
-            <ThemedText selectable={false} style={styles.rowEmoji}>{window.emoji}</ThemedText>
+            ]}
+          >
+            <ThemedText selectable={false} style={styles.rowEmoji}>
+              {window.emoji}
+            </ThemedText>
             <View style={styles.rowCopy}>
               <ThemedText type="smallBold">{window.label}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">{window.time}</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {window.time}
+              </ThemedText>
             </View>
             <Switch
               accessibilityLabel={`${window.label} 알림`}
@@ -93,11 +101,13 @@ export function SettingsPage() {
                     backgroundColor: isSelected ? theme.text : theme.background,
                     borderColor: isSelected ? theme.text : theme.border,
                   },
-                ]}>
+                ]}
+              >
                 <ThemedText
                   selectable={false}
                   type="smallBold"
-                  style={{ color: isSelected ? theme.background : theme.text }}>
+                  style={{ color: isSelected ? theme.background : theme.text }}
+                >
                   {value}회
                 </ThemedText>
               </Pressable>
@@ -122,11 +132,13 @@ export function SettingsPage() {
                     backgroundColor: isSelected ? theme.text : theme.background,
                     borderColor: isSelected ? theme.text : theme.border,
                   },
-                ]}>
+                ]}
+              >
                 <ThemedText
                   selectable={false}
                   type="smallBold"
-                  style={{ color: isSelected ? theme.background : theme.text }}>
+                  style={{ color: isSelected ? theme.background : theme.text }}
+                >
                   {option.label}
                 </ThemedText>
               </Pressable>
@@ -147,7 +159,9 @@ export function SettingsPage() {
         </Pressable>
         <View style={{ height: 1, backgroundColor: theme.border }} />
         <Pressable style={styles.accountAction}>
-          <ThemedText type="smallBold" themeColor="danger">계정 삭제</ThemedText>
+          <ThemedText type="smallBold" themeColor="danger">
+            계정 삭제
+          </ThemedText>
         </Pressable>
       </SettingsSection>
 
@@ -163,8 +177,15 @@ function SettingsSection({ children, title }: React.PropsWithChildren<{ title: s
 
   return (
     <View style={styles.sectionWrap}>
-      <ThemedText type="smallBold" themeColor="textSecondary">{title}</ThemedText>
-      <View style={[styles.sectionCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <ThemedText type="smallBold" themeColor="textSecondary">
+        {title}
+      </ThemedText>
+      <View
+        style={[
+          styles.sectionCard,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        ]}
+      >
         {children}
       </View>
     </View>
@@ -184,15 +205,25 @@ function SocialRow({ connected, emoji, label, status }: SocialRowProps) {
   return (
     <View style={styles.settingRow}>
       <View style={[styles.socialIcon, { backgroundColor: theme.background }]}>
-        <ThemedText selectable={false} style={styles.socialEmoji}>{emoji}</ThemedText>
+        <ThemedText selectable={false} style={styles.socialEmoji}>
+          {emoji}
+        </ThemedText>
       </View>
       <View style={styles.rowCopy}>
         <ThemedText type="smallBold">{label}</ThemedText>
-        <ThemedText type="small" themeColor={connected ? 'success' : 'textSecondary'}>{status}</ThemedText>
+        <ThemedText type="small" themeColor={connected ? 'success' : 'textSecondary'}>
+          {status}
+        </ThemedText>
       </View>
       <Pressable
-        style={[styles.connectButton, { borderColor: theme.border, backgroundColor: theme.background }]}>
-        <ThemedText selectable={false} type="smallBold">{connected ? '해제' : '연결'}</ThemedText>
+        style={[
+          styles.connectButton,
+          { borderColor: theme.border, backgroundColor: theme.background },
+        ]}
+      >
+        <ThemedText selectable={false} type="smallBold">
+          {connected ? '해제' : '연결'}
+        </ThemedText>
       </Pressable>
     </View>
   );

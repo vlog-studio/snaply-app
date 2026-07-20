@@ -11,7 +11,7 @@ export function AppTabs() {
   const theme = useTheme();
   // A fixed `height` overrides the automatic bottom safe-area inset, so add it
   // back explicitly — otherwise the bar overlaps the Android navigation bar.
-  const inset = useSafeAreaInsets()
+  const inset = useSafeAreaInsets();
 
   return (
     <Tabs
@@ -28,9 +28,10 @@ export function AppTabs() {
           height: inset.bottom + 40,
           paddingBottom: inset.bottom,
         },
-        tabBarItemStyle: { borderRadius: Radius.pill,  },
-        tabBarButton: ({ ref, ...props }) => <Pressable {...props} android_ripple={null} />
-      }}>
+        tabBarItemStyle: { borderRadius: Radius.pill },
+        tabBarButton: ({ ref, ...props }) => <Pressable {...props} android_ripple={null} />,
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{

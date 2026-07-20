@@ -40,7 +40,8 @@ export function AnimatedSplashOverlay() {
         'worklet';
         if (finished) scheduleOnRN(setVisible, false);
       })}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+    >
       {mark}
     </Animated.View>
   ) : (
@@ -48,7 +49,8 @@ export function AnimatedSplashOverlay() {
       onLayout={() => {
         void SplashScreen.hideAsync().finally(() => setAnimate(true));
       }}
-      style={styles.splashOverlay}>
+      style={styles.splashOverlay}
+    >
       {mark}
     </View>
   );

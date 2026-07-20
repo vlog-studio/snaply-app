@@ -36,10 +36,7 @@ export async function persistLocalRecording(temporaryUri: string): Promise<Local
   const extension = VIDEO_EXTENSIONS.has(temporaryFile.extension.toLowerCase())
     ? temporaryFile.extension.toLowerCase()
     : '.mp4';
-  const destination = new File(
-    recordingsDirectory,
-    `snaply-${Date.now()}${extension}`,
-  );
+  const destination = new File(recordingsDirectory, `snaply-${Date.now()}${extension}`);
 
   await temporaryFile.move(destination);
 

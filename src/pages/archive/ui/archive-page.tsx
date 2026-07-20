@@ -12,13 +12,7 @@ import {
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import {
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  useTheme,
-  useTopContentInset,
-} from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type ArchiveView = 'recordings' | 'vlogs';
@@ -36,14 +30,8 @@ export function ArchivePage() {
   const topInset = useTopContentInset();
   const [archiveView, setArchiveView] = useState<ArchiveView>('recordings');
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
-  const {
-    recordings,
-    isLoading,
-    deletingId,
-    errorMessage,
-    reloadRecordings,
-    removeRecording,
-  } = useLocalRecordings();
+  const { recordings, isLoading, deletingId, errorMessage, reloadRecordings, removeRecording } =
+    useLocalRecordings();
 
   useFocusEffect(
     useCallback(() => {
@@ -75,10 +63,13 @@ export function ArchivePage() {
             paddingTop: Spacing.six + topInset,
             paddingBottom: Spacing.six,
           },
-        ]}>
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <ThemedText type="eyebrow" themeColor="ai">YOUR MOMENTS</ThemedText>
+            <ThemedText type="eyebrow" themeColor="ai">
+              YOUR MOMENTS
+            </ThemedText>
             <ThemedText type="title">내 일상이 쌓이는 곳</ThemedText>
             <ThemedText themeColor="textSecondary">
               촬영한 원본과 완성된 영상을 한곳에서 확인하세요.
@@ -91,11 +82,18 @@ export function ArchivePage() {
           </View>
         </View>
 
-        <View style={[styles.segmented, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
-          {([
-            ['recordings', '촬영 원본'],
-            ['vlogs', '브이로그'],
-          ] as const).map(([value, label]) => {
+        <View
+          style={[
+            styles.segmented,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+          ]}
+        >
+          {(
+            [
+              ['recordings', '촬영 원본'],
+              ['vlogs', '브이로그'],
+            ] as const
+          ).map(([value, label]) => {
             const isSelected = archiveView === value;
             return (
               <Pressable
@@ -103,11 +101,13 @@ export function ArchivePage() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
                 onPress={() => setArchiveView(value)}
-                style={[styles.segment, isSelected && { backgroundColor: theme.text }]}>
+                style={[styles.segment, isSelected && { backgroundColor: theme.text }]}
+              >
                 <ThemedText
                   selectable={false}
                   type="smallBold"
-                  style={{ color: isSelected ? theme.background : theme.textSecondary }}>
+                  style={{ color: isSelected ? theme.background : theme.textSecondary }}
+                >
                   {label}
                 </ThemedText>
               </Pressable>
@@ -133,7 +133,9 @@ export function ArchivePage() {
 
             {errorMessage ? (
               <View style={[styles.messageCard, { borderColor: theme.danger }]}>
-                <ThemedText type="smallBold" themeColor="danger">{errorMessage}</ThemedText>
+                <ThemedText type="smallBold" themeColor="danger">
+                  {errorMessage}
+                </ThemedText>
               </View>
             ) : null}
 
@@ -146,7 +148,9 @@ export function ArchivePage() {
             {!isLoading && recordings.length === 0 ? (
               <View style={[styles.emptyCard, { borderColor: theme.border }]}>
                 <View style={[styles.emptyIcon, { backgroundColor: theme.aiSoft }]}>
-                  <ThemedText selectable={false} style={styles.emptyIconText}>▶</ThemedText>
+                  <ThemedText selectable={false} style={styles.emptyIconText}>
+                    ▶
+                  </ThemedText>
                 </View>
                 <View style={styles.emptyCopy}>
                   <ThemedText type="heading">아직 촬영한 영상이 없어요</ThemedText>
@@ -169,16 +173,20 @@ export function ArchivePage() {
                   style={[
                     styles.recordingCard,
                     { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                  ]}>
+                  ]}
+                >
                   <Pressable
                     accessibilityHint="저장된 영상을 재생해요"
                     accessibilityLabel={`${formatRecordingDate(recording.createdAt)} 촬영 영상`}
                     accessibilityRole="button"
                     disabled={isDeleting}
                     onPress={() => setSelectedRecording(recording)}
-                    style={styles.recordingMain}>
+                    style={styles.recordingMain}
+                  >
                     <View style={[styles.recordingPlay, { backgroundColor: theme.media }]}>
-                      <ThemedText selectable={false} style={styles.recordingPlayIcon}>▶</ThemedText>
+                      <ThemedText selectable={false} style={styles.recordingPlayIcon}>
+                        ▶
+                      </ThemedText>
                     </View>
                     <View style={styles.recordingCopy}>
                       <ThemedText type="smallBold">
@@ -188,14 +196,17 @@ export function ArchivePage() {
                         원본 영상 · {formatRecordingFileSize(recording.size)}
                       </ThemedText>
                     </View>
-                    <ThemedText selectable={false} style={styles.chevron}>›</ThemedText>
+                    <ThemedText selectable={false} style={styles.chevron}>
+                      ›
+                    </ThemedText>
                   </Pressable>
                   <Pressable
                     accessibilityLabel={`${formatRecordingDate(recording.createdAt)} 영상 삭제`}
                     accessibilityRole="button"
                     disabled={isDeleting}
                     onPress={() => confirmDelete(recording)}
-                    style={styles.deleteButton}>
+                    style={styles.deleteButton}
+                  >
                     <ThemedText type="smallBold" themeColor="danger">
                       {isDeleting ? '삭제 중' : '삭제'}
                     </ThemedText>
@@ -215,23 +226,37 @@ export function ArchivePage() {
             <View style={[styles.vlogCard, { backgroundColor: theme.media }]}>
               <View style={styles.vlogPreview}>
                 {sampleClips.map((clip) => (
-                  <View key={clip.id} style={[styles.previewFrame, { backgroundColor: clip.color }]}>
-                    <ThemedText selectable={false} style={styles.previewEmoji}>{clip.emoji}</ThemedText>
+                  <View
+                    key={clip.id}
+                    style={[styles.previewFrame, { backgroundColor: clip.color }]}
+                  >
+                    <ThemedText selectable={false} style={styles.previewEmoji}>
+                      {clip.emoji}
+                    </ThemedText>
                   </View>
                 ))}
               </View>
               <View style={styles.vlogCopy}>
-                <ThemedText type="eyebrow" style={styles.orangeText}>TODAY · 16 SEC</ThemedText>
-                <ThemedText type="heading" style={styles.whiteText}>7월 15일, 작은 순간들</ThemedText>
+                <ThemedText type="eyebrow" style={styles.orangeText}>
+                  TODAY · 16 SEC
+                </ThemedText>
+                <ThemedText type="heading" style={styles.whiteText}>
+                  7월 15일, 작은 순간들
+                </ThemedText>
                 <ThemedText style={styles.mutedWhite}>4개의 클립 · AI 자동 편집 완료</ThemedText>
               </View>
-              <Link href={{ pathname: '/capture/result', params: { mood: 'hip', duration: '3' } }} asChild>
+              <Link
+                href={{ pathname: '/capture/result', params: { mood: 'hip', duration: '3' } }}
+                asChild
+              >
                 <SnaplyButton title="브이로그 미리보기" variant="ai" icon="▶" />
               </Link>
             </View>
 
             <View style={[styles.emptyVlogCard, { borderColor: theme.border }]}>
-              <ThemedText selectable={false} style={styles.emptyEmoji}>📅</ThemedText>
+              <ThemedText selectable={false} style={styles.emptyEmoji}>
+                📅
+              </ThemedText>
               <View style={styles.emptyCopy}>
                 <ThemedText type="heading">어제의 브이로그</ThemedText>
                 <ThemedText themeColor="textSecondary">아직 완성된 영상이 없어요.</ThemedText>
@@ -245,7 +270,8 @@ export function ArchivePage() {
         animationType="fade"
         onRequestClose={() => setSelectedRecording(undefined)}
         presentationStyle="fullScreen"
-        visible={Boolean(selectedRecording)}>
+        visible={Boolean(selectedRecording)}
+      >
         <View style={styles.previewScreen}>
           {selectedRecording ? (
             <RecordingPreview
@@ -260,8 +286,11 @@ export function ArchivePage() {
             accessibilityLabel="영상 재생 닫기"
             accessibilityRole="button"
             onPress={() => setSelectedRecording(undefined)}
-            style={[styles.previewClose, { top: insets.top + Spacing.three }]}>
-            <ThemedText selectable={false} style={styles.previewCloseText}>×</ThemedText>
+            style={[styles.previewClose, { top: insets.top + Spacing.three }]}
+          >
+            <ThemedText selectable={false} style={styles.previewCloseText}>
+              ×
+            </ThemedText>
           </Pressable>
           {selectedRecording ? (
             <View style={[styles.previewMeta, { bottom: insets.bottom + Spacing.four }]}>
@@ -316,7 +345,11 @@ const styles = StyleSheet.create({
   recordingList: { gap: Spacing.three },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   sectionCopy: { flex: 1, gap: Spacing.one },
-  storageBadge: { borderRadius: Radius.pill, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two },
+  storageBadge: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
   messageCard: { borderWidth: 1, borderRadius: Radius.medium, padding: Spacing.four },
   emptyCard: {
     borderWidth: 1.5,
@@ -327,7 +360,13 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
     alignItems: 'center',
   },
-  emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyIconText: { fontSize: 24 },
   emptyCopy: { flex: 1, gap: Spacing.one, alignItems: 'center' },
   recordingCard: {
@@ -347,7 +386,13 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.three,
   },
-  recordingPlay: { width: 58, height: 58, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
+  recordingPlay: {
+    width: 58,
+    height: 58,
+    borderRadius: Radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   recordingPlayIcon: { color: '#FFFFFF', fontSize: 20 },
   recordingCopy: { flex: 1, gap: Spacing.one },
   chevron: { fontSize: 28, lineHeight: 30 },

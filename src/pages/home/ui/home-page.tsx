@@ -3,13 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import {
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  useTheme,
-  useTopContentInset,
-} from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 export function HomePage() {
@@ -31,7 +25,8 @@ export function HomePage() {
           paddingTop: Spacing.six + topInset,
           paddingBottom: Spacing.seven,
         },
-      ]}>
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <ThemedText type="eyebrow" themeColor="primary">
@@ -46,7 +41,8 @@ export function HomePage() {
               styles.settingsButton,
               { backgroundColor: theme.backgroundElement, borderColor: theme.border },
               pressed && styles.pressed,
-            ]}>
+            ]}
+          >
             <ThemedText selectable={false} style={styles.settingsIcon}>
               ⚙️
             </ThemedText>
@@ -54,9 +50,7 @@ export function HomePage() {
         </Link>
       </View>
 
-      <FadeInView
-        duration={420}
-        style={[styles.contextCard, { backgroundColor: theme.media }]}>
+      <FadeInView duration={420} style={[styles.contextCard, { backgroundColor: theme.media }]}>
         <View style={[styles.glow, { backgroundColor: theme.primary }]} />
         <View style={styles.contextTopRow}>
           <View style={styles.contextBadge}>
@@ -70,9 +64,7 @@ export function HomePage() {
           <ThemedText type="heading" style={styles.whiteText}>
             지금 이 분위기,{`\n`}3초면 충분해요.
           </ThemedText>
-          <ThemedText style={styles.mutedWhite}>
-            힙한 무드로 바로 시작할까요?
-          </ThemedText>
+          <ThemedText style={styles.mutedWhite}>힙한 무드로 바로 시작할까요?</ThemedText>
         </View>
         <Link href={{ pathname: '/capture', params: { context: 'cafe' } }} asChild>
           <SnaplyButton title="3초 남기기" icon="●" />
@@ -103,7 +95,12 @@ export function HomePage() {
         </View>
       </View>
 
-      <View style={[styles.vlogCard, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <View
+        style={[
+          styles.vlogCard,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        ]}
+      >
         <View style={styles.vlogInfo}>
           <View style={[styles.aiBadge, { backgroundColor: theme.aiSoft }]}>
             <ThemedText type="eyebrow" themeColor="ai">
@@ -125,7 +122,8 @@ export function HomePage() {
                   backgroundColor: index < 2 ? ['#D7915D', '#765A8E'][index] : theme.background,
                   borderColor: theme.border,
                 },
-              ]}>
+              ]}
+            >
               <ThemedText selectable={false} style={styles.vlogEmoji}>
                 {item}
               </ThemedText>

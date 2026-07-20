@@ -9,13 +9,7 @@ import {
 } from '@/entities/capture-session';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import {
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  useTheme,
-  useTopContentInset,
-} from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type CaptureEditingPageProps = {
@@ -43,18 +37,28 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
   }, []);
 
   const isComplete = progress === 100;
-  const status = progress < 32 ? '장면을 분석하고 있어요' : progress < 70 ? '효과와 리듬을 맞추는 중' : '마지막 디테일을 정리해요';
+  const status =
+    progress < 32
+      ? '장면을 분석하고 있어요'
+      : progress < 70
+        ? '효과와 리듬을 맞추는 중'
+        : '마지막 디테일을 정리해요';
 
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.media }}
-      contentContainerStyle={[styles.content, { paddingTop: Spacing.six + topInset }]}>
+      contentContainerStyle={[styles.content, { paddingTop: Spacing.six + topInset }]}
+    >
       <FadeInView duration={400} offsetY={0} style={styles.brandRow}>
         <View style={[styles.aiMark, { backgroundColor: theme.ai }]}>
-          <ThemedText selectable={false} style={styles.aiMarkText}>✦</ThemedText>
+          <ThemedText selectable={false} style={styles.aiMarkText}>
+            ✦
+          </ThemedText>
         </View>
-        <ThemedText type="eyebrow" style={styles.violetText}>SNAPLY AI</ThemedText>
+        <ThemedText type="eyebrow" style={styles.violetText}>
+          SNAPLY AI
+        </ThemedText>
       </FadeInView>
 
       <View style={styles.centerArea}>
@@ -62,9 +66,19 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
           <View style={[styles.previewBack, { backgroundColor: '#4D3B65' }]} />
           <View style={[styles.previewMiddle, { backgroundColor: '#824E42' }]} />
           <View style={[styles.previewFront, { backgroundColor: '#C4875B' }]}>
-            <ThemedText selectable={false} style={styles.previewEmoji}>☕</ThemedText>
-            <View style={styles.sparkOne}><ThemedText selectable={false} style={styles.spark}>✦</ThemedText></View>
-            <View style={styles.sparkTwo}><ThemedText selectable={false} style={styles.spark}>✧</ThemedText></View>
+            <ThemedText selectable={false} style={styles.previewEmoji}>
+              ☕
+            </ThemedText>
+            <View style={styles.sparkOne}>
+              <ThemedText selectable={false} style={styles.spark}>
+                ✦
+              </ThemedText>
+            </View>
+            <View style={styles.sparkTwo}>
+              <ThemedText selectable={false} style={styles.spark}>
+                ✧
+              </ThemedText>
+            </View>
           </View>
         </FadeInView>
 
@@ -79,11 +93,15 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
 
         <View style={styles.progressBlock}>
           <View style={styles.progressHeader}>
-            <ThemedText type="smallBold" style={styles.whiteText}>{duration}초 클립</ThemedText>
+            <ThemedText type="smallBold" style={styles.whiteText}>
+              {duration}초 클립
+            </ThemedText>
             <ThemedText style={[styles.violetText, styles.tabularNumber]}>{progress}%</ThemedText>
           </View>
           <View style={styles.progressTrack}>
-            <View style={[styles.progressValue, { width: `${progress}%`, backgroundColor: theme.ai }]} />
+            <View
+              style={[styles.progressValue, { width: `${progress}%`, backgroundColor: theme.ai }]}
+            />
           </View>
         </View>
 
@@ -92,14 +110,19 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
             <Link
               href={{ pathname: '/capture/result', params: { mood, duration: String(duration) } }}
               replace
-              asChild>
+              asChild
+            >
               <SnaplyButton title="완성본 보기" variant="ai" icon="▶" />
             </Link>
           </FadeInView>
         ) : (
           <View style={styles.tipRow}>
-            <ThemedText selectable={false} style={styles.tipIcon}>♬</ThemedText>
-            <ThemedText type="small" style={styles.mutedWhite}>영상에 어울리는 효과음도 고르고 있어요.</ThemedText>
+            <ThemedText selectable={false} style={styles.tipIcon}>
+              ♬
+            </ThemedText>
+            <ThemedText type="small" style={styles.mutedWhite}>
+              영상에 어울리는 효과음도 고르고 있어요.
+            </ThemedText>
           </View>
         )}
       </View>
@@ -117,7 +140,13 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.seven,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  aiMark: { width: 34, height: 34, borderRadius: Radius.small, alignItems: 'center', justifyContent: 'center' },
+  aiMark: {
+    width: 34,
+    height: 34,
+    borderRadius: Radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   aiMarkText: { color: '#FFFFFF', fontSize: 18 },
   centerArea: { flex: 1, justifyContent: 'center', gap: Spacing.six },
   previewStack: { height: 300, alignItems: 'center', justifyContent: 'center' },
@@ -156,10 +185,20 @@ const styles = StyleSheet.create({
   violetText: { color: '#B69BFF' },
   progressBlock: { gap: Spacing.two },
   progressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  progressTrack: { height: 8, borderRadius: Radius.pill, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' },
+  progressTrack: {
+    height: 8,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+  },
   progressValue: { height: '100%', borderRadius: Radius.pill },
   tabularNumber: { fontVariant: ['tabular-nums'] },
-  tipRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing.two },
+  tipRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
   tipIcon: { color: '#B69BFF', fontSize: 20 },
   resultAction: { width: '100%' },
 });

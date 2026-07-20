@@ -78,11 +78,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
   ]);
 
   useEffect(() => {
-    if (
-      !cameraPermission ||
-      !microphonePermission ||
-      hasRequestedRecordingPermissions.current
-    ) {
+    if (!cameraPermission || !microphonePermission || hasRequestedRecordingPermissions.current) {
       return;
     }
 
@@ -132,7 +128,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
       if (soundEnabled && !microphonePermission?.granted) {
         const nextPermission = await requestMicrophonePermission();
         if (!nextPermission.granted) {
-          setCaptureError('소리와 함께 촬영하려면 마이크 권한이 필요해요. 소리를 끄면 무음으로 촬영할 수 있어요.');
+          setCaptureError(
+            '소리와 함께 촬영하려면 마이크 권한이 필요해요. 소리를 끄면 무음으로 촬영할 수 있어요.',
+          );
           return;
         }
       }
@@ -224,24 +222,43 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
 
   if (!cameraPermission?.granted && stage !== 'review') {
     return (
-      <View style={[styles.permissionScreen, { backgroundColor: theme.media, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <Pressable accessibilityLabel="촬영 닫기" onPress={closePage} style={[styles.permissionClose, { top: insets.top + Spacing.three }]}>
-          <ThemedText selectable={false} style={styles.utilityIcon}>×</ThemedText>
+      <View
+        style={[
+          styles.permissionScreen,
+          { backgroundColor: theme.media, paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+      >
+        <Pressable
+          accessibilityLabel="촬영 닫기"
+          onPress={closePage}
+          style={[styles.permissionClose, { top: insets.top + Spacing.three }]}
+        >
+          <ThemedText selectable={false} style={styles.utilityIcon}>
+            ×
+          </ThemedText>
         </Pressable>
         <View style={styles.permissionContent}>
           <View style={styles.permissionIcon}>
-            <ThemedText selectable={false} style={styles.permissionIconText}>●</ThemedText>
+            <ThemedText selectable={false} style={styles.permissionIconText}>
+              ●
+            </ThemedText>
           </View>
-          <ThemedText type="title" style={styles.whiteText}>카메라를 사용할 수 없어요</ThemedText>
+          <ThemedText type="title" style={styles.whiteText}>
+            카메라를 사용할 수 없어요
+          </ThemedText>
           <ThemedText style={styles.permissionDescription}>{permissionMessage}</ThemedText>
           {cameraPermission ? (
             <SnaplyButton
-              title={cameraPermission.canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'}
+              title={
+                cameraPermission.canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'
+              }
               onPress={
                 cameraPermission.canAskAgain
                   ? () => {
                       void requestMissingRecordingPermissions().catch(() => {
-                        setCaptureError('카메라와 마이크 권한을 요청하지 못했어요. 설정에서 권한을 확인해 주세요.');
+                        setCaptureError(
+                          '카메라와 마이크 권한을 요청하지 못했어요. 설정에서 권한을 확인해 주세요.',
+                        );
                       });
                     }
                   : () => void Linking.openSettings()
@@ -256,7 +273,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             style={styles.permissionAction}
           />
           {libraryError ? (
-            <ThemedText type="small" style={styles.permissionError}>{libraryError}</ThemedText>
+            <ThemedText type="small" style={styles.permissionError}>
+              {libraryError}
+            </ThemedText>
           ) : null}
         </View>
         <RecordingLibrary
@@ -286,7 +305,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             mode="video"
             mute={!soundEnabled}
             onCameraReady={() => setIsCameraReady(true)}
-            onMountError={({ message }) => setCaptureError(message || '카메라를 시작하지 못했어요.')}
+            onMountError={({ message }) =>
+              setCaptureError(message || '카메라를 시작하지 못했어요.')
+            }
             ref={cameraRef}
             style={StyleSheet.absoluteFill}
             videoQuality="720p"
@@ -303,8 +324,14 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         <View style={styles.cameraShade} pointerEvents="none" />
 
         <View style={styles.topBar}>
-          <Pressable accessibilityLabel="촬영 닫기" onPress={closePage} style={styles.utilityButton}>
-            <ThemedText selectable={false} style={styles.utilityIcon}>×</ThemedText>
+          <Pressable
+            accessibilityLabel="촬영 닫기"
+            onPress={closePage}
+            style={styles.utilityButton}
+          >
+            <ThemedText selectable={false} style={styles.utilityIcon}>
+              ×
+            </ThemedText>
           </Pressable>
           <View style={styles.modePill}>
             <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
@@ -316,8 +343,11 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
             onPress={() => setSoundEnabled((current) => !current)}
-            style={[styles.utilityButton, isBusy && styles.disabledControl]}>
-            <ThemedText selectable={false} style={styles.soundIcon}>{soundEnabled ? '♪' : '∅'}</ThemedText>
+            style={[styles.utilityButton, isBusy && styles.disabledControl]}
+          >
+            <ThemedText selectable={false} style={styles.soundIcon}>
+              {soundEnabled ? '♪' : '∅'}
+            </ThemedText>
           </Pressable>
         </View>
 
@@ -326,7 +356,9 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           {stage === 'recording' ? (
             <View style={styles.recordingStatus}>
               <View style={[styles.recordingDot, { backgroundColor: theme.primary }]} />
-              <ThemedText type="smallBold" style={styles.whiteText}>REC</ThemedText>
+              <ThemedText type="smallBold" style={styles.whiteText}>
+                REC
+              </ThemedText>
               <ThemedText style={[styles.whiteText, styles.tabularNumber]}>
                 {remaining > 0 ? `${remaining}s` : '마무리 중…'}
               </ThemedText>
@@ -334,18 +366,30 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           ) : null}
           {stage === 'saving' ? (
             <View style={styles.completedBadge}>
-              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>영상을 저장하는 중…</ThemedText>
+              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
+                영상을 저장하는 중…
+              </ThemedText>
             </View>
           ) : null}
           {stage === 'review' ? (
             <View style={styles.completedBadge}>
-              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>✓ 앱에 저장됨</ThemedText>
+              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
+                ✓ 앱에 저장됨
+              </ThemedText>
             </View>
           ) : null}
           {errorMessage ? (
-            <Pressable accessibilityRole="button" onPress={dismissErrors} style={styles.errorBanner}>
-              <ThemedText type="smallBold" style={styles.whiteText}>{errorMessage}</ThemedText>
-              <ThemedText selectable={false} type="small" style={styles.errorDismiss}>닫기</ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              onPress={dismissErrors}
+              style={styles.errorBanner}
+            >
+              <ThemedText type="smallBold" style={styles.whiteText}>
+                {errorMessage}
+              </ThemedText>
+              <ThemedText selectable={false} type="small" style={styles.errorDismiss}>
+                닫기
+              </ThemedText>
             </Pressable>
           ) : null}
         </View>
@@ -353,8 +397,17 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + Spacing.five }]}>
           {stage === 'review' ? (
             <View style={styles.reviewActions}>
-              <SnaplyButton title="다시 찍기" variant="secondary" style={styles.reviewButton} onPress={retake} />
-              <SnaplyButton title="이 영상 사용" style={styles.reviewButton} onPress={continueToEditing} />
+              <SnaplyButton
+                title="다시 찍기"
+                variant="secondary"
+                style={styles.reviewButton}
+                onPress={retake}
+              />
+              <SnaplyButton
+                title="이 영상 사용"
+                style={styles.reviewButton}
+                onPress={continueToEditing}
+              />
             </View>
           ) : (
             <View style={styles.captureControls}>
@@ -363,21 +416,29 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                 accessibilityRole="button"
                 disabled={isBusy}
                 onPress={openLibrary}
-                style={[styles.sideControl, isBusy && styles.disabledControl]}>
-                <ThemedText selectable={false} style={styles.sideControlIcon}>▣</ThemedText>
-                <ThemedText selectable={false} type="small" style={styles.mutedWhite}>보관함 {recordings.length}</ThemedText>
+                style={[styles.sideControl, isBusy && styles.disabledControl]}
+              >
+                <ThemedText selectable={false} style={styles.sideControlIcon}>
+                  ▣
+                </ThemedText>
+                <ThemedText selectable={false} type="small" style={styles.mutedWhite}>
+                  보관함 {recordings.length}
+                </ThemedText>
               </Pressable>
               <Pressable
                 accessibilityLabel={stage === 'recording' ? '촬영 끝내기' : '촬영 시작'}
                 accessibilityRole="button"
-                accessibilityState={{ disabled: stage === 'saving' || !isCameraReady || !isNativeRecordingSupported }}
+                accessibilityState={{
+                  disabled: stage === 'saving' || !isCameraReady || !isNativeRecordingSupported,
+                }}
                 disabled={stage === 'saving' || !isCameraReady || !isNativeRecordingSupported}
                 onPress={stage === 'recording' ? stopRecording : () => void startRecording()}
                 style={[
                   styles.shutterOuter,
                   stage === 'recording' && styles.shutterRecording,
                   (!isCameraReady || !isNativeRecordingSupported) && styles.disabledControl,
-                ]}>
+                ]}
+              >
                 <View
                   style={[
                     styles.shutterInner,
@@ -396,9 +457,14 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                   if (process.env.EXPO_OS === 'android') setIsCameraReady(false);
                   setFacing((current) => (current === 'back' ? 'front' : 'back'));
                 }}
-                style={[styles.sideControl, isBusy && styles.disabledControl]}>
-                <ThemedText selectable={false} style={styles.sideControlIcon}>↻</ThemedText>
-                <ThemedText selectable={false} type="small" style={styles.mutedWhite}>전환</ThemedText>
+                style={[styles.sideControl, isBusy && styles.disabledControl]}
+              >
+                <ThemedText selectable={false} style={styles.sideControlIcon}>
+                  ↻
+                </ThemedText>
+                <ThemedText selectable={false} type="small" style={styles.mutedWhite}>
+                  전환
+                </ThemedText>
               </Pressable>
             </View>
           )}
@@ -414,10 +480,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                     : '가운데 버튼을 누르면 자동으로 촬영이 끝나요'}
           </ThemedText>
           {stage === 'review' ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={openLibrary}
-              style={styles.libraryLink}>
+            <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
               <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
                 저장 영상 {recordings.length}개 관리
               </ThemedText>
@@ -532,13 +595,23 @@ const styles = StyleSheet.create({
   shutterInner: { width: 68, height: 68, borderRadius: 34 },
   shutterRecording: { transform: [{ scale: 0.92 }] },
   shutterInnerRecording: { width: 32, height: 32, borderRadius: Radius.small },
-  sideControl: { flex: 1, minHeight: 64, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
+  sideControl: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+  },
   sideControlIcon: { color: '#FFFFFF', fontSize: 26, lineHeight: 28 },
   disabledControl: { opacity: 0.42 },
   reviewActions: { flexDirection: 'row', gap: Spacing.three },
   reviewButton: { flex: 1 },
   helperText: { color: 'rgba(255,255,255,0.72)', textAlign: 'center' },
-  libraryLink: { alignSelf: 'center', paddingHorizontal: Spacing.four, paddingVertical: Spacing.two },
+  libraryLink: {
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+  },
   whiteText: { color: '#FFFFFF' },
   mutedWhite: { color: 'rgba(255,255,255,0.72)', textAlign: 'center', lineHeight: 18 },
   tabularNumber: { fontVariant: ['tabular-nums'] },

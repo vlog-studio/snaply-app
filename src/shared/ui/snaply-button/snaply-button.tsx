@@ -41,7 +41,8 @@ export function SnaplyButton({
         },
         typeof style === 'function' ? style(state) : style,
       ]}
-      {...props}>
+      {...props}
+    >
       {icon ? (
         <ThemedText selectable={false} style={[styles.icon, { color }]}>
           {icon}

@@ -59,7 +59,8 @@ export function useLocalRecordings() {
       }
       return recording;
     } catch {
-      if (isMounted.current) setErrorMessage('촬영한 영상을 저장하지 못했어요. 다시 시도해 주세요.');
+      if (isMounted.current)
+        setErrorMessage('촬영한 영상을 저장하지 못했어요. 다시 시도해 주세요.');
       return undefined;
     }
   };

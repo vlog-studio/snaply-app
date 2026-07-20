@@ -7,12 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { CaptureDuration, CaptureMood } from '@/entities/capture-session';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import {
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  useTheme,
-} from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 type CaptureSetupPageProps = {
@@ -26,9 +21,27 @@ const moodOptions: {
   id: CaptureMood;
   label: string;
 }[] = [
-  { id: 'hip', emoji: '🔥', label: '힙하게', description: '선명하고 트렌디한 감성', accent: '#FF6B35' },
-  { id: 'lovely', emoji: '💕', label: '러블리하게', description: '따뜻하고 사랑스러운 톤', accent: '#E96F9A' },
-  { id: 'energy', emoji: '⚡', label: '신나게', description: '빠르고 에너지 넘치게', accent: '#7C3AED' },
+  {
+    id: 'hip',
+    emoji: '🔥',
+    label: '힙하게',
+    description: '선명하고 트렌디한 감성',
+    accent: '#FF6B35',
+  },
+  {
+    id: 'lovely',
+    emoji: '💕',
+    label: '러블리하게',
+    description: '따뜻하고 사랑스러운 톤',
+    accent: '#E96F9A',
+  },
+  {
+    id: 'energy',
+    emoji: '⚡',
+    label: '신나게',
+    description: '빠르고 에너지 넘치게',
+    accent: '#7C3AED',
+  },
 ];
 
 export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
@@ -48,10 +61,8 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
           so iOS automatic content-inset adjustment no longer applies here;
           safe-area padding is set explicitly instead. */}
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: Spacing.six + insets.top },
-        ]}>
+        contentContainerStyle={[styles.content, { paddingTop: Spacing.six + insets.top }]}
+      >
         <View style={styles.hero}>
           <View style={[styles.brandMark, { backgroundColor: theme.primary }]}>
             <Image
@@ -61,9 +72,13 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
             />
           </View>
           <View style={styles.heroCopy}>
-            <ThemedText type="eyebrow" themeColor="primary">SNAP IN A MOMENT</ThemedText>
+            <ThemedText type="eyebrow" themeColor="primary">
+              SNAP IN A MOMENT
+            </ThemedText>
             <ThemedText type="title">오늘은 어떤{`\n`}분위기예요?</ThemedText>
-            <ThemedText themeColor="textSecondary">두 가지만 고르면 바로 촬영할 수 있어요.</ThemedText>
+            <ThemedText themeColor="textSecondary">
+              두 가지만 고르면 바로 촬영할 수 있어요.
+            </ThemedText>
           </View>
           <Link href="/" asChild>
             <Pressable
@@ -72,7 +87,8 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
                 styles.closeButton,
                 { backgroundColor: theme.backgroundElement, borderColor: theme.border },
                 pressed && styles.pressed,
-              ]}>
+              ]}
+            >
               <ThemedText selectable={false} style={styles.closeIcon} themeColor="textSecondary">
                 ✕
               </ThemedText>
@@ -82,10 +98,14 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
 
         {context === 'cafe' ? (
           <View style={[styles.contextHint, { backgroundColor: theme.warmSurface }]}>
-            <ThemedText selectable={false} style={styles.contextEmoji}>☕</ThemedText>
+            <ThemedText selectable={false} style={styles.contextEmoji}>
+              ☕
+            </ThemedText>
             <View style={styles.contextHintCopy}>
               <ThemedText type="smallBold">카페 무드를 감지했어요</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">힙한 감성을 먼저 추천할게요.</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                힙한 감성을 먼저 추천할게요.
+              </ThemedText>
             </View>
           </View>
         ) : null}
@@ -104,24 +124,32 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
                   style={({ pressed }) => [
                     styles.moodOption,
                     {
-                      backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
+                      backgroundColor: isSelected
+                        ? theme.backgroundSelected
+                        : theme.backgroundElement,
                       borderColor: isSelected ? option.accent : theme.border,
                     },
                     pressed && styles.pressed,
-                  ]}>
+                  ]}
+                >
                   <View style={[styles.moodIcon, { backgroundColor: `${option.accent}18` }]}>
-                    <ThemedText selectable={false} style={styles.moodEmoji}>{option.emoji}</ThemedText>
+                    <ThemedText selectable={false} style={styles.moodEmoji}>
+                      {option.emoji}
+                    </ThemedText>
                   </View>
                   <View style={styles.moodCopy}>
                     <ThemedText type="heading">{option.label}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">{option.description}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {option.description}
+                    </ThemedText>
                   </View>
                   <View
                     style={[
                       styles.radio,
                       { borderColor: isSelected ? option.accent : theme.border },
                       isSelected && { backgroundColor: option.accent },
-                    ]}>
+                    ]}
+                  >
                     {isSelected ? <View style={styles.radioDot} /> : null}
                   </View>
                 </Pressable>
@@ -132,7 +160,12 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
 
         <View style={styles.section}>
           <ThemedText type="heading">영상 길이</ThemedText>
-          <View style={[styles.durationGroup, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.durationGroup,
+              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            ]}
+          >
             {([3, 5] as const).map((seconds) => {
               const isSelected = duration === seconds;
               return (
@@ -141,20 +174,20 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
                   accessibilityRole="radio"
                   accessibilityState={{ checked: isSelected }}
                   onPress={() => setDuration(seconds)}
-                  style={[
-                    styles.durationButton,
-                    isSelected && { backgroundColor: theme.text },
-                  ]}>
+                  style={[styles.durationButton, isSelected && { backgroundColor: theme.text }]}
+                >
                   <ThemedText
                     selectable={false}
                     type="heading"
-                    style={{ color: isSelected ? theme.background : theme.text }}>
+                    style={{ color: isSelected ? theme.background : theme.text }}
+                  >
                     {seconds}초
                   </ThemedText>
                   <ThemedText
                     selectable={false}
                     type="small"
-                    style={{ color: isSelected ? theme.background : theme.textSecondary }}>
+                    style={{ color: isSelected ? theme.background : theme.textSecondary }}
+                  >
                     {seconds === 3 ? '짧고 강렬하게' : '조금 더 여유롭게'}
                   </ThemedText>
                 </Pressable>
@@ -172,10 +205,12 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
             borderTopColor: theme.border,
             paddingBottom: insets.bottom + Spacing.four,
           },
-        ]}>
+        ]}
+      >
         <Link
           href={{ pathname: '/capture/record', params: { mood, duration: String(duration) } }}
-          asChild>
+          asChild
+        >
           <SnaplyButton title={`${duration}초 촬영 시작`} icon="●" />
         </Link>
       </View>

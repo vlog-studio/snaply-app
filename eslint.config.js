@@ -8,6 +8,6 @@ module.exports = defineConfig([
   expoConfig,
   eslintConfigPrettier,
   {
-    ignores: ['dist/*'],
-  }
+    ignores: ['dist/*', '.claude/**'],
+  },
 ]);

@@ -2,6 +2,20 @@
 
 Run and verify changes on the **iOS Simulator and the Android emulator**, not the web target. Web (`expo start --web`) is not the reference runtime for this project. You can run **one iOS simulator and one Android emulator side by side** against a single Metro server.
 
+## Automated checks
+
+Run the automated quality gates before device or simulator verification:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test:ci
+```
+
+Use `npm test` during development for Jest watch mode. Tests use the `jest-expo` preset and should live beside the module they verify so their FSD ownership remains explicit.
+
+Jest and React Native Testing Library validate JavaScript logic and rendered interaction contracts; they do not replace iOS and Android verification for camera, permissions, file-system, animation, or other native behavior.
+
 ## Environment and legacy macOS limitation
 
 The project does not prohibit `expo run:ios` on every development machine. The restriction applies only to older macOS machines that cannot install an Xcode version with the Swift 6.2 toolchain required by Expo SDK 57 / React Native 0.86.

@@ -8,7 +8,6 @@ import {
 } from 'expo-router/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -21,9 +20,6 @@ export function AppTabs() {
           <TabTrigger name="index" href="/" asChild>
             <TabButton icon="⌂" label="홈" />
           </TabTrigger>
-          <TabTrigger name="capture" href="/capture" asChild>
-            <TabButton emphasis icon="＋" label="촬영" />
-          </TabTrigger>
           <TabTrigger name="archive" href="/archive" asChild>
             <TabButton icon="▣" label="보관함" />
           </TabTrigger>
@@ -34,13 +30,10 @@ export function AppTabs() {
 }
 
 function CustomTabList(props: TabListProps) {
-  const tabBarHidden = useTabBarHidden();
   const theme = useTheme();
 
   return (
-    <View
-      {...props}
-      style={[styles.tabBarWrap, tabBarHidden && styles.tabBarHidden]}>
+    <View {...props} style={styles.tabBarWrap}>
       <View style={[styles.tabBar, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
         {props.children}
       </View>
@@ -49,12 +42,11 @@ function CustomTabList(props: TabListProps) {
 }
 
 type TabButtonProps = TabTriggerSlotProps & {
-  emphasis?: boolean;
   icon: string;
   label: string;
 };
 
-function TabButton({ emphasis, icon, isFocused, label, ...props }: TabButtonProps) {
+function TabButton({ icon, isFocused, label, ...props }: TabButtonProps) {
   const theme = useTheme();
 
   return (
@@ -65,15 +57,13 @@ function TabButton({ emphasis, icon, isFocused, label, ...props }: TabButtonProp
       <View
         style={[
           styles.iconWrap,
-          emphasis && styles.emphasisIcon,
-          emphasis && { backgroundColor: theme.primary },
-          isFocused && !emphasis && { backgroundColor: theme.backgroundSelected },
+          isFocused && { backgroundColor: theme.backgroundSelected },
         ]}>
         <ThemedText
           selectable={false}
           style={[
             styles.icon,
-            { color: emphasis ? theme.onPrimary : isFocused ? theme.primary : theme.textSecondary },
+            { color: isFocused ? theme.primary : theme.textSecondary },
           ]}>
           {icon}
         </ThemedText>
@@ -99,7 +89,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     pointerEvents: 'box-none',
   },
-  tabBarHidden: { display: 'none' },
   tabBar: {
     width: '100%',
     maxWidth: 430,
@@ -127,7 +116,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emphasisIcon: { width: 48, height: 40 },
   icon: { fontSize: 23, lineHeight: 26, fontWeight: '800' },
   pressed: { opacity: 0.68 },
 });

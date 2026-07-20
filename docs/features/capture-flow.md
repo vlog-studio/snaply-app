@@ -2,10 +2,11 @@
 
 ## User goal and screen flow
 
-Users choose a mood and clip duration, record a short video, review the saved original, and continue through an AI-editing presentation to a result screen.
+Users open capture from the Home floating button (or the Home contextual card), choose a mood and clip duration, record a short video, review the saved original, and continue through an AI-editing presentation to a result screen.
 
 ```text
-/capture
+/ (Home floating button or contextual card)
+  -- open capture --> /capture (root-stack modal)
   -- mood + duration --> /capture/record
   -- saved recording --> /capture/editing
   -- simulated completion --> /capture/result
@@ -22,7 +23,7 @@ The supported capture options are owned by `entities/capture-session`:
 
 `pages/capture-setup` owns the setup form as local React state. Selecting a mood triggers selection haptics on iOS. The page passes the selected mood and duration as route parameters to `/capture/record`.
 
-The setup screen presents full-screen: while `/capture` is focused, the page hides the tab bar through the shared tab-bar-visibility store and restores it on blur. A close button in the hero returns to the Home tab. The start-recording button is docked in a fixed footer below the scrollable option list, padded by the bottom safe area, so it stays visible without scrolling. Its label reflects the selected duration.
+The setup screen is presented by the root stack as a modal (`presentation: 'modal'`, header hidden), so the tab bar is not part of this presentation and no tab-bar visibility toggle is needed. A close button in the hero returns to Home. The start-recording button is docked in a fixed footer below the scrollable option list, padded by the bottom safe area, so it stays visible without scrolling. Its label reflects the selected duration.
 
 The optional `context=cafe` parameter only displays a recommendation banner. Context detection itself is not implemented.
 

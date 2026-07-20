@@ -23,11 +23,10 @@ Never describe a prototype as functional merely because its controls can be pres
 ```text
 Root stack
 ├── (tabs)
-│   ├── /              Home
-│   ├── /capture       Capture setup
+│   ├── /              Home (with floating capture button)
 │   └── /archive       Recording archive and vlog prototype
 ├── /settings          Settings modal
-└── /capture
+└── /capture           Capture setup (modal)
     ├── /record        Camera recording and review
     ├── /editing       Simulated AI-editing progress
     └── /result        Simulated edited-result summary
@@ -36,7 +35,7 @@ Root stack
 The main user journey is:
 
 ```text
-Home or Capture tab
+Home floating capture button (or contextual card)
   → choose mood and 3- or 5-second duration
   → record and persist a local video on iOS or Android
   → review the selected original recording

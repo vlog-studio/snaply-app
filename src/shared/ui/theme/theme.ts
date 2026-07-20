@@ -82,5 +82,5 @@ export const Radius = {
   pill: 999,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 64, android: 82, web: 92 }) ?? 0;
+export const BottomTabInset = Platform.select({ ios: 80, android: 82, web: 92 }) ?? 0;
 export const MaxContentWidth = 680;

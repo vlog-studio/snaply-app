@@ -1,13 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
-import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Link } from 'expo-router';
+import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { CaptureDuration, CaptureMood } from '@/entities/capture-session';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { useSetTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import {
   MaxContentWidth,
   Radius,
@@ -35,16 +34,8 @@ const moodOptions: {
 export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const setTabBarHidden = useSetTabBarHidden();
   const [mood, setMood] = useState<CaptureMood>('hip');
   const [duration, setDuration] = useState<CaptureDuration>(3);
-
-  useFocusEffect(
-    useCallback(() => {
-      setTabBarHidden(true);
-      return () => setTabBarHidden(false);
-    }, [setTabBarHidden]),
-  );
 
   const selectMood = (nextMood: CaptureMood) => {
     setMood(nextMood);

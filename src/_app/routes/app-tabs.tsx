@@ -1,15 +1,12 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { useTabBarHidden } from '@/shared/ui/tab-bar-visibility';
 import { useTheme } from '@/shared/ui/theme';
 
 export function AppTabs() {
   const theme = useTheme();
-  const tabBarHidden = useTabBarHidden();
 
   return (
     <NativeTabs
-      hidden={tabBarHidden}
       backgroundColor={theme.backgroundElement}
       blurEffect="systemMaterial"
       disableTransparentOnScrollEdge
@@ -27,13 +24,6 @@ export function AppTabs() {
           sf={{ default: 'house', selected: 'house.fill' }}
           md="home"
         />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="capture">
-        <NativeTabs.Trigger.Label selectedStyle={{ color: theme.primary, fontWeight: '800' }}>
-          촬영
-        </NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="plus.circle.fill" md="add_circle" selectedColor={theme.primary} />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="archive">

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "snaply-app",
+    "name": "Snaply",
     "slug": "snaply-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -43,7 +43,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FF6B35"
+          "backgroundColor": "#FF6B35",
+          "image": "./assets/images/brand-glyph-white.png",
+          "imageWidth": 200
         }
       ],
       "expo-video",

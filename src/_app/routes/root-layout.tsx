@@ -32,7 +32,6 @@ function RootStack() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="settings" options={{ presentation: 'modal', title: '설정' }} />
       <Stack.Screen name="capture/index" options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="capture/record" options={{ headerShown: false }} />
       <Stack.Screen name="capture/editing" options={{ headerShown: false }} />

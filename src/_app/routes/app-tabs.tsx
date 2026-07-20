@@ -52,6 +52,16 @@ export function AppTabs() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: '설정',
+          tabBarAccessibilityLabel: '설정',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon color={color} name={focused ? 'settings' : 'settings-outline'} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

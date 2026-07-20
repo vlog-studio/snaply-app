@@ -2,14 +2,13 @@
 
 ## User goal
 
-The Home tab presents a quick daily summary and entry points into capture, archive, and settings.
+The Home tab presents a quick daily summary and entry points into capture and archive.
 
 ## Current behavior
 
 | Capability | Status | Notes |
 | --- | --- | --- |
 | Localized current date | `Functional` | The heading formats the device date with the `ko-KR` locale. |
-| Settings navigation | `Functional` | The header action opens `/settings`. |
 | Contextual quick capture | `Partial` | The hero context card's "3초 남기기" button opens `/capture?context=cafe`; the detected location and time are static. It is the only capture entry point on Home. |
 | Daily moment progress | `Prototype` | The `2 / 4` count, progress, cards, labels, and times are fixtures. |
 | Daily-vlog readiness | `Prototype` | The preview frames and “two more moments” message are static. |

@@ -2,13 +2,13 @@
 
 ## User goal
 
-The Settings modal presents the intended controls for reminder timing, notification frequency, screen theme, social connections, and account management.
+The Settings tab presents the intended controls for reminder timing, notification frequency, screen theme, social connections, and account management.
 
 ## Current behavior
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| Open and dismiss Settings | `Functional` | Home opens `/settings`, presented as a root-stack modal. |
+| Open Settings | `Functional` | Settings is a bottom-tab destination (`/settings`) alongside Home and Archive. |
 | Select screen theme (시스템/라이트/다크) | `Functional` | The choice applies immediately app-wide, persists across restarts, and `system` follows the OS appearance. |
 | Toggle morning, lunch, and evening windows | `Prototype` | Values update only in component-local state and reset when the screen remounts. |
 | Select one to three reminders per day | `Prototype` | The selection is local UI state and does not schedule notifications. |

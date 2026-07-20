@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -34,20 +34,6 @@ export function HomePage() {
           </ThemedText>
           <ThemedText type="title">오늘도 찰나를 남겨요.</ThemedText>
         </View>
-        <Link href="/settings" asChild>
-          <Pressable
-            accessibilityLabel="설정 열기"
-            style={({ pressed }) => [
-              styles.settingsButton,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              pressed && styles.pressed,
-            ]}
-          >
-            <ThemedText selectable={false} style={styles.settingsIcon}>
-              ⚙️
-            </ThemedText>
-          </Pressable>
-        </Link>
       </View>
 
       <FadeInView duration={420} style={[styles.contextCard, { backgroundColor: theme.media }]}>
@@ -171,16 +157,6 @@ const styles = StyleSheet.create({
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
   headerCopy: { flex: 1, gap: Spacing.one },
-  settingsButton: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  settingsIcon: { fontSize: 21 },
   contextCard: {
     minHeight: 310,
     borderRadius: Radius.xlarge,
@@ -264,5 +240,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   vlogEmoji: { fontSize: 24 },
-  pressed: { opacity: 0.68 },
 });

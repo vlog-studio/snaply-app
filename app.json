@@ -45,12 +45,15 @@
         {
           "backgroundColor": "#FF6B35",
           "image": "./assets/images/brand-glyph-white.png",
-          "imageWidth": 200
+          "imageWidth": 150
         }
       ],
       "expo-video",
       "expo-sharing",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

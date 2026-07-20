@@ -7,12 +7,9 @@ import {
 
 describe('capture options', () => {
   describe('normalizeCaptureMood', () => {
-    it.each<CaptureMood>(['hip', 'lovely', 'energy'])(
-      'keeps the supported mood "%s"',
-      (mood) => {
-        expect(normalizeCaptureMood(mood)).toBe(mood);
-      },
-    );
+    it.each<CaptureMood>(['hip', 'lovely', 'energy'])('keeps the supported mood "%s"', (mood) => {
+      expect(normalizeCaptureMood(mood)).toBe(mood);
+    });
 
     it.each([undefined, '', 'calm', 'HIP'])(
       'falls back to hip for an unsupported value: %s',

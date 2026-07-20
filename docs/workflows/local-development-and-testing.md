@@ -12,7 +12,7 @@ npm run typecheck
 npm run test:ci
 ```
 
-Use `npm test` during development for Jest watch mode. Tests use the `jest-expo` preset and should live beside the module they verify so their FSD ownership remains explicit.
+Use `npm test` during development for Jest watch mode. Tests use the `jest-expo` preset and should live beside the module they verify so their FSD ownership remains explicit. For what to test and the per-module-kind authoring patterns, see [`writing-unit-tests.md`](writing-unit-tests.md).
 
 Jest and React Native Testing Library validate JavaScript logic and rendered interaction contracts; they do not replace iOS and Android verification for camera, permissions, file-system, animation, or other native behavior.
 

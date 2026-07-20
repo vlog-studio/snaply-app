@@ -1,19 +1,19 @@
 # Local development and testing
 
-Run and verify changes on the **iOS Simulator and the Android emulator**, not the web target. Web (`expo start --web`) is not the reference runtime for this project. On this machine you can run **one iOS simulator and one Android emulator side by side** against a single Metro server.
+Run and verify changes on the **iOS Simulator and the Android emulator**, not the web target. Web (`expo start --web`) is not the reference runtime for this project. You can run **one iOS simulator and one Android emulator side by side** against a single Metro server.
 
-## Environment
+## Environment and legacy macOS limitation
 
-This workflow is defined for the current **macOS development machine**:
+The project does not prohibit `expo run:ios` on every development machine. The restriction applies only to older macOS machines that cannot install an Xcode version with the Swift 6.2 toolchain required by Expo SDK 57 / React Native 0.86.
 
-- Intel Mac (`x86_64`), macOS 15.7.7, **Xcode 16.4 (Swift 6.1.2)**.
-- The machine **cannot install Xcode 26 (Swift 6.2)** because the OS/hardware is too old.
-- Expo SDK 57 / React Native 0.86 require the Swift 6.2 toolchain, so a **local native iOS build is not possible** here. Running `npx expo run:ios` fails with:
+- An older Intel Mac (`x86_64`) on macOS 15.7.7 is limited to **Xcode 16.4 (Swift 6.1.2)** and cannot install Xcode 26 (Swift 6.2).
+- On that class of machine, a **local native iOS build is not possible**. Running `npx expo run:ios` fails with:
   `package 'apple' is using Swift tools version 6.2.0 but the installed version is 6.1.0`.
+- A machine running a current macOS version with an Xcode release that provides Swift 6.2 is not subject to this limitation and may use `expo run:ios`.
 
-Therefore, do not attempt `expo run:ios` (local native dev build) on this machine. Use **Expo Go** (below) as the default runtime on both platforms. Use **EAS Build** only when a feature depends on native modules that Expo Go does not include.
+On a legacy machine limited to Xcode 16.4, use **Expo Go** (below) as the default runtime on both platforms. Use **EAS Build** when a feature depends on native modules that Expo Go does not include.
 
-Tooling already installed on this machine:
+The command examples below were validated with this legacy-machine profile. Adjust simulator names, SDK paths, and AVD names for the machine in use:
 
 - iOS: Xcode 16.4 + iOS 18.6 simulators, CocoaPods 1.17.0 (via Homebrew).
 - Android: Android SDK at `~/Library/Android/sdk`, Android Studio, JDK 17, system image `system-images;android-35;default;x86_64`, and the AVD **`Pixel_API_35`**.

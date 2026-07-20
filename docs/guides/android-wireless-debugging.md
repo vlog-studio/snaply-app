@@ -1,7 +1,6 @@
 # 실제 Android 기기 무선(Wi-Fi) 연동 가이드
 
-> 이 문서는 사람 개발자를 위한 한국어 가이드입니다. 에이전트용 문서가 아니므로 `AGENTS.md` 인덱스에 포함되지 않습니다.
-> (This is a Korean guide for human developers; it is intentionally not indexed by `AGENTS.md`.)
+> 이 문서는 사람 개발자를 위한 한글 가이드입니다. 에이전트용 문서가 아니므로 `AGENTS.md` 색인에 포함하지 않습니다.
 
 USB 케이블 없이 실제 Android 기기를 Wi-Fi로 adb에 연결하고, Expo Go로 이 앱을 실행·디버깅하는 절차를 정리합니다. 에뮬레이터 기반 기본 워크플로는 [`docs/workflows/local-development-and-testing.md`](../workflows/local-development-and-testing.md)(영문, 에이전트용)를 참고하세요.
 

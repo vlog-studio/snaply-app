@@ -1,54 +1,63 @@
 # Snaply
 
-Snaply is a short-form daily-vlog app: users pick a mood and a 3- or 5-second duration, record a clip with the camera, review the saved original, and walk through a (currently simulated) AI-editing flow to a result screen. Recordings persist only in the app's local document directory.
+Snaply는 짧은 일상 영상을 기록하는 데일리 브이로그 앱입니다. 사용자는 기분과 촬영 시간(3초 또는 5초)을 선택하고, 카메라로 영상을 촬영한 뒤 원본을 확인할 수 있습니다. 이후 현재는 시뮬레이션으로 구현된 AI 편집 과정을 거쳐 결과 화면으로 이동합니다. 촬영한 영상은 앱의 로컬 문서 디렉터리에만 저장됩니다.
 
-Built with Expo SDK 57 (React Native 0.86, expo-router) and organized by Feature-Sliced Design v2.1.
+Expo SDK 57(React Native 0.86, Expo Router)을 사용하며, Feature-Sliced Design v2.1을 기준으로 프로젝트를 구성합니다.
 
-## Getting started
+## 시작하기
+
+의존성을 설치하고 Expo Go 개발 서버를 실행합니다.
 
 ```bash
 npm install
 npx expo start --go
 ```
 
-**Do not run `npx expo run:ios` on the current development machine** — Expo SDK 57 needs the Swift 6.2 toolchain and the machine's Xcode 16.4 cannot build it. Use Expo Go on the iOS Simulator and Android emulator instead; see [docs/workflows/local-development-and-testing.md](docs/workflows/local-development-and-testing.md) for the full procedure (boot commands, first-time Expo Go install, EAS Build fallback for native modules).
+> **Xcode 16.4까지만 사용할 수 있는 구형 macOS 장비에서는 `npx expo run:ios`를 실행할 수 없습니다.** Expo SDK 57은 Swift 6.2 도구 모음이 필요하므로, 이 조건에 해당하는 장비에서는 iOS 시뮬레이터를 Expo Go로 실행하세요. 최신 macOS와 Swift 6.2를 지원하는 Xcode가 설치된 장비에는 이 제한이 적용되지 않습니다.
 
-Web (`expo start --web`) runs but is not the reference runtime; recording is disabled there.
+웹(`npm run web`)도 실행할 수 있지만 기준 개발 환경은 아닙니다. 웹에서는 영상 촬영 기능을 사용할 수 없습니다.
 
-## Project structure
+## 프로젝트 구조
 
-Routes live under `src/app/` as thin adapters; all real code lives in FSD layers:
+`src/app/`의 파일은 Expo Router와 화면을 연결하는 얇은 어댑터입니다. 실제 애플리케이션 코드는 FSD 계층에 배치합니다.
 
 ```text
 src/
-├── app/        Expo Router route files (thin re-exports / param parsing only)
-├── _app/       Providers, root stack, splash, platform tab navigation
-├── pages/      Screen composition and screen state (home, capture-*, archive, settings)
-├── features/   Reusable user actions (manage-recordings)
-├── entities/   Domain models (capture-session)
-└── shared/     Design tokens, UI kit, platform adapters (recording-files, secure-storage)
+├── app/        Expo Router 라우트 파일
+├── _app/       Provider, 루트 Stack, Splash, 플랫폼별 탭 내비게이션
+├── pages/      화면 조합과 화면 단위 상태
+├── features/   재사용 가능한 사용자 행동
+├── entities/   도메인 모델
+└── shared/     디자인 토큰, 공용 UI, 플랫폼 어댑터
 ```
 
-## Documentation
+## 문서 구조
 
-[AGENTS.md](AGENTS.md) indexes the task-specific guides. Key entry points:
+문서는 독자에 따라 다음과 같이 구분합니다.
 
-- [docs/architecture/feature-sliced-design.md](docs/architecture/feature-sliced-design.md) — layer rules for any change under `src/`
-- [docs/conventions/module-boundaries.md](docs/conventions/module-boundaries.md) — imports, public APIs, naming
-- [docs/features/README.md](docs/features/README.md) — what the product currently does, and the doc-maintenance contract
-- [docs/workflows/feature-development.md](docs/workflows/feature-development.md) — implementation workflow and completion checklist
-
-### Developer guides (한국어)
-
-Guides under `docs/guides/` are written in Korean for human developers and are not part of the agent documentation indexed by `AGENTS.md`:
-
-- [docs/guides/android-wireless-debugging.md](docs/guides/android-wireless-debugging.md) — 실제 Android 기기 무선(Wi-Fi) 연동 및 Expo Go 실행 가이드
-
-## Commands
-
-| Command | Purpose |
+| 위치 | 대상과 역할 |
 | --- | --- |
-| `npx expo start --go` | Start Metro for Expo Go (default runtime) |
-| `npm run web` | Start the web target (not the reference runtime) |
-| `npm run lint` | ESLint via `expo lint` |
-| `npx tsc --noEmit` | Type check |
+| [`README.md`](README.md) | 개발자가 처음 확인하는 프로젝트 소개와 실행 안내 |
+| [`docs/guides/`](docs/guides) | 개발자를 위한 설치, 실행, 디버깅 등의 실무 가이드 |
+| [`AGENTS.md`](AGENTS.md) | 작업 유형에 맞는 에이전트 문서를 찾기 위한 색인과 공통 규칙 |
+| [`docs/architecture/`](docs/architecture) | 아키텍처 원칙과 FSD 계층 기준 |
+| [`docs/conventions/`](docs/conventions) | 모듈 경계, 코드 설계 및 작성 규칙 |
+| [`docs/frameworks/`](docs/frameworks) | Expo Router와 상태·데이터 처리 규칙 |
+| [`docs/workflows/`](docs/workflows) | 기능 개발, 검증, 브랜딩 변경 절차 |
+| [`docs/features/`](docs/features) | 현재 사용자 기능, 구현 상태, 소유 계층 기록 |
+| [`docs/migration/`](docs/migration) | 구조 이전 현황과 점진적 마이그레이션 규칙 |
+
+### 개발자 가이드
+
+- [`Android 실기기 무선 연동 가이드`](docs/guides/android-wireless-debugging.md): 실제 Android 기기의 Wi-Fi 디버깅 연결과 Expo Go 실행 방법
+
+에이전트용 문서는 [`AGENTS.md`](AGENTS.md)에서 작업 유형별로 찾을 수 있습니다.
+
+## 주요 명령어
+
+| 명령어 | 용도 |
+| --- | --- |
+| `npx expo start --go` | 기본 개발 환경인 Expo Go용 Metro 서버 실행 |
+| `npm run web` | 웹 환경 실행(기준 개발 환경 아님) |
+| `npm run lint` | ESLint 검사 실행 |
+| `npx tsc --noEmit` | TypeScript 타입 검사 실행 |

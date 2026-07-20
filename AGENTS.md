@@ -17,9 +17,14 @@ This file is an index of task-specific documentation, not the full body of the p
 
 ## Documentation language
 
-Write all documentation intended for agents in English. This includes `AGENTS.md` and every guide indexed by it. Preserve code identifiers and product terms where translation would change their technical meaning.
+Classify a document by its primary audience before creating or editing it:
 
-Documentation intended for human developers lives under `docs/guides/`, is written in Korean, and is linked from `README.md` — not from this index. Do not translate those guides into English or add them to the table above. When a change invalidates the procedures they describe, update them in Korean.
+- Agent documentation must be written in English. This includes `AGENTS.md` and the documents under `docs/architecture`, `docs/conventions`, `docs/frameworks`, `docs/workflows`, `docs/features`, and `docs/migration` that this index routes agents to.
+- Human-developer documentation must be written in Korean. This includes the root `README.md` and every guide under `docs/guides/`.
+- Link human-developer guides from `README.md`, not from the agent task index above. Do not add `docs/guides/` documents to that index.
+- When a change invalidates either kind of documentation, update it in the language assigned to its audience.
+
+Preserve code identifiers, commands, API names, product names, and other technical terms when translating them would reduce precision.
 
 ## Rule precedence
 

@@ -10,6 +10,14 @@ import { chunkedSecureStorage } from '@/shared/lib/secure-storage';
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
+/**
+ * True when real Supabase credentials are supplied via env, i.e. the client is
+ * talking to an actual project rather than the placeholder fallback below.
+ * Callers use this to degrade gracefully when the backend is not wired up (e.g.
+ * the sign-in flow falls back to a mock provider in development).
+ */
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
 if (__DEV__ && (!supabaseUrl || !supabaseAnonKey)) {
   console.warn(
     '[supabase] EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY is not set. ' +

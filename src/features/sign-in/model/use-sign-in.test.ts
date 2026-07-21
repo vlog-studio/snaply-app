@@ -9,6 +9,10 @@ jest.mock('@/entities/session', () => ({
   useSetSession: () => mockSetSession,
 }));
 
+// Force the real-Supabase branch so these cases exercise `supabaseAuthProvider`;
+// the development mock fallback is covered in `use-sign-in.dev-fallback.test.ts`.
+jest.mock('@/shared/lib/supabase', () => ({ isSupabaseConfigured: true }));
+
 const mockSignIn = jest.fn();
 
 jest.mock('./supabase-auth-provider', () => {

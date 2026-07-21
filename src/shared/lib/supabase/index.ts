@@ -1,1 +1,1 @@
-export { supabase, startAuthAutoRefresh } from './supabase-client';
+export { isSupabaseConfigured, supabase, startAuthAutoRefresh } from './supabase-client';

@@ -52,5 +52,5 @@ The sign-in action is isolated behind the `AuthProvider` interface in `features/
 - **No real authentication.** `mockAuthProvider` returns a deterministic local user; it does not contact Kakao, Naver, Google, Apple, or any backend, and issues no real token.
 - **No backend or BaaS yet.** The real implementation will exchange the provider authorization code for a session on a server or managed auth service. Until then there is no identity verification.
 - When real auth lands, document per provider: the OAuth/redirect configuration, whether a development build (config plugin) is required, token storage keys and refresh behavior, error and cancellation states, and platform gating. Offering any social login on iOS requires **Apple sign-in** for App Store review.
-- Provider buttons use placeholder letter badges, not brand assets or official icons.
+- Provider buttons render each provider's official brand mark (bundled SVG assets under `features/sign-in/ui/provider-icons`, drawn with `expo-image`).
 - Account deletion in Settings remains a no-op prototype and is unrelated to this flow.

@@ -45,6 +45,15 @@
           "imageWidth": 150
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Snaply가 주변 촬영 스팟을 추천해 드릴 수 있도록 위치 접근을 허용해 주세요.",
+          "locationAlwaysAndWhenInUsePermission": "앱을 보고 있지 않아도 주변 스팟에 도착하면 알림을 보내드리기 위해 '항상 허용' 위치 권한이 필요해요.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
       "expo-video",
       "expo-sharing",
       "expo-secure-store",

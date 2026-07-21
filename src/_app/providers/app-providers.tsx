@@ -1,8 +1,11 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
 
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
+
+import { queryClient } from './query-client';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const scheme = useResolvedColorScheme();
@@ -22,9 +25,11 @@ export function AppProviders({ children }: PropsWithChildren) {
   };
 
   return (
-    <ThemeProvider value={navigationTheme}>
-      <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-      {children}
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider value={navigationTheme}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        {children}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }

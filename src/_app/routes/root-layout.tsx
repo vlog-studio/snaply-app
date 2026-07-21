@@ -8,6 +8,7 @@ import { initSession, useIsAuthenticated, useSessionHydrated } from '@/entities/
 import { useTheme } from '@/shared/ui/theme';
 
 import { AnimatedSplashOverlay } from './animated-splash-overlay';
+import './register-background-tasks';
 
 void SplashScreen.preventAutoHideAsync();
 

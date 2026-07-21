@@ -36,6 +36,7 @@ The location-alert, quiet-hours, and interests controls are owned by `src/featur
 - Geofence monitoring needs foreground + background ("항상 허용") location permission; if the user declines, toggling the switch on cannot start monitoring. Requesting the position and nearby points also needs a network/location fix, so there is a short delay before monitoring begins.
 - On Android 13+, showing a delivered notification also requires the `POST_NOTIFICATIONS` runtime permission (separate from these preferences).
 - `expo-notifications` is now used to present foreground push messages locally (FCM suppresses the system banner while the app is foregrounded); this is wired in `src/features/register-push-token`, not this screen. Displaying it requires the app to have been rebuilt with the `expo-notifications` native module present.
+- Push (FCM) requires the `@react-native-firebase` native modules, which Expo Go does not bundle. The messaging adapter (`src/shared/lib/notifications/messaging.ts`) loads Firebase lazily and degrades to inert stubs when the native module is absent — in Expo Go (or a dev client built before Firebase was added) push registration is silently skipped instead of crashing at startup, with a dev-only console warning.
 - Social connections do not use authentication or external APIs.
 - Log out is functional against the local session, but the session identity itself is still a mock and no backend is involved (see [Authentication](authentication.md)). Account deletion remains a no-op.
 

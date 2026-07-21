@@ -4,8 +4,6 @@ import type { SocialProvider } from '@/entities/session';
 export type SocialProviderMeta = {
   id: SocialProvider;
   label: string;
-  /** Short badge glyph shown before the label. Replaced by brand assets when real auth is wired. */
-  badge: string;
   backgroundColor: string;
   textColor: string;
   borderColor: string;
@@ -16,7 +14,6 @@ export const socialProviders: SocialProviderMeta[] = [
   {
     id: 'kakao',
     label: '카카오로 시작하기',
-    badge: 'K',
     backgroundColor: '#FEE500',
     textColor: '#191600',
     borderColor: '#FEE500',
@@ -24,7 +21,6 @@ export const socialProviders: SocialProviderMeta[] = [
   {
     id: 'naver',
     label: '네이버로 시작하기',
-    badge: 'N',
     backgroundColor: '#03C75A',
     textColor: '#FFFFFF',
     borderColor: '#03C75A',
@@ -32,7 +28,6 @@ export const socialProviders: SocialProviderMeta[] = [
   {
     id: 'google',
     label: 'Google로 시작하기',
-    badge: 'G',
     backgroundColor: '#FFFFFF',
     textColor: '#1F1F1F',
     borderColor: '#DADCE0',
@@ -40,7 +35,6 @@ export const socialProviders: SocialProviderMeta[] = [
   {
     id: 'apple',
     label: 'Apple로 시작하기',
-    badge: 'A',
     backgroundColor: '#000000',
     textColor: '#FFFFFF',
     borderColor: '#000000',

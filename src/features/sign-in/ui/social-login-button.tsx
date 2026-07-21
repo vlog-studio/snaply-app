@@ -4,6 +4,7 @@ import { Radius, Spacing } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import type { SocialProviderMeta } from '../model/social-provider';
+import { ProviderIcon } from './provider-icon';
 
 type SocialLoginButtonProps = {
   provider: SocialProviderMeta;
@@ -38,10 +39,8 @@ export function SocialLoginButton({
         <ActivityIndicator color={provider.textColor} />
       ) : (
         <>
-          <View style={styles.badge}>
-            <ThemedText selectable={false} style={[styles.badgeText, { color: provider.textColor }]}>
-              {provider.badge}
-            </ThemedText>
+          <View style={styles.icon}>
+            <ProviderIcon provider={provider.id} />
           </View>
           <ThemedText selectable={false} type="button" style={{ color: provider.textColor }}>
             {provider.label}
@@ -64,11 +63,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
   },
-  badge: {
+  icon: {
     position: 'absolute',
     left: Spacing.four,
     width: 24,
     alignItems: 'center',
   },
-  badgeText: { fontSize: 18, fontWeight: 800 },
 });

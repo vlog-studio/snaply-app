@@ -3,11 +3,8 @@ import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  formatRecordingDate,
-  formatRecordingFileSize,
-  useLocalRecordings,
-} from '@/features/manage-recordings';
+import { formatRecordingDate, useLocalRecordings } from '@/features/manage-recordings';
+import { formatFileSize } from '@/shared/lib/format-file-size';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -193,7 +190,7 @@ export function ArchivePage() {
                         {formatRecordingDate(recording.createdAt)}
                       </ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        원본 영상 · {formatRecordingFileSize(recording.size)}
+                        원본 영상 · {formatFileSize(recording.size)}
                       </ThemedText>
                     </View>
                     <ThemedText selectable={false} style={styles.chevron}>
@@ -298,7 +295,7 @@ export function ArchivePage() {
                 {formatRecordingDate(selectedRecording.createdAt)}
               </ThemedText>
               <ThemedText type="small" style={styles.mutedWhite}>
-                {formatRecordingFileSize(selectedRecording.size)} · 앱에 저장된 원본
+                {formatFileSize(selectedRecording.size)} · 앱에 저장된 원본
               </ThemedText>
             </View>
           ) : null}

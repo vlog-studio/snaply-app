@@ -1,7 +1,8 @@
 import { Alert, FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatRecordingDate, formatRecordingFileSize } from '@/features/manage-recordings';
+import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatFileSize } from '@/shared/lib/format-file-size';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -124,7 +125,7 @@ export function RecordingLibrary({
                   <View style={styles.recordingCopy}>
                     <ThemedText type="smallBold">{formatRecordingDate(item.createdAt)}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
-                      {formatRecordingFileSize(item.size)} · 앱에 저장됨
+                      {formatFileSize(item.size)} · 앱에 저장됨
                     </ThemedText>
                   </View>
                 </Pressable>

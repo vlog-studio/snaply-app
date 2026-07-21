@@ -10,7 +10,7 @@ Users can manage original recordings stored inside Snaply and can view a prototy
 | --- | --- | --- |
 | Persist completed camera recording | `Functional` | Native temporary media is moved into `document/recordings`. |
 | List recordings newest first | `Functional` | Video files are mapped to metadata and sorted by creation or modification time. |
-| Display date and file size | `Functional` | Korean localized date/time and KB/MB formatting are provided by `features/manage-recordings`. |
+| Display date and file size | `Functional` | Korean localized date/time formatting comes from `features/manage-recordings`; business-agnostic KB/MB formatting comes from `shared/lib/format-file-size`. |
 | Play a recording | `Functional` | Archive playback uses a full-screen looping `expo-video` view with native controls. |
 | Delete a recording | `Functional` | Users confirm destructive deletion; the adapter rejects files outside Snaply's recordings directory. |
 | Refresh after navigation | `Functional` | The Archive page reloads recordings whenever it receives focus. |

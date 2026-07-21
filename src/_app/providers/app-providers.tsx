@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
 
+import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
 import { queryClient } from './query-client';
@@ -28,6 +29,7 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        <PushTokenRegistrar />
         {children}
       </ThemeProvider>
     </QueryClientProvider>

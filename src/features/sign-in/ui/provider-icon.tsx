@@ -4,8 +4,6 @@ import type { SocialProvider } from '@/entities/session';
 
 /** Official brand marks, one per provider, rendered as SVG assets. */
 const providerIcons: Record<SocialProvider, ImageSource> = {
-  kakao: require('./provider-icons/kakao.svg'),
-  naver: require('./provider-icons/naver.svg'),
   google: require('./provider-icons/google.svg'),
   apple: require('./provider-icons/apple.svg'),
 };

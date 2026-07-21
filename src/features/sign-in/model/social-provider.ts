@@ -12,20 +12,6 @@ export type SocialProviderMeta = {
 /** Brand-styled providers, in the order they are offered on the sign-in screen. */
 export const socialProviders: SocialProviderMeta[] = [
   {
-    id: 'kakao',
-    label: '카카오로 시작하기',
-    backgroundColor: '#FEE500',
-    textColor: '#191600',
-    borderColor: '#FEE500',
-  },
-  {
-    id: 'naver',
-    label: '네이버로 시작하기',
-    backgroundColor: '#03C75A',
-    textColor: '#FFFFFF',
-    borderColor: '#03C75A',
-  },
-  {
     id: 'google',
     label: 'Google로 시작하기',
     backgroundColor: '#FFFFFF',

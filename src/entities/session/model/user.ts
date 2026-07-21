@@ -1,5 +1,5 @@
 /** Supported social identity providers a session can be created from. */
-export type SocialProvider = 'kakao' | 'naver' | 'google' | 'apple';
+export type SocialProvider = 'google' | 'apple';
 
 /** The authenticated account the application currently acts on behalf of. */
 export type User = {

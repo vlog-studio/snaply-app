@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { useSetSession, type SocialProvider } from '@/entities/session';
 
 import type { AuthProvider } from './auth-provider';
-import { mockAuthProvider } from './mock-auth-provider';
+import { SignInCancelledError, supabaseAuthProvider } from './supabase-auth-provider';
 
 const SIGN_IN_ERROR_MESSAGE = '로그인에 실패했어요. 잠시 후 다시 시도해 주세요.';
 
-// Swap this binding for a real AuthProvider implementation once a backend or
-// BaaS is chosen; the rest of the sign-in flow stays unchanged.
-const authProvider: AuthProvider = mockAuthProvider;
+// Real authentication over Supabase Auth. Swap to `mockAuthProvider` for
+// offline development without Supabase credentials; the rest of the sign-in
+// flow stays unchanged.
+const authProvider: AuthProvider = supabaseAuthProvider;
 
 /**
  * Orchestrates the sign-in action: runs the provider, writes the resulting
@@ -29,8 +30,9 @@ export function useSignIn() {
     try {
       const user = await authProvider.signIn(provider);
       setSession(user);
-    } catch {
-      setError(SIGN_IN_ERROR_MESSAGE);
+    } catch (cause) {
+      // A user-cancelled browser dismissal is not a failure — stay silent.
+      if (!(cause instanceof SignInCancelledError)) setError(SIGN_IN_ERROR_MESSAGE);
     } finally {
       setPendingProvider(null);
     }

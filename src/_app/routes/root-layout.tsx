@@ -1,9 +1,10 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { Stack } from 'expo-router/stack';
+import { useEffect } from 'react';
 
 import { AppProviders } from '@/_app/providers';
 import '@/_app/styles/global.css';
-import { useIsAuthenticated, useSessionHydrated } from '@/entities/session';
+import { initSession, useIsAuthenticated, useSessionHydrated } from '@/entities/session';
 import { useTheme } from '@/shared/ui/theme';
 
 import { AnimatedSplashOverlay } from './animated-splash-overlay';
@@ -11,6 +12,10 @@ import { AnimatedSplashOverlay } from './animated-splash-overlay';
 void SplashScreen.preventAutoHideAsync();
 
 export function RootLayout() {
+  // Mirror Supabase's auth state into the session store and bind token refresh
+  // to the app lifecycle for as long as the app is mounted.
+  useEffect(() => initSession(), []);
+
   return (
     <AppProviders>
       <AnimatedSplashOverlay />

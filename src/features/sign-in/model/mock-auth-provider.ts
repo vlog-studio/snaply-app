@@ -3,8 +3,6 @@ import type { SocialProvider, User } from '@/entities/session';
 import type { AuthProvider } from './auth-provider';
 
 const MOCK_DISPLAY_NAMES: Record<SocialProvider, string> = {
-  kakao: '카카오 사용자',
-  naver: '네이버 사용자',
   google: 'Google 사용자',
   apple: 'Apple 사용자',
 };

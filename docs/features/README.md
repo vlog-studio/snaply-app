@@ -52,7 +52,7 @@ Home floating capture button (or contextual card)
 | Feature document | Current scope | Status |
 | --- | --- | --- |
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, native/web tabs, route adapters, theme | `Functional` |
-| [Authentication](authentication.md) | Social sign-in (mock), session persistence, route guard, sign-out | `Partial` |
+| [Authentication](authentication.md) | Supabase Google/Apple OAuth sign-in, Supabase-owned session persistence, route guard, sign-out | `Functional` |
 | [Home and moment overview](home.md) | Daily prompt, contextual capture entry, moment progress, daily-vlog entry | `Prototype` |
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, review, simulated editing and result | `Partial` |
 | [Recording archive](recording-archive.md) | Local recording persistence, listing, playback, selection, and deletion; vlog archive preview | `Partial` |

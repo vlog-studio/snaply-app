@@ -6,6 +6,7 @@ import type { PropsWithChildren } from 'react';
 import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
+import { GeofenceGate } from './geofence-gate';
 import { queryClient } from './query-client';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -30,6 +31,7 @@ export function AppProviders({ children }: PropsWithChildren) {
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <PushTokenRegistrar />
+        <GeofenceGate />
         {children}
       </ThemeProvider>
     </QueryClientProvider>

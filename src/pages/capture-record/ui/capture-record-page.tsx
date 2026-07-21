@@ -1,226 +1,66 @@
-import * as Haptics from 'expo-haptics';
-import {
-  CameraView,
-  type CameraType,
-  useCameraPermissions,
-  useMicrophonePermissions,
-} from 'expo-camera';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { CameraView } from 'expo-camera';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  getCaptureMoodLabel,
-  normalizeCaptureDuration,
-  normalizeCaptureMood,
-} from '@/entities/capture-session';
-import { RecordingPreview, useLocalRecordings } from '@/features/manage-recordings';
-import type { LocalRecording } from '@/shared/lib/recording-files';
+import { getCaptureMoodLabel } from '@/entities/capture-session';
+import { RecordingPreview } from '@/features/manage-recordings';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
+import { useCaptureRecorder } from '../model/use-capture-recorder';
 import { RecordingLibrary } from './recording-library';
-
-type CaptureStage = 'idle' | 'recording' | 'saving' | 'review';
 
 type CaptureRecordPageProps = {
   durationValue?: string;
   moodValue?: string;
 };
 
-const isNativeRecordingSupported =
-  process.env.EXPO_OS === 'ios' || process.env.EXPO_OS === 'android';
-
 export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPageProps) {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const cameraRef = useRef<CameraView>(null);
-  const isRecording = useRef(false);
-  const isClosing = useRef(false);
-  const hasRequestedRecordingPermissions = useRef(false);
-  const mood = normalizeCaptureMood(moodValue);
-  const duration = normalizeCaptureDuration(durationValue);
-  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [microphonePermission, requestMicrophonePermission] = useMicrophonePermissions();
-  const [stage, setStage] = useState<CaptureStage>('idle');
-  const [remaining, setRemaining] = useState<number>(duration);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [facing, setFacing] = useState<CameraType>('back');
-  const [isCameraReady, setIsCameraReady] = useState(false);
-  const [isLibraryVisible, setIsLibraryVisible] = useState(false);
-  const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
-  const [captureError, setCaptureError] = useState<string>();
   const {
+    mood,
+    duration,
+    stage,
+    remaining,
+    isBusy,
+    showCamera,
+    isRecordingSupported,
+    soundEnabled,
+    toggleSound,
+    facing,
+    toggleFacing,
+    isCameraReady,
+    cameraRef,
+    handleCameraReady,
+    handleMountError,
+    selectedRecording,
+    errorMessage,
+    startRecording,
+    stopRecording,
+    closePage,
+    retake,
+    continueToEditing,
+    dismissErrors,
     recordings,
-    isLoading,
+    isLibraryLoading,
+    libraryError,
     deletingId,
-    errorMessage: libraryError,
-    clearError: clearLibraryError,
-    saveRecording,
-    removeRecording,
-  } = useLocalRecordings();
+    isLibraryVisible,
+    openLibrary,
+    closeLibrary,
+    selectRecording,
+    deleteRecording,
+    isCameraGranted,
+    isPermissionReady,
+    canAskAgain,
+    permissionMessage,
+    requestPermissions,
+    openAppSettings,
+  } = useCaptureRecorder({ durationValue, moodValue });
 
-  const requestMissingRecordingPermissions = useCallback(async () => {
-    if (!cameraPermission?.granted && cameraPermission?.canAskAgain) {
-      await requestCameraPermission();
-    }
-    if (!microphonePermission?.granted && microphonePermission?.canAskAgain) {
-      await requestMicrophonePermission();
-    }
-  }, [
-    cameraPermission,
-    microphonePermission,
-    requestCameraPermission,
-    requestMicrophonePermission,
-  ]);
-
-  useEffect(() => {
-    if (!cameraPermission || !microphonePermission || hasRequestedRecordingPermissions.current) {
-      return;
-    }
-
-    const needsCameraPermission = !cameraPermission.granted && cameraPermission.canAskAgain;
-    const needsMicrophonePermission =
-      !microphonePermission.granted && microphonePermission.canAskAgain;
-    if (!needsCameraPermission && !needsMicrophonePermission) return;
-
-    hasRequestedRecordingPermissions.current = true;
-    void requestMissingRecordingPermissions().catch(() => {
-      setCaptureError('카메라와 마이크 권한을 요청하지 못했어요. 설정에서 권한을 확인해 주세요.');
-    });
-  }, [cameraPermission, microphonePermission, requestMissingRecordingPermissions]);
-
-  useEffect(() => {
-    if (stage !== 'recording') return;
-
-    const startedAt = Date.now();
-    const timer = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-      setRemaining(Math.max(duration - elapsedSeconds, 0));
-    }, 250);
-
-    return () => clearInterval(timer);
-  }, [duration, stage]);
-
-  const dismissErrors = () => {
-    setCaptureError(undefined);
-    clearLibraryError();
-  };
-
-  const startRecording = async () => {
-    if (
-      !isNativeRecordingSupported ||
-      !cameraRef.current ||
-      !isCameraReady ||
-      stage !== 'idle' ||
-      isRecording.current
-    ) {
-      return;
-    }
-
-    isRecording.current = true;
-    dismissErrors();
-
-    try {
-      if (soundEnabled && !microphonePermission?.granted) {
-        const nextPermission = await requestMicrophonePermission();
-        if (!nextPermission.granted) {
-          setCaptureError(
-            '소리와 함께 촬영하려면 마이크 권한이 필요해요. 소리를 끄면 무음으로 촬영할 수 있어요.',
-          );
-          return;
-        }
-      }
-
-      if (!cameraRef.current) return;
-
-      setRemaining(duration);
-      setStage('recording');
-      if (process.env.EXPO_OS === 'ios') {
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-
-      const result = await cameraRef.current.recordAsync({ maxDuration: duration });
-      if (isClosing.current) return;
-      if (!result?.uri) {
-        setCaptureError('촬영 결과를 가져오지 못했어요. 다시 시도해 주세요.');
-        setStage('idle');
-        return;
-      }
-
-      setStage('saving');
-      const savedRecording = await saveRecording(result.uri);
-      if (!savedRecording) {
-        setStage('idle');
-        return;
-      }
-
-      setSelectedRecording(savedRecording);
-      setStage('review');
-      if (process.env.EXPO_OS === 'ios') {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    } catch {
-      setCaptureError('촬영을 완료하지 못했어요. 카메라 상태를 확인하고 다시 시도해 주세요.');
-      setStage('idle');
-    } finally {
-      isRecording.current = false;
-    }
-  };
-
-  const stopRecording = () => {
-    if (!isRecording.current) return;
-    cameraRef.current?.stopRecording();
-  };
-
-  const closePage = () => {
-    isClosing.current = true;
-    if (isRecording.current) cameraRef.current?.stopRecording();
-    router.back();
-  };
-
-  const retake = () => {
-    setSelectedRecording(undefined);
-    setIsCameraReady(false);
-    setRemaining(duration);
-    setStage('idle');
-    dismissErrors();
-  };
-
-  const selectRecording = (recording: LocalRecording) => {
-    setSelectedRecording(recording);
-    setStage('review');
-    setIsLibraryVisible(false);
-    dismissErrors();
-  };
-
-  const openLibrary = () => {
-    if (stage === 'idle') setIsCameraReady(false);
-    setIsLibraryVisible(true);
-  };
-
-  const deleteRecording = async (recording: LocalRecording) => {
-    const wasDeleted = await removeRecording(recording);
-    if (wasDeleted && selectedRecording?.id === recording.id) retake();
-  };
-
-  const continueToEditing = () => {
-    if (!selectedRecording) return;
-
-    router.replace({
-      pathname: '/capture/editing',
-      params: { duration: String(duration), mood },
-    });
-  };
-
-  const permissionMessage = cameraPermission
-    ? '영상을 촬영하려면 카메라 접근 권한이 필요해요.'
-    : '카메라 권한을 확인하고 있어요.';
-
-  if (!cameraPermission?.granted && stage !== 'review') {
+  if (!isCameraGranted && stage !== 'review') {
     return (
       <View
         style={[
@@ -247,22 +87,10 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             카메라를 사용할 수 없어요
           </ThemedText>
           <ThemedText style={styles.permissionDescription}>{permissionMessage}</ThemedText>
-          {cameraPermission ? (
+          {isPermissionReady ? (
             <SnaplyButton
-              title={
-                cameraPermission.canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'
-              }
-              onPress={
-                cameraPermission.canAskAgain
-                  ? () => {
-                      void requestMissingRecordingPermissions().catch(() => {
-                        setCaptureError(
-                          '카메라와 마이크 권한을 요청하지 못했어요. 설정에서 권한을 확인해 주세요.',
-                        );
-                      });
-                    }
-                  : () => void Linking.openSettings()
-              }
+              title={canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'}
+              onPress={canAskAgain ? requestPermissions : openAppSettings}
               style={styles.permissionAction}
             />
           ) : null}
@@ -280,8 +108,8 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         </View>
         <RecordingLibrary
           deletingId={deletingId}
-          isLoading={isLoading}
-          onClose={() => setIsLibraryVisible(false)}
+          isLoading={isLibraryLoading}
+          onClose={closeLibrary}
           onDelete={deleteRecording}
           onSelect={selectRecording}
           recordings={recordings}
@@ -290,10 +118,6 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
       </View>
     );
   }
-
-  const errorMessage = captureError ?? libraryError;
-  const isBusy = stage === 'recording' || stage === 'saving';
-  const showCamera = stage !== 'review' && !isLibraryVisible;
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.media }]}>
@@ -304,10 +128,8 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             mirror={facing === 'front'}
             mode="video"
             mute={!soundEnabled}
-            onCameraReady={() => setIsCameraReady(true)}
-            onMountError={({ message }) =>
-              setCaptureError(message || '카메라를 시작하지 못했어요.')
-            }
+            onCameraReady={handleCameraReady}
+            onMountError={({ message }) => handleMountError(message || '')}
             ref={cameraRef}
             style={StyleSheet.absoluteFill}
             videoQuality="720p"
@@ -324,11 +146,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         <View style={styles.cameraShade} pointerEvents="none" />
 
         <View style={styles.topBar}>
-          <Pressable
-            accessibilityLabel="촬영 닫기"
-            onPress={closePage}
-            style={styles.utilityButton}
-          >
+          <Pressable accessibilityLabel="촬영 닫기" onPress={closePage} style={styles.utilityButton}>
             <ThemedText selectable={false} style={styles.utilityIcon}>
               ×
             </ThemedText>
@@ -342,7 +160,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             accessibilityLabel={soundEnabled ? '녹음 소리 끄기' : '녹음 소리 켜기'}
             accessibilityState={{ disabled: isBusy }}
             disabled={isBusy}
-            onPress={() => setSoundEnabled((current) => !current)}
+            onPress={toggleSound}
             style={[styles.utilityButton, isBusy && styles.disabledControl]}
           >
             <ThemedText selectable={false} style={styles.soundIcon}>
@@ -379,11 +197,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             </View>
           ) : null}
           {errorMessage ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={dismissErrors}
-              style={styles.errorBanner}
-            >
+            <Pressable accessibilityRole="button" onPress={dismissErrors} style={styles.errorBanner}>
               <ThemedText type="smallBold" style={styles.whiteText}>
                 {errorMessage}
               </ThemedText>
@@ -429,14 +243,14 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                 accessibilityLabel={stage === 'recording' ? '촬영 끝내기' : '촬영 시작'}
                 accessibilityRole="button"
                 accessibilityState={{
-                  disabled: stage === 'saving' || !isCameraReady || !isNativeRecordingSupported,
+                  disabled: stage === 'saving' || !isCameraReady || !isRecordingSupported,
                 }}
-                disabled={stage === 'saving' || !isCameraReady || !isNativeRecordingSupported}
+                disabled={stage === 'saving' || !isCameraReady || !isRecordingSupported}
                 onPress={stage === 'recording' ? stopRecording : () => void startRecording()}
                 style={[
                   styles.shutterOuter,
                   stage === 'recording' && styles.shutterRecording,
-                  (!isCameraReady || !isNativeRecordingSupported) && styles.disabledControl,
+                  (!isCameraReady || !isRecordingSupported) && styles.disabledControl,
                 ]}
               >
                 <View
@@ -451,12 +265,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                 accessibilityLabel="카메라 전환"
                 accessibilityRole="button"
                 disabled={isBusy}
-                onPress={() => {
-                  // iOS keeps the capture session alive across facing changes and never
-                  // re-emits onCameraReady; only Android recreates the camera and re-fires it.
-                  if (process.env.EXPO_OS === 'android') setIsCameraReady(false);
-                  setFacing((current) => (current === 'back' ? 'front' : 'back'));
-                }}
+                onPress={toggleFacing}
                 style={[styles.sideControl, isBusy && styles.disabledControl]}
               >
                 <ThemedText selectable={false} style={styles.sideControlIcon}>
@@ -469,7 +278,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             </View>
           )}
           <ThemedText type="small" style={styles.helperText}>
-            {!isNativeRecordingSupported
+            {!isRecordingSupported
               ? '영상 녹화는 iOS 또는 Android 기기에서 사용할 수 있어요'
               : stage === 'recording'
                 ? '가운데 버튼을 누르면 바로 촬영을 끝낼 수 있어요'
@@ -491,8 +300,8 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
 
       <RecordingLibrary
         deletingId={deletingId}
-        isLoading={isLoading}
-        onClose={() => setIsLibraryVisible(false)}
+        isLoading={isLibraryLoading}
+        onClose={closeLibrary}
         onDelete={deleteRecording}
         onSelect={selectRecording}
         recordings={recordings}

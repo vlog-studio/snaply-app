@@ -2,55 +2,79 @@
 
 ## User goal
 
-Users sign in to Snaply with a social account (Kakao, Naver, Google, or Apple) before reaching the app. A signed-in session gates the main experience and persists across restarts, and users can sign out from Settings.
+Users sign in to Snaply with a social account (Google or Apple) before reaching the app. A signed-in session gates the main experience and persists across restarts, and users can sign out from Settings.
 
 ## Current behavior
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
 | See the sign-in screen when signed out | `Functional` | The root route guard shows `/sign-in` whenever no session exists, including on cold start and deep links into protected routes. |
-| Choose a social provider | `Partial` | Kakao, Naver, Google, and Apple buttons run a **simulated** provider that returns a local user after a short delay. No real OAuth, token exchange, or backend call happens yet. |
-| Pending and error feedback | `Functional` | The pressed provider shows a spinner and the others disable while it resolves; a failure surfaces an inline alert message. |
-| Stay signed in across restarts | `Functional` | The session is persisted through the SecureStore adapter and restored on launch; the splash overlay stays up until restoration finishes. |
+| Choose a social provider | `Functional` | Google and Apple buttons run the real Supabase Auth PKCE OAuth flow: an in-app browser handles provider consent and the returned authorization code is exchanged for a Supabase session. Requires a development build and configured Supabase credentials (see below). |
+| Pending and error feedback | `Functional` | The pressed provider shows a spinner and the others disable while it resolves. A failure surfaces an inline alert message; a user-cancelled browser dismissal is silent (no error). |
+| Stay signed in across restarts | `Functional` | Supabase persists its session through the chunked SecureStore adapter and restores it on launch; the splash overlay stays up until the initial session is read back. Tokens refresh automatically while the app is foregrounded. |
 | Reach the app after signing in | `Functional` | Once a session exists the guard reveals the tabs and capture stack; no manual navigation is performed. |
-| Sign out | `Functional` | The Settings account control clears the session, which returns the user to `/sign-in`. |
+| Sign out | `Functional` | The Settings account control calls `supabase.auth.signOut()`; the auth listener clears the mirrored session, returning the user to `/sign-in`. |
 
 ## Route flow
 
 ```text
 Cold start
-  → splash overlay held until the session store hydrates
+  → splash overlay held until Supabase's initial session is read back
   → no session  → /sign-in (guarded)
   → session     → (tabs) and /capture/* (guarded)
 
-/sign-in → press a provider → simulated sign-in → session created → guard reveals (tabs)
-Settings → 로그아웃 → session cleared → guard returns to /sign-in
+/sign-in → press Google/Apple → in-app browser consent → code exchanged for a
+           Supabase session → auth listener mirrors the user → guard reveals (tabs)
+Settings → 로그아웃 → supabase.auth.signOut() → guard returns to /sign-in
 ```
 
 ## Ownership and state
 
 | Concern | Owner |
 | --- | --- |
-| Session meaning, current user, persistence and clearing | `src/entities/session` (`model/session-store.ts`, `model/user.ts`) |
-| Sign-in action, provider abstraction, mock provider, provider button UI | `src/features/sign-in` |
+| Session meaning, current user, hydration, sign-out | `src/entities/session` (`model/session-store.ts`, `model/user.ts`, `model/map-user.ts`) |
+| Supabase client, session persistence, token auto-refresh | `src/shared/lib/supabase` (`supabase-client.ts`) |
+| Large-value token storage | `src/shared/lib/secure-storage` (`chunked-secure-storage.ts`, `.web.ts`) |
+| Sign-in action, provider abstraction, Supabase/mock providers, provider button UI | `src/features/sign-in` |
 | Sign-in screen composition | `src/pages/sign-in` |
 | Route file | `src/app/sign-in.tsx` (thin adapter) |
-| Access-control composition (route guard) | `src/_app/routes/root-layout.tsx` via `Stack.Protected` |
-| Sign-out control | `src/pages/settings` (calls the session entity's `clearSession`) |
+| Access-control composition (route guard) and session bootstrap | `src/_app/routes/root-layout.tsx` (`Stack.Protected` + `initSession`) |
+| Sign-out control | `src/pages/settings` (calls the session entity's `useClearSession`) |
 
-The session store follows the same zustand + `persist` + SecureStore pattern as the theme-mode store. It exposes focused selector hooks (`useCurrentUser`, `useIsAuthenticated`, `useSessionHydrated`, `useSetSession`, `useClearSession`) through the slice Public API; the raw store is exported only for co-located tests. The feature depends on the entity's `User`/`SocialProvider` types and its `useSetSession` action; screens never touch the store directly.
+**Supabase owns the session.** The `supabase` client persists the session (access token, refresh token, user) via the chunked SecureStore adapter and refreshes tokens automatically while the app is active. The zustand session store no longer persists its own copy; instead `initSession` (run once from the root layout) subscribes to `supabase.auth.onAuthStateChange`, mirrors the derived `User` into the store, and flips `hasHydrated` on the first event. `initSession` is the single writer for Supabase-driven changes (restore on launch, refresh, sign-out); the sign-in action additionally writes the user directly for immediate feedback (and to support the offline mock provider). The store still exposes the same focused selector hooks (`useCurrentUser`, `useIsAuthenticated`, `useSessionHydrated`, `useSetSession`, `useClearSession`) through the slice Public API.
 
-The sign-in action is isolated behind the `AuthProvider` interface in `features/sign-in/model/auth-provider.ts`. Swapping the single `authProvider` binding in `use-sign-in.ts` from `mockAuthProvider` to a real implementation is the only change needed to make sign-in functional; screens, routing, persistence, and the session store are unaffected.
+The sign-in action is isolated behind the `AuthProvider` interface in `features/sign-in/model/auth-provider.ts`. The bound implementation is `supabaseAuthProvider`; swapping the single binding in `use-sign-in.ts` to `mockAuthProvider` enables offline development without Supabase credentials. Screens, routing, and the store are unaffected by the swap. The derived `User` (`entities/session/model/map-user.ts`) carries only identity fields (`id`, `provider`, `displayName`, `avatarUrl`); no tokens are copied out of the Supabase session.
+
+## Backend contract
+
+The backend does not perform login. The app authenticates against Supabase directly; the resulting JWT is sent as `Authorization: Bearer <access_token>` to the backend API, which verifies it and upserts the app user on first call (`GET /auth/me`). Wiring the authenticated API client is out of scope for this feature.
 
 ## Platform support
 
-- iOS, Android, and web share the same mock flow. Persistence uses SecureStore on native and localStorage on web (per the shared secure-storage adapter).
-- All four provider buttons render on every platform in this phase. When real providers are wired, Apple sign-in visibility and the Kakao/Naver web-vs-native flows must be revisited (see below).
+- **A development build is required** — real OAuth uses the app's custom `snaplyapp` scheme for the redirect and the `expo-web-browser`/`expo-auth-session` native modules; it does not work in the standard Expo Go client. Android runs via a local development build; iOS runs via EAS Build.
+- Google and Apple buttons render on every platform. On web, persistence uses localStorage (per the chunked adapter's `.web` variant); native uses SecureStore.
+- Offering social login on iOS requires **Apple sign-in** for App Store review — it is included.
+
+## Configuration
+
+Environment (`.env`, see `.env.example`):
+
+- `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` — client-safe values from the Supabase project (anon key is public, gated by Row Level Security). Without them the app still boots for mock/offline development but real sign-in cannot complete.
+
+Supabase dashboard and provider consoles (one-time setup):
+
+- Auth → Providers: enable **Google** (OAuth client id/secret from Google Cloud Console) and **Apple** (Service ID, Team ID, Key ID, private key from Apple Developer).
+- Auth → URL Configuration → Redirect URLs: allow `snaplyapp://auth/callback`.
+- Google/Apple consoles: register the Supabase callback `https://<project-ref>.supabase.co/auth/v1/callback`.
+
+## Token storage
+
+Supabase's session is stored under its own key (`sb-<project-ref>-auth-token`) through `chunkedSecureStorage`. Because a session JSON commonly exceeds SecureStore's ~2048-byte single-value limit, the adapter splits it across numbered keys (`<key>.0`, `<key>.1`, …) with a `<key>.chunks` count, staying encrypted at rest in the OS keychain/keystore. Splitting is UTF-8-byte-aware and never divides a surrogate pair.
 
 ## Known limitations and implementation requirements
 
-- **No real authentication.** `mockAuthProvider` returns a deterministic local user; it does not contact Kakao, Naver, Google, Apple, or any backend, and issues no real token.
-- **No backend or BaaS yet.** The real implementation will exchange the provider authorization code for a session on a server or managed auth service. Until then there is no identity verification.
-- When real auth lands, document per provider: the OAuth/redirect configuration, whether a development build (config plugin) is required, token storage keys and refresh behavior, error and cancellation states, and platform gating. Offering any social login on iOS requires **Apple sign-in** for App Store review.
+- Real authentication requires the configuration above plus a development build; it cannot be exercised in Expo Go or in JavaScript unit tests (which mock the Supabase client, `expo-web-browser`, and `expo-auth-session`).
+- Only Google and Apple are configured. Kakao/Naver are not offered — Supabase Auth does not support them without custom OIDC setup.
+- The authenticated backend API client (`Authorization: Bearer` injection over TanStack Query) is not wired yet; it is separate from sign-in.
 - Provider buttons render each provider's official brand mark (bundled SVG assets under `features/sign-in/ui/provider-icons`, drawn with `expo-image`).
 - Account deletion in Settings remains a no-op prototype and is unrelated to this flow.

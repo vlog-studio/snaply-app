@@ -11,7 +11,7 @@ describe('mockAuthProvider', () => {
     jest.useRealTimers();
   });
 
-  it.each<SocialProvider>(['kakao', 'naver', 'google', 'apple'])(
+  it.each<SocialProvider>(['google', 'apple'])(
     'returns a deterministic user for %s',
     async (provider) => {
       const pending = mockAuthProvider.signIn(provider);

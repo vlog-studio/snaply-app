@@ -9,6 +9,17 @@ jest.mock('@/entities/session', () => ({
   useSetSession: () => mockSetSession,
 }));
 
+jest.mock('../model/supabase-auth-provider', () => ({
+  SignInCancelledError: class extends Error {},
+  supabaseAuthProvider: {
+    signIn: async (provider: string) => ({
+      id: `user-${provider}`,
+      displayName: 'Test User',
+      provider,
+    }),
+  },
+}));
+
 describe('SocialLoginList', () => {
   beforeEach(() => {
     jest.clearAllMocks();

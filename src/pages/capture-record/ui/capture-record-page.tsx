@@ -3,10 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCaptureMoodLabel } from '@/entities/capture-session';
-import { RecordingPreview } from '@/features/manage-recordings';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
+import { VideoPreview } from '@/shared/ui/video-preview';
 
 import { useCaptureRecorder } from '../model/use-capture-recorder';
 import { RecordingLibrary } from './recording-library';
@@ -136,7 +136,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           />
         ) : null}
         {stage === 'review' && selectedRecording && !isLibraryVisible ? (
-          <RecordingPreview
+          <VideoPreview
             key={selectedRecording.id}
             muted={!soundEnabled}
             uri={selectedRecording.uri}

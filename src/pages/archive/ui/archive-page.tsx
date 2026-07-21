@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   formatRecordingDate,
   formatRecordingFileSize,
-  RecordingPreview,
   useLocalRecordings,
 } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
@@ -14,6 +13,7 @@ import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
+import { VideoPreview } from '@/shared/ui/video-preview';
 
 type ArchiveView = 'recordings' | 'vlogs';
 
@@ -274,7 +274,7 @@ export function ArchivePage() {
       >
         <View style={styles.previewScreen}>
           {selectedRecording ? (
-            <RecordingPreview
+            <VideoPreview
               key={selectedRecording.id}
               contentFit="contain"
               muted={false}

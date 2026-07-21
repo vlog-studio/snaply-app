@@ -64,7 +64,8 @@ The selected recording URI or ID is not passed from `/capture/record` to `/captu
 - `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, and its internal recording-library modal.
 - `src/pages/capture-editing` and `src/pages/capture-result` own the current simulated presentation.
 - `src/entities/capture-session` owns capture option types, labels, and route-value normalization.
-- `src/features/manage-recordings` owns reusable local-recording state/actions, formatting, and video preview.
+- `src/features/manage-recordings` owns reusable local-recording state/actions and formatting.
+- `src/shared/ui/video-preview` owns the business-agnostic looping video player used in the review step.
 - `src/shared/lib/recording-files` adapts Expo FileSystem and supplies the web fallback.
 
 ## Persistence and privacy

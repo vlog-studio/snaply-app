@@ -1,8 +1,8 @@
+import { useVideoPlayer, VideoView, type VideoContentFit } from 'expo-video';
 import { useEffect } from 'react';
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { useVideoPlayer, VideoView, type VideoContentFit } from 'expo-video';
 
-type RecordingPreviewProps = {
+export type VideoPreviewProps = {
   contentFit?: VideoContentFit;
   muted: boolean;
   nativeControls?: boolean;
@@ -10,13 +10,13 @@ type RecordingPreviewProps = {
   uri: string;
 };
 
-export function RecordingPreview({
+export function VideoPreview({
   contentFit = 'cover',
   muted,
   nativeControls = false,
   style,
   uri,
-}: RecordingPreviewProps) {
+}: VideoPreviewProps) {
   const player = useVideoPlayer(uri, (videoPlayer) => {
     videoPlayer.loop = true;
     videoPlayer.muted = muted;

@@ -5,3 +5,8 @@ export {
   onFcmTokenRefresh,
   onForegroundMessage,
 } from './messaging';
+export {
+  configureForegroundNotifications,
+  ensureNotificationChannel,
+  presentLocalNotification,
+} from './local';

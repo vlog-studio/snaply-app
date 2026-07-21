@@ -13,20 +13,24 @@ export function SignInPage() {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
       <View style={styles.content}>
         <View style={styles.hero}>
-          <View style={[styles.mark, { backgroundColor: theme.primary }]}>
-            <Image
-              contentFit="contain"
-              source={require('@/assets/images/brand-glyph-white.png')}
-              style={styles.glyph}
-            />
-          </View>
-          <View style={styles.heroCopy}>
+          <View style={styles.brand}>
+            <View style={[styles.mark, { backgroundColor: theme.primary }]}>
+              <Image
+                contentFit="contain"
+                source={require('@/assets/images/brand-glyph-white.png')}
+                style={styles.glyph}
+              />
+            </View>
             <ThemedText type="eyebrow" themeColor="primary">
               SNAPLY
             </ThemedText>
-            <ThemedText type="title">찍으면 알아서 됩니다.</ThemedText>
-            <ThemedText themeColor="textSecondary">
-              소셜 계정으로 3초 만에 시작하고 오늘의 찰나를 남겨보세요.
+          </View>
+          <View style={styles.heroCopy}>
+            <ThemedText type="title" style={styles.centerText}>
+              {'찍기만 하세요.\n나머지는 스냅리가.'}
+            </ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.centerText}>
+              오늘의 찰나, 스냅리에 남겨보세요.
             </ThemedText>
           </View>
         </View>
@@ -53,17 +57,19 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.six,
     justifyContent: 'space-between',
   },
-  hero: { flex: 1, justifyContent: 'center', gap: Spacing.six },
+  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.five },
+  brand: { alignItems: 'center', gap: Spacing.two },
+  heroCopy: { alignItems: 'center', gap: Spacing.two },
+  centerText: { textAlign: 'center' },
   mark: {
-    width: 82,
-    height: 82,
+    width: 80,
+    height: 80,
     borderRadius: Radius.large,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: { width: 46, height: 46 },
-  heroCopy: { gap: Spacing.two },
+  glyph: { width: 45, height: 45 },
   actions: { gap: Spacing.four },
   disclaimer: { textAlign: 'center' },
 });

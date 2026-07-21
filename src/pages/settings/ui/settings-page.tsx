@@ -3,6 +3,17 @@ import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { useClearSession, useCurrentUser } from '@/entities/session';
 import {
+  INTEREST_OPTIONS,
+  useInterests,
+  useNotificationEnabled,
+  useQuietEnd,
+  useQuietStart,
+  useSetNotificationEnabled,
+  useSetQuietEnd,
+  useSetQuietStart,
+  useToggleInterest,
+} from '@/features/notification-settings';
+import {
   MaxContentWidth,
   Radius,
   Spacing,
@@ -39,6 +50,14 @@ export function SettingsPage() {
     evening: true,
   });
   const [frequency, setFrequency] = useState(2);
+  const notificationEnabled = useNotificationEnabled();
+  const setNotificationEnabled = useSetNotificationEnabled();
+  const quietStart = useQuietStart();
+  const quietEnd = useQuietEnd();
+  const setQuietStart = useSetQuietStart();
+  const setQuietEnd = useSetQuietEnd();
+  const interests = useInterests();
+  const toggleInterest = useToggleInterest();
 
   return (
     <ScrollView
@@ -112,6 +131,71 @@ export function SettingsPage() {
                   style={{ color: isSelected ? theme.background : theme.text }}
                 >
                   {value}회
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </SettingsSection>
+
+      <SettingsSection title="위치 알림">
+        <View style={styles.settingRow}>
+          <ThemedText selectable={false} style={styles.rowEmoji}>
+            📍
+          </ThemedText>
+          <View style={styles.rowCopy}>
+            <ThemedText type="smallBold">위치 알림 받기</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              주변 촬영 스팟에 도착하면 알려드려요.
+            </ThemedText>
+          </View>
+          <Switch
+            accessibilityLabel="위치 알림 받기"
+            value={notificationEnabled}
+            onValueChange={setNotificationEnabled}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={theme.border}
+          />
+        </View>
+      </SettingsSection>
+
+      <SettingsSection title="조용한 시간">
+        <HourStepper label="시작" value={quietStart} onChange={setQuietStart} />
+        <View style={{ height: 1, backgroundColor: theme.border }} />
+        <HourStepper label="종료" value={quietEnd} onChange={setQuietEnd} />
+        <View style={{ height: 1, backgroundColor: theme.border }} />
+        <View style={styles.quietHint}>
+          <ThemedText type="small" themeColor="textSecondary">
+            {`${formatHour(quietStart)}부터 ${formatHour(quietEnd)}까지는 알림을 보내지 않아요.`}
+          </ThemedText>
+        </View>
+      </SettingsSection>
+
+      <SettingsSection title="관심사">
+        <View style={styles.chipsRow}>
+          {INTEREST_OPTIONS.map((interest) => {
+            const isSelected = interests.includes(interest);
+            return (
+              <Pressable
+                key={interest}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: isSelected }}
+                onPress={() => toggleInterest(interest)}
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: isSelected ? theme.text : theme.background,
+                    borderColor: isSelected ? theme.text : theme.border,
+                  },
+                ]}
+              >
+                <ThemedText
+                  selectable={false}
+                  type="smallBold"
+                  style={{ color: isSelected ? theme.background : theme.text }}
+                >
+                  {interest}
                 </ThemedText>
               </Pressable>
             );
@@ -250,6 +334,53 @@ function SocialRow({ connected, emoji, label, status }: SocialRowProps) {
   );
 }
 
+function formatHour(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
+type HourStepperProps = {
+  label: string;
+  value: number;
+  onChange: (hour: number) => void;
+};
+
+function HourStepper({ label, value, onChange }: HourStepperProps) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.settingRow}>
+      <View style={styles.rowCopy}>
+        <ThemedText type="smallBold">{label}</ThemedText>
+      </View>
+      <View style={styles.stepper}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${label} 시간 줄이기`}
+          onPress={() => onChange((value + 23) % 24)}
+          style={[styles.stepperButton, { borderColor: theme.border }]}
+        >
+          <ThemedText selectable={false} type="smallBold">
+            −
+          </ThemedText>
+        </Pressable>
+        <ThemedText selectable={false} type="smallBold" style={styles.stepperValue}>
+          {formatHour(value)}
+        </ThemedText>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${label} 시간 늘리기`}
+          onPress={() => onChange((value + 1) % 24)}
+          style={[styles.stepperButton, { borderColor: theme.border }]}
+        >
+          <ThemedText selectable={false} type="smallBold">
+            +
+          </ThemedText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
     width: '100%',
@@ -303,5 +434,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   accountAction: { minHeight: 54, justifyContent: 'center', paddingHorizontal: Spacing.four },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  stepperButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: Radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperValue: { minWidth: 56, textAlign: 'center' },
+  quietHint: { paddingHorizontal: Spacing.four, paddingVertical: Spacing.three },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', padding: Spacing.four, gap: Spacing.two },
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: Spacing.four,
+    borderWidth: 1,
+    borderRadius: Radius.small,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   version: { textAlign: 'center', paddingTop: Spacing.three },
 });

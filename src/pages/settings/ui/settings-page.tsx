@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
+import { useClearSession, useCurrentUser } from '@/entities/session';
 import {
   MaxContentWidth,
   Radius,
@@ -30,6 +31,8 @@ export function SettingsPage() {
   const theme = useTheme();
   const themeMode = useThemeMode();
   const setThemeMode = useSetThemeMode();
+  const currentUser = useCurrentUser();
+  const clearSession = useClearSession();
   const [enabledWindows, setEnabledWindows] = useState<Record<NotificationWindowId, boolean>>({
     morning: true,
     lunch: true,
@@ -154,7 +157,25 @@ export function SettingsPage() {
       </SettingsSection>
 
       <SettingsSection title="계정">
-        <Pressable style={styles.accountAction}>
+        {currentUser ? (
+          <>
+            <View style={styles.settingRow}>
+              <View style={[styles.socialIcon, { backgroundColor: theme.background }]}>
+                <ThemedText selectable={false} style={styles.socialEmoji}>
+                  {currentUser.displayName.charAt(0)}
+                </ThemedText>
+              </View>
+              <View style={styles.rowCopy}>
+                <ThemedText type="smallBold">{currentUser.displayName}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  로그인됨
+                </ThemedText>
+              </View>
+            </View>
+            <View style={{ height: 1, backgroundColor: theme.border }} />
+          </>
+        ) : null}
+        <Pressable accessibilityRole="button" style={styles.accountAction} onPress={clearSession}>
           <ThemedText type="smallBold">로그아웃</ThemedText>
         </Pressable>
         <View style={{ height: 1, backgroundColor: theme.border }} />

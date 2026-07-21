@@ -18,6 +18,7 @@ import {
   Radius,
   Spacing,
   useSetThemeMode,
+  useTabBarHeight,
   useTheme,
   useThemeMode,
   type ThemeMode,
@@ -40,6 +41,7 @@ const themeModeOptions: { id: ThemeMode; label: string }[] = [
 
 export function SettingsPage() {
   const theme = useTheme();
+  const tabBarHeight = useTabBarHeight();
   const themeMode = useThemeMode();
   const setThemeMode = useSetThemeMode();
   const currentUser = useCurrentUser();
@@ -63,7 +65,7 @@ export function SettingsPage() {
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: Spacing.eight + tabBarHeight }]}
     >
       <View style={styles.intro}>
         <ThemedText type="eyebrow" themeColor="primary">
@@ -388,7 +390,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
     paddingTop: Spacing.four,
-    paddingBottom: Spacing.eight,
     gap: Spacing.five,
   },
   intro: { gap: Spacing.two },

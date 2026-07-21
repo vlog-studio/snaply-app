@@ -8,7 +8,14 @@ import { formatFileSize } from '@/shared/lib/format-file-size';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
+import {
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTabBarHeight,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
@@ -25,6 +32,7 @@ export function ArchivePage() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const topInset = useTopContentInset();
+  const tabBarHeight = useTabBarHeight();
   const [archiveView, setArchiveView] = useState<ArchiveView>('recordings');
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
   const { recordings, isLoading, deletingId, errorMessage, reloadRecordings, removeRecording } =
@@ -58,7 +66,7 @@ export function ArchivePage() {
           styles.content,
           {
             paddingTop: Spacing.six + topInset,
-            paddingBottom: Spacing.six,
+            paddingBottom: Spacing.six + tabBarHeight,
           },
         ]}
       >

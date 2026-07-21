@@ -7,7 +7,8 @@ Snaply opens into a three-tab application with Home, Archive, and Settings desti
 | Capability | Status | Notes |
 | --- | --- | --- |
 | Root stack and route composition | `Functional` | Route files are thin Expo Router adapters. |
-| Tab navigation | `Functional` | All platforms share one implementation using the stable `Tabs` navigator from `expo-router` (React Navigation bottom tabs) with three screens (Home, Archive, Settings). The bar is docked and icon-only (`tabBarShowLabel: false`) with `@expo/vector-icons` Ionicons; each screen keeps a `tabBarAccessibilityLabel`. |
+| Tab navigation | `Functional` | All platforms share one implementation using the stable `Tabs` navigator from `expo-router` (React Navigation bottom tabs) with three screens (Home, Archive, Settings). The bar is icon-only (`tabBarShowLabel: false`) with `@expo/vector-icons` Ionicons; each screen keeps a `tabBarAccessibilityLabel`. |
+| Translucent blurred tab bar | `Functional` | The bar is absolutely positioned with a transparent background and an `expo-blur` `BlurView` (`tabBarBackground`) so scene content shows through it — native blur on iOS, `dimezisBlurViewSdk31Plus` on Android (semi-transparent fallback below SDK 31); tint follows the resolved scheme. A hairline top border remains. Scrollable screens offset content by `useTabBarHeight` (`shared/ui/theme`) so nothing sits permanently behind the bar. |
 | Modal Capture entry | `Functional` | The Home contextual card's capture button opens `/capture` as a root-stack modal (`presentation: 'modal'`, header hidden); a close button on the screen returns to Home. |
 | Native animated splash transition | `Functional` | The system splash is hidden after the overlay lays out, then the overlay — the Snaply brand mark (`assets/images/brand-glyph-orange.png`) on the primary background — fades out. |
 | Web splash transition | `Functional` | The overlay intentionally renders nothing on web. |
@@ -34,11 +35,11 @@ Snaply opens into a three-tab application with Home, Archive, and Settings desti
 - `src/_app/providers/app-providers.tsx` derives the Expo Router navigation theme and status-bar style from the resolved color scheme.
 - `src/_app/routes/root-layout.tsx` composes providers, splash behavior, and stack presentations.
 - `src/_app/routes/app-tabs.tsx` is the single cross-platform tab navigator (`Tabs` from `expo-router`) with the Home, Archive, and Settings screens; there is no platform-specific tab variant.
-- `src/shared/ui/theme` owns colors, spacing, radii, content width, theme access, the persisted theme-mode store, and the Android top content inset helper.
+- `src/shared/ui/theme` owns colors, spacing, radii, content width, theme access, the persisted theme-mode store, the Android top content inset helper, and the tab bar height helper (`useTabBarHeight`) used to offset scrollable screens beneath the translucent bar.
 - `src/shared/ui/fade-in-view` owns the mount fade-in used instead of Reanimated `entering` presets, which never start on iOS in Expo Go and left content invisible.
 
 ## Known limitations
 
-- The docked tab bar is a JS-drawn React Navigation bar, not a platform-native tab bar; it does not use native blur, haptics, or scroll-to-minimize.
+- The tab bar is a JS-drawn React Navigation bar, not a platform-native tab bar; it has no haptics or scroll-to-minimize. Its background blur is native on iOS and uses the `expo-blur` Dimezis implementation on Android (semi-transparent fallback below SDK 31).
 - The splash animation is native-only.
 - The theme mode persists through the SecureStore-backed adapter in `shared/lib/secure-storage` (localStorage on web); the first frame before rehydration uses the system scheme.

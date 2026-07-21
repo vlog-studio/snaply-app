@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
-import { Pressable, type ColorValue } from 'react-native';
+import { Pressable, StyleSheet, type ColorValue } from 'react-native';
 
-import { Radius, useTheme } from '@/shared/ui/theme';
+import { Radius, TabBarContentHeight, useResolvedColorScheme, useTheme } from '@/shared/ui/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
 
 export function AppTabs() {
   const theme = useTheme();
+  const scheme = useResolvedColorScheme();
   // A fixed `height` overrides the automatic bottom safe-area inset, so add it
   // back explicitly — otherwise the bar overlaps the Android navigation bar.
   const inset = useSafeAreaInsets();
@@ -21,11 +23,24 @@ export function AppTabs() {
         sceneStyle: { backgroundColor: theme.background },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textSecondary,
+        // The bar floats over the scene so its blur has content to sample;
+        // screens offset their scroll content with `useTabBarHeight`.
+        tabBarBackground: () => (
+          <BlurView
+            tint={scheme === 'dark' ? 'dark' : 'light'}
+            intensity={60}
+            // Real background blur on Android SDK 31+, graceful semi-transparent
+            // fallback on older versions.
+            blurMethod="dimezisBlurViewSdk31Plus"
+            style={StyleSheet.absoluteFill}
+          />
+        ),
         tabBarStyle: {
-          backgroundColor: theme.background,
+          position: 'absolute',
+          backgroundColor: 'transparent',
           borderTopColor: theme.border,
-          borderTopWidth: 1,
-          height: inset.bottom + 40,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: inset.bottom + TabBarContentHeight,
           paddingBottom: inset.bottom,
         },
         tabBarItemStyle: { borderRadius: Radius.pill },

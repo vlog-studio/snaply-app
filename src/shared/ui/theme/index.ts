@@ -2,5 +2,6 @@ export { Colors, Fonts, MaxContentWidth, Radius, Spacing } from './theme';
 export type { ThemeColor } from './theme';
 export { useSetThemeMode, useThemeMode } from './theme-mode';
 export type { ThemeMode } from './theme-mode';
+export { TabBarContentHeight, useTabBarHeight } from './use-tab-bar-height';
 export { useResolvedColorScheme, useTheme } from './use-theme';
 export { useTopContentInset } from './use-top-content-inset';

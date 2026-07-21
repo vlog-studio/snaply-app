@@ -3,12 +3,20 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
+import {
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  useTabBarHeight,
+  useTheme,
+  useTopContentInset,
+} from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 export function HomePage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
+  const tabBarHeight = useTabBarHeight();
   const today = new Intl.DateTimeFormat('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -23,7 +31,7 @@ export function HomePage() {
         styles.content,
         {
           paddingTop: Spacing.six + topInset,
-          paddingBottom: Spacing.seven,
+          paddingBottom: Spacing.seven + tabBarHeight,
         },
       ]}
     >

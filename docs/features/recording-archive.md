@@ -53,7 +53,8 @@ The “브이로그” segment is a `Prototype`.
 ## Ownership
 
 - `src/pages/archive` owns the two archive segments, archive-specific UI, playback modal, and prototype vlog fixtures.
-- `src/features/manage-recordings` owns reusable recording operations, formatting, and preview UI.
+- `src/features/manage-recordings` owns reusable recording operations and formatting.
+- `src/shared/ui/video-preview` owns the business-agnostic looping video player used by the playback modal.
 - `src/shared/lib/recording-files` owns native file operations and the web fallback.
 - `src/entities/capture-session` is not currently connected to persisted recordings; `LocalRecording` contains no mood or duration metadata.
 

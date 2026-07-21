@@ -4,7 +4,7 @@
 
 This directory is the product-level source of truth for behavior that is currently represented in the Snaply application. It complements the architecture guides: architecture documents define how code should be organized, while these documents record what users can currently do, which code owns that behavior, and which experiences are still prototypes.
 
-The inventory reflects the codebase as of 2026-07-16.
+The inventory reflects the codebase as of 2026-07-21.
 
 ## Implementation status vocabulary
 
@@ -22,15 +22,18 @@ Never describe a prototype as functional merely because its controls can be pres
 
 ```text
 Root stack
-├── (tabs)
+├── /sign-in           Social sign-in (shown when signed out)
+├── (tabs)             (guarded: requires a session)
 │   ├── /              Home (with floating capture button)
 │   └── /archive       Recording archive and vlog prototype
 ├── /settings          Settings modal
-└── /capture           Capture setup (modal)
+└── /capture           Capture setup (modal, guarded)
     ├── /record        Camera recording and review
     ├── /editing       Simulated AI-editing progress
     └── /result        Simulated edited-result summary
 ```
+
+Access control: `src/_app/routes/root-layout.tsx` guards the tab and capture routes with `Stack.Protected` based on session state. A signed-out user is routed to `/sign-in`.
 
 The main user journey is:
 
@@ -49,6 +52,7 @@ Home floating capture button (or contextual card)
 | Feature document | Current scope | Status |
 | --- | --- | --- |
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, native/web tabs, route adapters, theme | `Functional` |
+| [Authentication](authentication.md) | Social sign-in (mock), session persistence, route guard, sign-out | `Partial` |
 | [Home and moment overview](home.md) | Daily prompt, contextual capture entry, moment progress, daily-vlog entry | `Prototype` |
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, review, simulated editing and result | `Partial` |
 | [Recording archive](recording-archive.md) | Local recording persistence, listing, playback, selection, and deletion; vlog archive preview | `Partial` |
@@ -59,10 +63,10 @@ Home floating capture button (or contextual card)
 | Layer | Current modules | Responsibility |
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
-| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack, and platform-specific tab navigation. |
-| `src/pages` | `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `archive`, `settings` | Own screen composition and screen-specific state. |
-| `src/features` | `manage-recordings` | Reuse local-recording loading, saving, deletion, formatting, and video preview across capture and archive screens. |
-| `src/entities` | `capture-session` | Define supported capture moods and durations and normalize route values. |
+| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack with the session route guard, and platform-specific tab navigation. |
+| `src/pages` | `sign-in`, `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `archive`, `settings` | Own screen composition and screen-specific state. |
+| `src/features` | `manage-recordings`, `sign-in` | Reuse local-recording handling across capture and archive screens, and the social sign-in action. |
+| `src/entities` | `capture-session`, `session` | Define supported capture moods and durations, and own the authenticated session and current user. |
 | `src/shared` | `lib/recording-files`, `lib/secure-storage`, UI modules | Provide the platform-specific file and secure-storage adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
 
 No `widgets` layer is currently needed. Page-specific blocks remain inside their owning page slices.

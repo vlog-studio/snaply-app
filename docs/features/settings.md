@@ -14,12 +14,13 @@ The Settings tab presents the intended controls for reminder timing, notificatio
 | Select one to three reminders per day | `Prototype` | The selection is local UI state and does not schedule notifications. |
 | TikTok connection state | `Prototype` | “Connected” is a static initial label; the disconnect control has no action. |
 | Instagram connection | `Prototype` | The connect control has no action. |
-| Log out | `Prototype` | The control has no action. |
+| Show the signed-in account | `Partial` | When a session exists, the account section shows the current user's display name; the underlying identity is still a mock (see [Authentication](authentication.md)). |
+| Log out | `Functional` | Clears the persisted session via the session entity, which returns the user to `/sign-in`. |
 | Delete account | `Prototype` | The control has no action or confirmation flow. |
 
 ## Ownership and state
 
-`src/pages/settings` owns the screen and the local presentation state of the prototype sections. There is currently no settings entity, feature slice, form schema, API, authentication session, notification scheduler, or social-auth adapter connected to this page.
+`src/pages/settings` owns the screen and the local presentation state of the prototype sections. The account section is the exception: it reads the current user through `src/entities/session` (`useCurrentUser`) and signs out through the same entity (`useClearSession`). There is currently no settings entity, form schema, notification scheduler, or social-auth adapter connected to this page; the reminder and social-connection sections remain local prototype state.
 
 The screen-theme control is the exception: its state lives in the persisted theme-mode store in `src/shared/ui/theme` (`useThemeMode`/`useSetThemeMode`), because the theme system in shared is the lowest common owner consumed by every themed component. Persistence goes through the SecureStore adapter in `src/shared/lib/secure-storage` (localStorage on web). The page otherwise imports only shared theme and typography modules.
 
@@ -28,6 +29,6 @@ The screen-theme control is the exception: its state lives in the persisted them
 - Reminder choices do not survive navigation or application restart; the screen-theme choice does.
 - `expo-notifications` is installed but not used by this screen.
 - Social connections do not use authentication or external APIs.
-- Account actions do not use an authenticated user model or backend.
+- Log out is functional against the local session, but the session identity itself is still a mock and no backend is involved (see [Authentication](authentication.md)). Account deletion remains a no-op.
 
 When a control becomes functional, document its persistence owner, permission behavior, external service, loading and error states, and platform support here. If the same action gains another consumer, evaluate a feature extraction using the project workflow rather than moving all settings code preemptively.

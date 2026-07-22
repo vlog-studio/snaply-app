@@ -113,6 +113,14 @@ Only native modules bundled in Expo Go work, and `expo-dev-client` configuration
 
 Known Expo Go pitfall confirmed in this project: Reanimated `entering` presets (`FadeInDown`, `ZoomIn`, …) never start on iOS in Expo Go, leaving those views stuck at opacity 0 (Android runs them fine). Use the shared `FadeInView` (`src/shared/ui/fade-in-view`), which animates a shared value on mount and works on both platforms. Exception: the splash overlay (`src/_app/routes/animated-splash-overlay.tsx`) uses a custom `Keyframe` entering animation whose completion callback unmounts the overlay; this has worked where the presets do not, but re-verify splash dismissal on the iOS simulator whenever that file or Reanimated changes, because a non-starting animation there would leave the splash stuck on screen.
 
+## Standalone install on a physical Android device — release variant
+
+`npm run android:device:release` (`scripts/install-android-release.sh`) builds the release APK with Gradle (`gradlew app:assembleRelease`), then installs and launches it on the connected physical device via adb. The JS bundle is embedded in the APK, so the app runs standalone without Metro — use this to hand a device a self-contained build or to verify near-production behavior. The Expo prebuild template signs release builds with the debug keystore, so no signing setup is needed, and it overwrites an installed debug build in place. With multiple devices connected, set `ANDROID_SERIAL` to the adb serial of the target.
+
+The script deliberately does **not** use `expo run:android --variant release`: on this machine the expo-driven release build repeatedly fails in `:app:mergeReleaseResources` with corrupted incremental state (`merged.dir/values*.xml (No such file or directory)`), while a direct Gradle build succeeds. The script also clears that incremental state and retries once if the build fails, and recreates `android/local.properties` / runs `expo prebuild` when the generated `android/` folder is missing.
+
+Release builds need more Gradle daemon memory than the template default (`-Xmx2048m -XX:MaxMetaspaceSize=512m`): `lintVitalAnalyzeRelease` fails with a Metaspace OOM. The local config plugin `plugins/with-gradle-jvmargs.js` (registered in `app.json`) raises this to `-Xmx4096m -XX:MaxMetaspaceSize=1024m` via `withGradleProperties`, so the fix survives `prebuild --clean`. Do not hand-edit `android/gradle.properties` for this; change the plugin.
+
 ## Full native verification — EAS Build (cloud dev build)
 
 When Expo Go is insufficient, build a simulator/emulator dev client in the cloud (Expo's servers have Xcode 26), install the result on the local device, and connect Metro with `npx expo start --dev-client`. This exercises all native modules regardless of the local Xcode version. It requires a free Expo account; `eas login` must be performed by the user (account authentication).

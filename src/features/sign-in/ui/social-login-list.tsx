@@ -8,10 +8,10 @@ import { useSignIn } from '../model/use-sign-in';
 import { SocialLoginButton } from './social-login-button';
 
 /**
- * The reusable social sign-in action: renders every supported provider button
- * and drives the sign-in flow. Success is observed by the root route guard,
- * which moves the user into the app; this component only surfaces progress and
- * failure.
+ * The reusable social sign-in action: renders every offered provider button
+ * (`socialProviders`) and drives the sign-in flow. Success is observed by the
+ * root route guard, which moves the user into the app; this component only
+ * surfaces progress and failure.
  */
 export function SocialLoginList() {
   const { signIn, pendingProvider, error } = useSignIn();

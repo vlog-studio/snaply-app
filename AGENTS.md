@@ -15,6 +15,7 @@ This file is an index of task-specific documentation, not the full body of the p
 | App icon, display name, splash screen, adaptive-icon colors, or other native-baked branding | [`docs/workflows/app-branding-and-native-config.md`](docs/workflows/app-branding-and-native-config.md) | CNG source-of-truth model, prebuild + rebuild procedure, per-platform verification, and known pitfalls |
 | Any user-visible feature addition, behavior change, removal, or implementation-status change | [`docs/features/README.md`](docs/features/README.md) and the affected feature document(s) | Current product behavior, routes, ownership, platform support, limitations, and documentation maintenance rules |
 | Designing or reviewing components, hooks, modules, services, and dependency boundaries | [`docs/conventions/solid-react-native.md`](docs/conventions/solid-react-native.md) | Practical SOLID principles for React Native, evidence-based abstractions, and implementation safeguards |
+| Implementing a route, data fetch/mutation, store, hook, native adapter, or test — before writing a new slice | [`docs/conventions/implementation-patterns.md`](docs/conventions/implementation-patterns.md) | Cookbook of the canonical, copy-followable implementation patterns already in the codebase, each pointing to the reference file to imitate |
 | Cleanup of existing `components`, `hooks`, and `constants` | [`docs/migration/fsd-adoption.md`](docs/migration/fsd-adoption.md) | Incremental migration order and transitional-state rules |
 
 ## Documentation language

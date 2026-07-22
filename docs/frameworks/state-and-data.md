@@ -1,6 +1,6 @@
 # State and data placement
 
-This project's standard tools are TanStack Query v5, Zustand, React Hook Form, Zod, and Expo SecureStore. Currently only Zustand and SecureStore are wired up; TanStack Query, React Hook Form, and Zod are installed but unused (no `QueryClientProvider` exists yet) — the rules below are the placement standard to follow when introducing them. Do not create top-level directories for each tool. Place state according to the product responsibility it represents and its actual usage scope.
+This project's standard tools are TanStack Query v5, Zustand, React Hook Form, Zod, and Expo SecureStore. Zustand, Expo SecureStore, TanStack Query, and Zod are wired up and in use: `QueryClientProvider` and the app-wide `queryClient` live in `_app/providers` (see [`query-client.ts`](../../src/_app/providers/query-client.ts) and [`app-providers.tsx`](../../src/_app/providers/app-providers.tsx)), and Zod validates DTOs at the transport boundary. React Hook Form is installed but not yet used — the form rules below are the placement standard to follow when introducing it. Do not create top-level directories for each tool. Place state according to the product responsibility it represents and its actual usage scope.
 
 ## Classify the state first
 

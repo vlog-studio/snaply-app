@@ -3,7 +3,7 @@ import { Link } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EmailSignInForm } from '@/features/sign-in';
+import { EmailSignInForm, SocialLoginList } from '@/features/sign-in';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -40,6 +40,16 @@ export function SignInPage() {
           <View style={styles.actions}>
             <EmailSignInForm />
 
+            <View style={styles.divider}>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+              <ThemedText type="small" themeColor="textSecondary">
+                또는
+              </ThemedText>
+              <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
+            </View>
+
+            <SocialLoginList />
+
             <Link href="/reset-password" style={styles.centerLink}>
               <ThemedText type="link" themeColor="textSecondary">
                 비밀번호를 잊으셨나요?
@@ -74,13 +84,15 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
-    paddingVertical: Spacing.six,
+    paddingVertical: Spacing.five,
     justifyContent: 'center',
-    gap: Spacing.seven,
+    gap: Spacing.five,
   },
-  hero: { alignItems: 'center', gap: Spacing.three },
+  hero: { alignItems: 'center', gap: Spacing.two },
   centerText: { textAlign: 'center' },
-  actions: { gap: Spacing.five },
+  actions: { gap: Spacing.four },
+  divider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
   centerLink: { alignSelf: 'center' },
   signUpRow: {
     flexDirection: 'row',
@@ -90,12 +102,12 @@ const styles = StyleSheet.create({
   },
   disclaimer: { textAlign: 'center' },
   mark: {
-    width: 72,
-    height: 72,
+    width: 64,
+    height: 64,
     borderRadius: Radius.large,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: { width: 40, height: 40 },
+  glyph: { width: 36, height: 36 },
 });

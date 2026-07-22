@@ -2,7 +2,7 @@
 
 ## User goal
 
-Users sign in to Snaply with an email and password before reaching the app: they can create an account (confirmed via an emailed link that deep-links back into the app), sign in, and reset a forgotten password (also via an emailed link). A signed-in session gates the main experience and persists across restarts, and users can sign out from Settings. Social sign-in (Google/Apple) is deferred — its code is retained but not shown on the sign-in screen.
+Users sign in to Snaply with an email and password, or with Google, before reaching the app: they can create an account (confirmed via an emailed link that deep-links back into the app), sign in, and reset a forgotten password (also via an emailed link). A signed-in session gates the main experience and persists across restarts, and users can sign out from Settings. Google social sign-in is offered on the sign-in screen; Apple sign-in is deferred — its code and metadata are retained but not offered until the provider is configured.
 
 ## Current behavior
 
@@ -12,7 +12,8 @@ Users sign in to Snaply with an email and password before reaching the app: they
 | Sign in with email and password | `Functional` | The email form validates the address format and presence, then runs `supabase.auth.signInWithPassword`. A not-yet-confirmed account surfaces a distinct message pointing the user to confirm their email. Requires configured Supabase credentials (see below). |
 | Create an account | `Functional` | `/sign-up` collects email + password (with confirmation), calls `supabase.auth.signUp` with `emailRedirectTo` set to the app deep link, and — because email confirmation is enabled — shows a check-your-email notice. Tapping the link in the email opens the app (`snaplyapp://auth/callback?code=…`); the global deep-link handler runs `exchangeCodeForSession`, which signs the user in. The confirmation email can be re-sent. |
 | Reset a forgotten password | `Functional` | `/reset-password` sends a recovery link via `resetPasswordForEmail` (`redirectTo` = `snaplyapp://auth/reset`) and shows a check-your-email notice. Tapping the link opens the app; the handler exchanges the code for a recovery session and sets `isRecovering`, which the guard uses to force the `/update-password` screen where `updateUser` saves the new password. |
-| Social sign-in (Google/Apple) | `Deferred` | The PKCE OAuth providers, buttons, and icons remain in `features/sign-in` but are not rendered on the sign-in screen. Re-enable by rendering `SocialLoginList` again and completing provider setup below. |
+| Sign in with Google | `Functional` | The sign-in screen renders `SocialLoginList` (Google only) below the email form. Tapping it runs the PKCE OAuth flow (`signInWithOAuth` → in-app browser consent → `exchangeCodeForSession`); the resulting user is mirrored into the session and the guard reveals the app. Requires the Google provider configured in Supabase (see below). |
+| Sign in with Apple | `Deferred` | The Apple PKCE provider, button, and icon remain in `features/sign-in` (`appleProvider`) but are not offered — `socialProviders` lists Google only. Re-enable by adding `appleProvider` to `socialProviders` and completing Apple provider setup below. |
 | Development sign-in without a backend | `Functional` | In development builds (`__DEV__`) where Supabase credentials are absent (`isSupabaseConfigured` is false), email sign-in uses an offline mock instead of dead-ending on the placeholder host. Sign-up/reset mocks create no session (they cannot simulate an email deep link), so those flows only complete against a real Supabase project. Any production build always uses Supabase. |
 | Pending and error feedback | `Functional` | The submit button shows a pending label and inputs disable while a request resolves. Field-level validation errors render under each input; server failures render a Korean message near the button. |
 | Stay signed in across restarts | `Functional` | Supabase persists its session through the chunked SecureStore adapter and restores it on launch; the splash overlay stays up until the initial session is read back. Tokens refresh automatically while the app is foregrounded. |
@@ -59,7 +60,7 @@ the user in — cannot reach the app until the new password is set.
 | Large-value token storage | `src/shared/lib/secure-storage` (`chunked-secure-storage.ts`, `.web.ts`) |
 | Email/format/password validation primitives | `src/shared/lib/validation` (`is-valid-email.ts`, `is-valid-password.ts`) |
 | Themed text input primitive used by every auth form | `src/shared/ui/text-field` |
-| Email sign-in action + provider abstraction; deferred social action, providers, and button UI | `src/features/sign-in` |
+| Email sign-in action + provider abstraction; Google social sign-in action, provider metadata (`socialProviders`, with `appleProvider` retained), and button UI | `src/features/sign-in` |
 | Sign-up flow — create account + resend (provider, `use-sign-up-flow`, form + email-sent notice) | `src/features/sign-up` |
 | Password reset — request link (`use-request-reset`) and set new password (`use-update-password`, provider, forms) | `src/features/reset-password` |
 | Sign-in / sign-up / reset / update-password / auth-callback screen composition | `src/pages/sign-in`, `src/pages/sign-up`, `src/pages/reset-password`, `src/pages/update-password`, `src/pages/auth-callback` |
@@ -95,9 +96,9 @@ Supabase dashboard (one-time setup for email/password):
 - Auth → URL Configuration → Redirect URLs: allow **both** `snaplyapp://auth/callback` (sign-up confirmation) and `snaplyapp://auth/reset` (password recovery). These are the `emailRedirectTo` / `redirectTo` targets the app passes.
 - The default **Confirm signup** and **Reset password** email templates (which use `{{ .ConfirmationURL }}`) work as-is — **no template editing required**. This is the reason for the deep-link approach: editing default-sender templates is restricted on new free-tier projects, whereas Redirect URL configuration is not.
 
-Deferred — social provider setup (only needed when re-enabling Google/Apple):
+Social provider setup:
 
-- Auth → Providers: enable **Google** (OAuth client id/secret from Google Cloud Console) and **Apple** (Service ID, Team ID, Key ID, private key from Apple Developer).
+- Auth → Providers: enable **Google** (OAuth client id/secret from Google Cloud Console) — **required** for the Google button to complete sign-in. Enable **Apple** (Service ID, Team ID, Key ID, private key from Apple Developer) only when re-enabling Apple.
 - The `snaplyapp://auth/callback` redirect above is reused by the OAuth flow.
 - Google/Apple consoles: register the Supabase callback `https://<project-ref>.supabase.co/auth/v1/callback`.
 
@@ -110,6 +111,7 @@ Supabase's session is stored under its own key (`sb-<project-ref>-auth-token`) t
 - Real authentication requires the Supabase configuration above (URL + anon key, and the two Redirect URLs). Unit tests mock the Supabase client at the slice Public API and never hit the network.
 - Email confirmation and password reset use **deep links**, not OTP codes. Both callback URLs (`snaplyapp://auth/callback`, `snaplyapp://auth/reset`) must be in the Redirect allowlist, and the link must be opened on the app's device for automatic sign-in (see Platform support).
 - The offline dev mocks cannot simulate an email deep link, so **sign-up and password reset only complete against a real Supabase project**; email sign-in still works via the mock offline.
-- Social sign-in is deferred (code retained, not rendered). Kakao/Naver are still not offered — Supabase Auth does not support them without custom OIDC setup.
+- Google sign-in is offered; Apple sign-in is deferred (code/metadata retained, not listed in `socialProviders`). Offering social login on iOS eventually requires Apple sign-in for App Store review, so enable Apple before an iOS store submission. Kakao/Naver are still not offered — Supabase Auth does not support them without custom OIDC setup.
+- The Google OAuth flow uses the `expo-web-browser` / `expo-auth-session` native modules and the `snaplyapp://` custom scheme, so it needs a development build or standalone app (not the standard Expo Go client), on the same device that initiates it (PKCE stores the code verifier locally).
 - The authenticated backend API client (`Authorization: Bearer` injection over TanStack Query) is not wired yet; it is separate from sign-in.
 - Account deletion in Settings remains a no-op prototype and is unrelated to this flow.

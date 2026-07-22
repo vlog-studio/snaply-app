@@ -4,7 +4,7 @@
 
 This directory is the product-level source of truth for behavior that is currently represented in the Snaply application. It complements the architecture guides: architecture documents define how code should be organized, while these documents record what users can currently do, which code owns that behavior, and which experiences are still prototypes.
 
-The inventory reflects the codebase as of 2026-07-21.
+The inventory reflects the codebase as of 2026-07-22.
 
 ## Implementation status vocabulary
 
@@ -25,8 +25,8 @@ Root stack
 ├── /sign-in           Social sign-in (shown when signed out)
 ├── (tabs)             (guarded: requires a session)
 │   ├── /              Home (with floating capture button)
-│   └── /archive       Recording archive and vlog prototype
-├── /settings          Settings modal
+│   ├── /archive       Recording archive and vlog prototype
+│   └── /settings      Settings tab
 └── /capture           Capture setup (modal, guarded)
     ├── /record        Camera recording and review
     ├── /editing       Simulated AI-editing progress
@@ -34,6 +34,8 @@ Root stack
 ```
 
 Access control: `src/_app/routes/root-layout.tsx` guards the tab and capture routes with `Stack.Protected` based on session state. A signed-out user is routed to `/sign-in`.
+
+Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRegistrar` and `GeofenceGate`, and `src/_app/routes/register-background-tasks.ts` defines the background geofence task at startup. This has no route (see [Location alerts and push notifications](location-and-push-notifications.md)).
 
 The main user journey is:
 
@@ -57,17 +59,18 @@ Home floating capture button (or contextual card)
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, review, simulated editing and result | `Partial` |
 | [Recording archive](recording-archive.md) | Local recording persistence, listing, playback, selection, and deletion; vlog archive preview | `Partial` |
 | [Settings](settings.md) | Reminder, frequency, social connection, and account controls | `Prototype` |
+| [Location alerts and push notifications](location-and-push-notifications.md) | FCM token registration, geofence monitoring, arrival reporting, foreground notification presentation | `Partial` |
 
 ## Current FSD ownership map
 
 | Layer | Current modules | Responsibility |
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
-| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack with the session route guard, and platform-specific tab navigation. |
+| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack with the session route guard, and the cross-platform tab navigation. Also mount the headless `PushTokenRegistrar` and `GeofenceGate`, and define the background geofence task at startup (`register-background-tasks`). |
 | `src/pages` | `sign-in`, `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `archive`, `settings` | Own screen composition and screen-specific state. |
-| `src/features` | `manage-recordings`, `sign-in` | Reuse local-recording handling across capture and archive screens, and the social sign-in action. |
-| `src/entities` | `capture-session`, `session` | Define supported capture moods and durations, and own the authenticated session and current user. |
-| `src/shared` | `lib/recording-files`, `lib/secure-storage`, UI modules | Provide the platform-specific file and secure-storage adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
+| `src/features` | `manage-recordings`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Reuse local-recording handling across capture and archive screens, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
+| `src/entities` | `capture-session`, `session`, `location` | Define supported capture moods and durations, own the authenticated session and current user, and define geofence points and their reads. |
+| `src/shared` | `lib/recording-files`, `lib/secure-storage`, `lib/location`, `lib/notifications`, UI modules | Provide the platform-specific file, secure-storage, location, and notification adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
 
 No `widgets` layer is currently needed. Page-specific blocks remain inside their owning page slices.
 

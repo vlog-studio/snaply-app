@@ -33,8 +33,8 @@ Snaply opens into a three-tab application with Home, Archive, and Settings desti
 ## Composition and ownership
 
 - `src/app/_layout.tsx` exposes `RootLayout` from the `_app` Public API.
-- `src/_app/providers/app-providers.tsx` derives the Expo Router navigation theme, status-bar style, and Android navigation-bar button style from the resolved color scheme.
-- `src/_app/routes/root-layout.tsx` composes providers, splash behavior, and stack presentations.
+- `src/_app/providers/app-providers.tsx` derives the Expo Router navigation theme, status-bar style, and Android navigation-bar button style from the resolved color scheme. It also mounts two headless nodes for the whole authenticated session — `PushTokenRegistrar` and `GeofenceGate` — which own no UI; see [Location alerts and push notifications](location-and-push-notifications.md).
+- `src/_app/routes/root-layout.tsx` composes providers, splash behavior, and stack presentations, and imports `register-background-tasks` for its side effect so the background geofence task is defined at startup (including on a headless OS relaunch).
 - `src/_app/routes/app-tabs.tsx` is the single cross-platform tab navigator (`Tabs` from `expo-router`) with the Home, Archive, and Settings screens; there is no platform-specific tab variant.
 - `src/shared/ui/theme` owns colors, spacing, radii, content width, theme access, the persisted theme-mode store, the Android top content inset helper, and the tab bar height helper (`useTabBarHeight`) used to offset scrollable screens beneath the translucent bar.
 - `src/shared/ui/fade-in-view` owns the mount fade-in used instead of Reanimated `entering` presets, which never start on iOS in Expo Go and left content invisible.

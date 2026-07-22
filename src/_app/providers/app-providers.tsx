@@ -1,4 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import { NavigationBar } from 'expo-navigation-bar';
 import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
@@ -30,6 +31,10 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        {/* Follows the app's resolved theme, not the OS scheme ('auto'), so an
+            explicit light/dark choice in Settings also recolors the Android
+            3-button navigation bar buttons. No-op on iOS/web. */}
+        <NavigationBar style={scheme === 'dark' ? 'dark' : 'light'} />
         <PushTokenRegistrar />
         <GeofenceGate />
         {children}

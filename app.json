@@ -74,7 +74,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "./plugins/with-gradle-jvmargs.js"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -59,6 +59,12 @@
           "isAndroidBackgroundLocationEnabled": true
         }
       ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ],
       "expo-video",
       "expo-sharing",
       "expo-secure-store",

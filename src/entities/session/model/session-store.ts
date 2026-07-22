@@ -9,6 +9,12 @@ type SessionState = {
   user: User | null;
   /** True once Supabase's initial session has been read back from storage. */
   hasHydrated: boolean;
+  /**
+   * True while the user is inside a password-recovery session (arrived via a
+   * reset deep link). The route guard forces the update-password screen until
+   * the new password is set, even though a session technically exists.
+   */
+  isRecovering: boolean;
 };
 
 /**
@@ -24,6 +30,7 @@ type SessionState = {
 export const useSessionStore = create<SessionState>()(() => ({
   user: null,
   hasHydrated: false,
+  isRecovering: false,
 }));
 
 /**
@@ -37,10 +44,13 @@ export function initSession(): () => void {
 
   const {
     data: { subscription },
-  } = supabase.auth.onAuthStateChange((_event, session) => {
+  } = supabase.auth.onAuthStateChange((event, session) => {
     useSessionStore.setState({
       user: session ? mapSupabaseUser(session.user) : null,
       hasHydrated: true,
+      // Belt-and-suspenders: some flows emit this event on a recovery landing.
+      // The deep-link handler also sets the flag from the callback URL.
+      ...(event === 'PASSWORD_RECOVERY' ? { isRecovering: true } : {}),
     });
   });
 
@@ -62,7 +72,41 @@ export function setSessionUser(user: User): void {
 /** Sign out of Supabase; the auth listener clears the mirrored user. */
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
-  useSessionStore.setState({ user: null });
+  useSessionStore.setState({ user: null, isRecovering: false });
+}
+
+/**
+ * Enter/leave the password-recovery state. `setRecovering` is called by the
+ * deep-link handler when a reset link lands; `finishPasswordRecovery` is called
+ * by the update-password action once the new password is saved.
+ */
+export function setRecovering(value: boolean): void {
+  useSessionStore.setState({ isRecovering: value });
+}
+
+export function finishPasswordRecovery(): void {
+  useSessionStore.setState({ isRecovering: false });
+}
+
+/**
+ * Exchange a PKCE code from an auth email deep link for a session. Called by the
+ * `/auth/callback` and `/auth/reset` route handlers. For recovery, the flag is
+ * set before the exchange so the guard never flashes the app between "signed in"
+ * and "recovering". `onAuthStateChange` mirrors the resulting user. Returns
+ * whether the exchange succeeded.
+ */
+export async function exchangeAuthCode(
+  code: string,
+  options?: { recovery?: boolean },
+): Promise<boolean> {
+  if (options?.recovery) setRecovering(true);
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    if (options?.recovery) setRecovering(false);
+    if (__DEV__) console.warn('[auth] deep-link code exchange failed:', error.message);
+    return false;
+  }
+  return true;
 }
 
 export function useCurrentUser(): User | null {
@@ -75,6 +119,14 @@ export function useIsAuthenticated(): boolean {
 
 export function useSessionHydrated(): boolean {
   return useSessionStore((state) => state.hasHydrated);
+}
+
+export function useIsRecovering(): boolean {
+  return useSessionStore((state) => state.isRecovering);
+}
+
+export function useFinishPasswordRecovery(): () => void {
+  return finishPasswordRecovery;
 }
 
 export function useSetSession(): (user: User) => void {

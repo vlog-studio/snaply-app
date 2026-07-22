@@ -52,6 +52,14 @@ describe('mapSupabaseUser', () => {
     expect(withNothing.avatarUrl).toBeUndefined();
   });
 
+  it('reads the email provider for password accounts', () => {
+    const user = mapSupabaseUser(
+      supabaseUser({ app_metadata: { provider: 'email' }, email: 'me@example.com' }),
+    );
+    expect(user.provider).toBe('email');
+    expect(user.displayName).toBe('me@example.com');
+  });
+
   it('defaults an unknown provider to google', () => {
     const user = mapSupabaseUser(supabaseUser({ app_metadata: { provider: 'facebook' } }));
     expect(user.provider).toBe('google');

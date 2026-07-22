@@ -1,9 +1,8 @@
-import { makeRedirectUri } from 'expo-auth-session';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
 import { mapSupabaseUser } from '@/entities/session';
-import { supabase } from '@/shared/lib/supabase';
+import { getAuthCallbackUrl, supabase } from '@/shared/lib/supabase';
 
 import type { AuthProvider } from './auth-provider';
 
@@ -15,11 +14,6 @@ export class SignInCancelledError extends Error {
   }
 }
 
-// Deep link Supabase redirects back to after the provider consent screen. Must
-// be registered in the Supabase dashboard's redirect allowlist. Uses the app's
-// `snaplyapp` scheme from app.json.
-const redirectTo = makeRedirectUri({ scheme: 'snaplyapp', path: 'auth/callback' });
-
 /**
  * Real authentication over Supabase Auth using the PKCE OAuth flow:
  * `signInWithOAuth` yields a provider consent URL, an in-app browser session
@@ -29,6 +23,9 @@ const redirectTo = makeRedirectUri({ scheme: 'snaplyapp', path: 'auth/callback' 
  */
 export const supabaseAuthProvider: AuthProvider = {
   async signIn(provider) {
+    // Deep link Supabase redirects back to after the provider consent screen
+    // (shared with the email-confirmation flow; in the redirect allowlist).
+    const redirectTo = getAuthCallbackUrl();
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo, skipBrowserRedirect: true },

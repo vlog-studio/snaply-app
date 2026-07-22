@@ -18,6 +18,7 @@ jest.mock('@/entities/session', () => ({
   }),
 }));
 jest.mock('@/shared/lib/supabase', () => ({
+  getAuthCallbackUrl: () => 'snaplyapp://auth/callback',
   supabase: {
     auth: {
       signInWithOAuth: jest.fn(),
@@ -37,7 +38,10 @@ describe('supabaseAuthProvider', () => {
   });
 
   it('completes the PKCE flow and returns the mapped user', async () => {
-    signInWithOAuth.mockResolvedValue({ data: { url: 'https://accounts.google/auth' }, error: null });
+    signInWithOAuth.mockResolvedValue({
+      data: { url: 'https://accounts.google/auth' },
+      error: null,
+    });
     openAuthSessionAsync.mockResolvedValue({
       type: 'success',
       url: 'snaplyapp://auth/callback?code=auth-code',
@@ -55,10 +59,15 @@ describe('supabaseAuthProvider', () => {
   });
 
   it('throws SignInCancelledError when the user dismisses the browser', async () => {
-    signInWithOAuth.mockResolvedValue({ data: { url: 'https://accounts.google/auth' }, error: null });
+    signInWithOAuth.mockResolvedValue({
+      data: { url: 'https://accounts.google/auth' },
+      error: null,
+    });
     openAuthSessionAsync.mockResolvedValue({ type: 'cancel' });
 
-    await expect(supabaseAuthProvider.signIn('google')).rejects.toBeInstanceOf(SignInCancelledError);
+    await expect(supabaseAuthProvider.signIn('google')).rejects.toBeInstanceOf(
+      SignInCancelledError,
+    );
     expect(exchangeCodeForSession).not.toHaveBeenCalled();
   });
 

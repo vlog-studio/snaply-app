@@ -1,9 +1,11 @@
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
-import type { SocialProvider, User } from './user';
+import type { AuthMethod, User } from './user';
 
-function toSocialProvider(value: unknown): SocialProvider {
-  return value === 'apple' ? 'apple' : 'google';
+function toAuthMethod(value: unknown): AuthMethod {
+  if (value === 'apple') return 'apple';
+  if (value === 'email') return 'email';
+  return 'google';
 }
 
 function firstString(...candidates: unknown[]): string | undefined {
@@ -23,9 +25,8 @@ export function mapSupabaseUser(supabaseUser: SupabaseUser): User {
   const metadata = supabaseUser.user_metadata ?? {};
   return {
     id: supabaseUser.id,
-    provider: toSocialProvider(supabaseUser.app_metadata?.provider),
-    displayName:
-      firstString(metadata.full_name, metadata.name, supabaseUser.email) ?? '사용자',
+    provider: toAuthMethod(supabaseUser.app_metadata?.provider),
+    displayName: firstString(metadata.full_name, metadata.name, supabaseUser.email) ?? '사용자',
     avatarUrl: firstString(metadata.avatar_url, metadata.picture),
   };
 }

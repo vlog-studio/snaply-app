@@ -17,6 +17,15 @@ type CaptureEditingPageProps = {
   moodValue?: string;
 };
 
+// The develop ceremony — the emotional payoff of the delayed-develop hook. A
+// cold lightbox scan line sweeps the film while color blooms out of the dark.
+// The simulation timer (unchanged) drives both the scan position and the bloom.
+const developFrames = [
+  { key: 'a', color: '#C98A44', rotate: '-9deg', translateX: -40, z: 1 },
+  { key: 'b', color: '#82D6CE', rotate: '0deg', translateX: 0, z: 3 },
+  { key: 'c', color: '#D98AA0', rotate: '9deg', translateX: 40, z: 2 },
+];
+
 export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingPageProps) {
   const theme = useTheme();
   const topInset = useTopContentInset();
@@ -37,70 +46,88 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
   }, []);
 
   const isComplete = progress === 100;
+  const bloom = progress / 100;
   const status =
     progress < 32
-      ? '장면을 분석하고 있어요'
+      ? '컷을 어둠에서 꺼내는 중'
       : progress < 70
-        ? '효과와 리듬을 맞추는 중'
-        : '마지막 디테일을 정리해요';
+        ? '음악 · 전환 · 속도 맞추는 중'
+        : '릴로 엮는 중';
 
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
-      style={{ backgroundColor: theme.media }}
+      style={{ backgroundColor: theme.background }}
       contentContainerStyle={[styles.content, { paddingTop: Spacing.six + topInset }]}
     >
       <FadeInView duration={400} offsetY={0} style={styles.brandRow}>
-        <View style={[styles.aiMark, { backgroundColor: theme.ai }]}>
-          <ThemedText selectable={false} style={styles.aiMarkText}>
-            ✦
+        <View style={[styles.mark, { backgroundColor: theme.lumen }]}>
+          <ThemedText selectable={false} style={styles.markText}>
+            ◐
           </ThemedText>
         </View>
-        <ThemedText type="eyebrow" style={styles.violetText}>
-          SNAPLY AI
+        <ThemedText type="edge" themeColor="lumen">
+          DARKROOM · 현상 중
         </ThemedText>
       </FadeInView>
 
       <View style={styles.centerArea}>
+        {/* Amber safelight glow deepens as the reel comes together. */}
+        <View
+          style={[styles.glow, { backgroundColor: theme.primary, opacity: 0.18 + bloom * 0.3 }]}
+        />
+
         <FadeInView duration={480} style={styles.previewStack}>
-          <View style={[styles.previewBack, { backgroundColor: '#4D3B65' }]} />
-          <View style={[styles.previewMiddle, { backgroundColor: '#824E42' }]} />
-          <View style={[styles.previewFront, { backgroundColor: '#C4875B' }]}>
-            <ThemedText selectable={false} style={styles.previewEmoji}>
-              ☕
-            </ThemedText>
-            <View style={styles.sparkOne}>
-              <ThemedText selectable={false} style={styles.spark}>
-                ✦
-              </ThemedText>
+          {developFrames.map((frame) => (
+            <View
+              key={frame.key}
+              style={[
+                styles.developFrame,
+                {
+                  backgroundColor: theme.film,
+                  transform: [{ rotate: frame.rotate }, { translateX: frame.translateX }],
+                  zIndex: frame.z,
+                },
+              ]}
+            >
+              {/* The negative's color blooms out of the film black. */}
+              <View
+                style={[StyleSheet.absoluteFill, { backgroundColor: frame.color, opacity: bloom }]}
+              />
             </View>
-            <View style={styles.sparkTwo}>
-              <ThemedText selectable={false} style={styles.spark}>
-                ✧
-              </ThemedText>
-            </View>
-          </View>
+          ))}
+          {/* Cold lightbox scan line sweeping top→bottom, tied to progress. */}
+          {!isComplete ? (
+            <View
+              style={[styles.scanLine, { top: `${progress}%`, backgroundColor: theme.lumen }]}
+            />
+          ) : null}
         </FadeInView>
 
         <View style={styles.statusCopy}>
-          <ThemedText type="title" style={styles.whiteText}>
-            {isComplete ? '브이로그 준비 완료!' : '찍은 순간을 다듬는 중'}
+          <ThemedText type="title" style={styles.centerText}>
+            {isComplete ? '릴이 준비됐어요' : '현상하는 중'}
           </ThemedText>
-          <ThemedText style={styles.mutedWhite}>
-            {isComplete ? `${getCaptureMoodLabel(mood)} 무드로 완성했어요.` : status}
+          <ThemedText themeColor="textSecondary" style={styles.centerText}>
+            {isComplete ? `${getCaptureMoodLabel(mood)} 무드로 엮었어요.` : status}
           </ThemedText>
         </View>
 
         <View style={styles.progressBlock}>
           <View style={styles.progressHeader}>
-            <ThemedText type="smallBold" style={styles.whiteText}>
-              {duration}초 클립
+            <ThemedText type="edge" themeColor="amber">
+              {duration}초 릴
             </ThemedText>
-            <ThemedText style={[styles.violetText, styles.tabularNumber]}>{progress}%</ThemedText>
+            <ThemedText type="edge" themeColor="lumen" style={styles.tabularNumber}>
+              {progress}%
+            </ThemedText>
           </View>
-          <View style={styles.progressTrack}>
+          <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
             <View
-              style={[styles.progressValue, { width: `${progress}%`, backgroundColor: theme.ai }]}
+              style={[
+                styles.progressValue,
+                { width: `${progress}%`, backgroundColor: theme.lumen },
+              ]}
             />
           </View>
         </View>
@@ -112,16 +139,16 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
               replace
               asChild
             >
-              <SnaplyButton title="완성본 보기" variant="ai" icon="▶" />
+              <SnaplyButton title="릴 공개" icon="▶" />
             </Link>
           </FadeInView>
         ) : (
           <View style={styles.tipRow}>
-            <ThemedText selectable={false} style={styles.tipIcon}>
+            <ThemedText selectable={false} style={[styles.tipIcon, { color: theme.lumen }]}>
               ♬
             </ThemedText>
-            <ThemedText type="small" style={styles.mutedWhite}>
-              영상에 어울리는 효과음도 고르고 있어요.
+            <ThemedText type="small" themeColor="textSecondary">
+              AI가 현상소에서 컷을 알아서 엮고 있어요.
             </ThemedText>
           </View>
         )}
@@ -140,55 +167,49 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.seven,
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  aiMark: {
+  mark: {
     width: 34,
     height: 34,
     borderRadius: Radius.small,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiMarkText: { color: '#FFFFFF', fontSize: 18 },
+  markText: { color: '#0E0B08', fontSize: 18, fontWeight: '800' },
   centerArea: { flex: 1, justifyContent: 'center', gap: Spacing.six },
+  glow: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    top: '10%',
+  },
   previewStack: { height: 300, alignItems: 'center', justifyContent: 'center' },
-  previewBack: {
+  developFrame: {
     position: 'absolute',
-    width: 190,
-    height: 246,
-    borderRadius: Radius.xlarge,
-    transform: [{ rotate: '-10deg' }, { translateX: -34 }],
-    opacity: 0.55,
-  },
-  previewMiddle: {
-    position: 'absolute',
-    width: 190,
-    height: 246,
-    borderRadius: Radius.xlarge,
-    transform: [{ rotate: '9deg' }, { translateX: 34 }],
-    opacity: 0.72,
-  },
-  previewFront: {
-    width: 194,
-    height: 256,
-    borderRadius: Radius.xlarge,
+    width: 168,
+    height: 224,
+    borderRadius: Radius.medium,
     borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 20px 45px rgba(0,0,0,0.3)',
+    overflow: 'hidden',
+    boxShadow: '0 20px 45px rgba(0,0,0,0.4)',
   },
-  previewEmoji: { fontSize: 72 },
-  sparkOne: { position: 'absolute', top: 35, right: 28 },
-  sparkTwo: { position: 'absolute', bottom: 38, left: 28 },
-  spark: { color: '#FFFFFF', fontSize: 24 },
+  scanLine: {
+    position: 'absolute',
+    left: '18%',
+    right: '18%',
+    height: 3,
+    borderRadius: 2,
+    zIndex: 10,
+    boxShadow: '0 0 16px rgba(130,214,206,0.85)',
+  },
   statusCopy: { alignItems: 'center', gap: Spacing.two },
-  whiteText: { color: '#FFFFFF', textAlign: 'center' },
-  mutedWhite: { color: 'rgba(255,255,255,0.62)', textAlign: 'center' },
-  violetText: { color: '#B69BFF' },
+  centerText: { textAlign: 'center' },
   progressBlock: { gap: Spacing.two },
   progressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   progressTrack: {
     height: 8,
     borderRadius: Radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
   },
   progressValue: { height: '100%', borderRadius: Radius.pill },
@@ -199,6 +220,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  tipIcon: { color: '#B69BFF', fontSize: 20 },
+  tipIcon: { fontSize: 20 },
   resultAction: { width: '100%' },
 });

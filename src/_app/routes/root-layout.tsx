@@ -10,6 +10,7 @@ import {
   useIsRecovering,
   useSessionHydrated,
 } from '@/entities/session';
+import { FilmGrain } from '@/shared/ui/film-grain';
 import { useTheme } from '@/shared/ui/theme';
 
 import { AnimatedSplashOverlay } from './animated-splash-overlay';
@@ -27,6 +28,8 @@ export function RootLayout() {
     <AppProviders>
       <AnimatedSplashOverlay />
       <RootStack />
+      {/* Faint grain over the whole darkroom. Decorative and non-interactive. */}
+      <FilmGrain />
     </AppProviders>
   );
 }

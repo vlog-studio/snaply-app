@@ -13,16 +13,7 @@ import {
   useSetQuietStart,
   useToggleInterest,
 } from '@/features/notification-settings';
-import {
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  useSetThemeMode,
-  useTabBarHeight,
-  useTheme,
-  useThemeMode,
-  type ThemeMode,
-} from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTabBarHeight, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 const notificationWindows = [
@@ -33,17 +24,9 @@ const notificationWindows = [
 
 type NotificationWindowId = (typeof notificationWindows)[number]['id'];
 
-const themeModeOptions: { id: ThemeMode; label: string }[] = [
-  { id: 'system', label: '시스템' },
-  { id: 'light', label: '라이트' },
-  { id: 'dark', label: '다크' },
-];
-
 export function SettingsPage() {
   const theme = useTheme();
   const tabBarHeight = useTabBarHeight();
-  const themeMode = useThemeMode();
-  const setThemeMode = useSetThemeMode();
   const currentUser = useCurrentUser();
   const clearSession = useClearSession();
   const [enabledWindows, setEnabledWindows] = useState<Record<NotificationWindowId, boolean>>({
@@ -198,37 +181,6 @@ export function SettingsPage() {
                   style={{ color: isSelected ? theme.background : theme.text }}
                 >
                   {interest}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </SettingsSection>
-
-      <SettingsSection title="화면 테마">
-        <View style={styles.frequencyRow}>
-          {themeModeOptions.map((option) => {
-            const isSelected = themeMode === option.id;
-            return (
-              <Pressable
-                key={option.id}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-                onPress={() => setThemeMode(option.id)}
-                style={[
-                  styles.frequencyButton,
-                  {
-                    backgroundColor: isSelected ? theme.text : theme.background,
-                    borderColor: isSelected ? theme.text : theme.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  selectable={false}
-                  type="smallBold"
-                  style={{ color: isSelected ? theme.background : theme.text }}
-                >
-                  {option.label}
                 </ThemedText>
               </Pressable>
             );

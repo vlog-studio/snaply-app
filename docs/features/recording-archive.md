@@ -2,7 +2,7 @@
 
 ## User goal
 
-Users can manage original recordings stored inside Snaply and can view a prototype of the intended completed-vlog archive.
+Users can manage the original clips ("컷") stored inside Snaply and can view a prototype of the intended developed-roll shelf ("롤"). The Archive is a segmented view: "컷" is the live clip list, "롤" is the prototype shelf. Both are dressed in the moment-collection darkroom visual language (edge prints, film-black clip tiles, roll covers with "현상 완료" badges).
 
 ## Original recording management
 
@@ -41,18 +41,17 @@ Accepted video extensions are `.m4v`, `.mov`, `.mp4`, and `.webm`. New files are
 
 Recordings are app-private local files. They are not entries in the device media library and are not synchronized to a backend. App deletion removes them.
 
-## Completed-vlog archive
+## Developed-roll shelf
 
-The “브이로그” segment is a `Prototype`.
+The “롤” segment is a `Prototype`.
 
-- The completed item, date, duration, clip count, preview colors, emoji, and AI-editing label are static fixtures.
-- Its preview action opens `/capture/result` with fixed `mood=hip` and `duration=3` parameters.
-- The previous-day empty card is also static.
-- No edited video, capture grouping, or vlog record exists in storage.
+- The roll covers (id, clip count / duration span, title, tint) and the "현상 완료" badges are static fixtures shown as a shelf grid with a trailing dashed "+ 새 롤" slot.
+- Tapping a cover opens `/capture/result` with fixed `mood=hip` and `duration=3` parameters.
+- No developed reel, capture grouping, or roll record exists in storage.
 
 ## Ownership
 
-- `src/pages/archive` owns the two archive segments, archive-specific UI, playback modal, and prototype vlog fixtures.
+- `src/pages/archive` owns the two archive segments (컷 / 롤), archive-specific UI, playback modal, and prototype roll-shelf fixtures.
 - `src/features/manage-recordings` owns reusable recording operations and formatting.
 - `src/shared/ui/video-preview` owns the business-agnostic looping video player used by the playback modal.
 - `src/shared/lib/recording-files` owns native file operations and the web fallback.

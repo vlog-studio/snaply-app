@@ -26,21 +26,21 @@ const moodOptions: {
     emoji: '🔥',
     label: '힙하게',
     description: '선명하고 트렌디한 감성',
-    accent: '#FF6B35',
+    accent: '#EA5E38', // ember
   },
   {
     id: 'lovely',
     emoji: '💕',
     label: '러블리하게',
     description: '따뜻하고 사랑스러운 톤',
-    accent: '#E96F9A',
+    accent: '#D98AA0', // warm rose
   },
   {
     id: 'energy',
     emoji: '⚡',
     label: '신나게',
     description: '빠르고 에너지 넘치게',
-    accent: '#7C3AED',
+    accent: '#82D6CE', // lumen
   },
 ];
 
@@ -72,12 +72,12 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
             />
           </View>
           <View style={styles.heroCopy}>
-            <ThemedText type="eyebrow" themeColor="primary">
-              SNAP IN A MOMENT
+            <ThemedText type="edge" themeColor="amber">
+              NEW CLIP · 오늘의 롤
             </ThemedText>
             <ThemedText type="title">오늘은 어떤{`\n`}분위기예요?</ThemedText>
             <ThemedText themeColor="textSecondary">
-              두 가지만 고르면 바로 촬영할 수 있어요.
+              두 가지만 고르면 바로 담을 수 있어요.
             </ThemedText>
           </View>
           <Link href="/" asChild>
@@ -211,7 +211,7 @@ export function CaptureSetupPage({ context }: CaptureSetupPageProps) {
           href={{ pathname: '/capture/record', params: { mood, duration: String(duration) } }}
           asChild
         >
-          <SnaplyButton title={`${duration}초 촬영 시작`} icon="●" />
+          <SnaplyButton title={`${duration}초 담기 시작`} icon="●" />
         </Link>
       </View>
     </View>

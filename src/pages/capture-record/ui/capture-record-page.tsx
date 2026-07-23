@@ -78,8 +78,11 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           </ThemedText>
         </Pressable>
         <View style={styles.permissionContent}>
-          <View style={styles.permissionIcon}>
-            <ThemedText selectable={false} style={styles.permissionIconText}>
+          <View style={[styles.permissionIcon, { borderColor: theme.primary }]}>
+            <ThemedText
+              selectable={false}
+              style={[styles.permissionIconText, { color: theme.primary }]}
+            >
               ●
             </ThemedText>
           </View>
@@ -95,7 +98,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             />
           ) : null}
           <SnaplyButton
-            title={`저장 영상 보기 (${recordings.length})`}
+            title={`담은 컷 보기 (${recordings.length})`}
             variant="secondary"
             onPress={openLibrary}
             style={styles.permissionAction}
@@ -146,14 +149,18 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         <View style={styles.cameraShade} pointerEvents="none" />
 
         <View style={styles.topBar}>
-          <Pressable accessibilityLabel="촬영 닫기" onPress={closePage} style={styles.utilityButton}>
+          <Pressable
+            accessibilityLabel="촬영 닫기"
+            onPress={closePage}
+            style={styles.utilityButton}
+          >
             <ThemedText selectable={false} style={styles.utilityIcon}>
               ×
             </ThemedText>
           </Pressable>
           <View style={styles.modePill}>
-            <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-              {getCaptureMoodLabel(mood)} · {duration}초
+            <ThemedText selectable={false} type="edge" style={styles.whiteText}>
+              오늘의 롤 · {getCaptureMoodLabel(mood)} · {duration}초
             </ThemedText>
           </View>
           <Pressable
@@ -170,34 +177,44 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         </View>
 
         <View style={styles.focusArea} pointerEvents="box-none">
-          {stage === 'idle' ? <View style={styles.focusFrame} pointerEvents="none" /> : null}
+          {stage === 'idle' ? (
+            <View style={styles.focusFrame} pointerEvents="none">
+              <ThemedText selectable={false} type="edge" style={styles.frameMeta}>
+                꾹 눌러 담기
+              </ThemedText>
+            </View>
+          ) : null}
           {stage === 'recording' ? (
             <View style={styles.recordingStatus}>
               <View style={[styles.recordingDot, { backgroundColor: theme.primary }]} />
-              <ThemedText type="smallBold" style={styles.whiteText}>
+              <ThemedText type="edge" style={styles.whiteText}>
                 REC
               </ThemedText>
-              <ThemedText style={[styles.whiteText, styles.tabularNumber]}>
+              <ThemedText type="edge" style={[styles.whiteText, styles.tabularNumber]}>
                 {remaining > 0 ? `${remaining}s` : '마무리 중…'}
               </ThemedText>
             </View>
           ) : null}
           {stage === 'saving' ? (
-            <View style={styles.completedBadge}>
-              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-                영상을 저장하는 중…
+            <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
+              <ThemedText selectable={false} type="edge" style={{ color: theme.amber }}>
+                컷을 담는 중…
               </ThemedText>
             </View>
           ) : null}
           {stage === 'review' ? (
-            <View style={styles.completedBadge}>
-              <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-                ✓ 앱에 저장됨
+            <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
+              <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
+                담김 · 미현상
               </ThemedText>
             </View>
           ) : null}
           {errorMessage ? (
-            <Pressable accessibilityRole="button" onPress={dismissErrors} style={styles.errorBanner}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={dismissErrors}
+              style={styles.errorBanner}
+            >
               <ThemedText type="smallBold" style={styles.whiteText}>
                 {errorMessage}
               </ThemedText>
@@ -212,13 +229,13 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           {stage === 'review' ? (
             <View style={styles.reviewActions}>
               <SnaplyButton
-                title="다시 찍기"
+                title="다시 담기"
                 variant="secondary"
                 style={styles.reviewButton}
                 onPress={retake}
               />
               <SnaplyButton
-                title="이 영상 사용"
+                title="이 컷 쓰기"
                 style={styles.reviewButton}
                 onPress={continueToEditing}
               />
@@ -279,19 +296,19 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           )}
           <ThemedText type="small" style={styles.helperText}>
             {!isRecordingSupported
-              ? '영상 녹화는 iOS 또는 Android 기기에서 사용할 수 있어요'
+              ? '순간 담기는 iOS 또는 Android 기기에서 사용할 수 있어요'
               : stage === 'recording'
-                ? '가운데 버튼을 누르면 바로 촬영을 끝낼 수 있어요'
+                ? '가운데 버튼을 누르면 바로 담기를 끝낼 수 있어요'
                 : stage === 'saving'
                   ? '앱을 닫지 말고 잠시 기다려 주세요'
                   : stage === 'review'
-                    ? '보관함에서 이전 영상도 다시 선택할 수 있어요'
-                    : '가운데 버튼을 누르면 자동으로 촬영이 끝나요'}
+                    ? '보관함에서 이전 컷도 다시 고를 수 있어요'
+                    : '가운데 버튼을 누르면 자동으로 담기가 끝나요'}
           </ThemedText>
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
               <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-                저장 영상 {recordings.length}개 관리
+                담은 컷 {recordings.length}개 관리
               </ThemedText>
             </Pressable>
           ) : null}
@@ -361,7 +378,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.38)',
     backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: Spacing.four,
   },
+  frameMeta: { color: 'rgba(255,255,255,0.66)' },
   recordingStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -401,7 +422,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shutterInner: { width: 68, height: 68, borderRadius: 34 },
+  shutterInner: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    boxShadow: '0 0 22px rgba(234,94,56,0.5)',
+  },
   shutterRecording: { transform: [{ scale: 0.92 }] },
   shutterInnerRecording: { width: 32, height: 32, borderRadius: Radius.small },
   sideControl: {

@@ -1,5 +1,13 @@
 import { CameraView } from 'expo-camera';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -7,14 +15,19 @@ import {
   type CaptureMood,
   getCaptureMoodLabel,
 } from '@/entities/capture-session';
+import { useTodayRoll } from '@/entities/roll';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
 import { useCaptureRecorder } from '../model/use-capture-recorder';
+import { CollectFlight } from './collect-flight';
 import { HoldRing } from './hold-ring';
 import { RecordingLibrary } from './recording-library';
+
+// How long the "담김" confirmation badge lingers after a collect.
+const COLLECTED_BADGE_MS = 1100;
 
 // The 담기 ring sits just outside the 88px shutter (5px stroke + breathing gap).
 const HOLD_RING_SIZE = 108;
@@ -37,6 +50,7 @@ export function CaptureRecordPage() {
     duration,
     selectMood,
     selectDuration,
+    lastCollected,
     stage,
     remaining,
     isBusy,
@@ -73,6 +87,76 @@ export function CaptureRecordPage() {
     requestPermissions,
     openAppSettings,
   } = useCaptureRecorder();
+
+  // In-camera collect feedback: the just-captured clip flies up into the roll
+  // counter; when it lands, the count bumps and the counter pops. Collecting
+  // stays on the viewfinder instead of bouncing Home.
+  const reducedMotion = useReducedMotion();
+  const todayRoll = useTodayRoll();
+  const collectedCount = todayRoll?.clipRefs.length ?? 0;
+  const collectedCountRef = useRef(collectedCount);
+
+  useEffect(() => {
+    collectedCountRef.current = collectedCount;
+  }, [collectedCount]);
+
+  // The pill count trails the store until the flying clip arrives, so the number
+  // bumps as the clip lands rather than the instant it is persisted.
+  const [displayedCount, setDisplayedCount] = useState(collectedCount);
+  const [flight, setFlight] = useState<{ key: number; uri: string }>();
+  const [showCollectedBadge, setShowCollectedBadge] = useState(false);
+  const [pulseKey, setPulseKey] = useState(0);
+  const processedNonce = useRef(0);
+  const badgeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const counterPulse = useSharedValue(0);
+
+  const flashCollectedBadge = () => {
+    setShowCollectedBadge(true);
+    if (badgeTimer.current) clearTimeout(badgeTimer.current);
+    badgeTimer.current = setTimeout(() => setShowCollectedBadge(false), COLLECTED_BADGE_MS);
+  };
+
+  // The clip reached the counter: reveal the new count and pop the pill.
+  const handleFlightArrive = () => {
+    setFlight(undefined);
+    setDisplayedCount(collectedCountRef.current);
+    setPulseKey((key) => key + 1);
+    flashCollectedBadge();
+  };
+
+  // Each collect starts a flight; reduced motion lands it immediately.
+  useEffect(() => {
+    const nonce = lastCollected?.nonce ?? 0;
+    if (nonce === 0 || nonce === processedNonce.current) return;
+    processedNonce.current = nonce;
+    if (reducedMotion) {
+      setDisplayedCount(collectedCountRef.current);
+      flashCollectedBadge();
+      return;
+    }
+    setFlight({ key: nonce, uri: lastCollected?.uri ?? '' });
+  }, [lastCollected, reducedMotion]);
+
+  // Pop the counter on landing (kept in an effect so the shared-value write is
+  // outside any memoized callback).
+  useEffect(() => {
+    if (pulseKey === 0) return;
+    counterPulse.value = withSequence(
+      withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 440, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [pulseKey, counterPulse]);
+
+  useEffect(
+    () => () => {
+      if (badgeTimer.current) clearTimeout(badgeTimer.current);
+    },
+    [],
+  );
+
+  const counterStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + counterPulse.value * 0.16 }],
+  }));
 
   if (!isCameraGranted && stage !== 'review') {
     return (
@@ -162,6 +246,10 @@ export function CaptureRecordPage() {
 
         <View style={styles.cameraShade} pointerEvents="none" />
 
+        {flight ? (
+          <CollectFlight key={flight.key} uri={flight.uri} onArrive={handleFlightArrive} />
+        ) : null}
+
         <View style={styles.topBar}>
           <Pressable
             accessibilityLabel="촬영 닫기"
@@ -172,11 +260,11 @@ export function CaptureRecordPage() {
               ×
             </ThemedText>
           </Pressable>
-          <View style={styles.modePill}>
+          <Animated.View style={[styles.modePill, counterStyle]}>
             <ThemedText selectable={false} type="edge" style={styles.whiteText}>
-              오늘의 롤
+              오늘의 롤{displayedCount > 0 ? ` · ${displayedCount}컷` : ''}
             </ThemedText>
-          </View>
+          </Animated.View>
           <Pressable
             accessibilityLabel={soundEnabled ? '녹음 소리 끄기' : '녹음 소리 켜기'}
             accessibilityState={{ disabled: isBusy }}
@@ -191,10 +279,17 @@ export function CaptureRecordPage() {
         </View>
 
         <View style={styles.focusArea} pointerEvents="box-none">
-          {stage === 'idle' ? (
+          {stage === 'idle' && !showCollectedBadge ? (
             <View style={styles.focusFrame} pointerEvents="none">
               <ThemedText selectable={false} type="edge" style={styles.frameMeta}>
                 꾹 눌러 담기
+              </ThemedText>
+            </View>
+          ) : null}
+          {stage === 'idle' && showCollectedBadge ? (
+            <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
+              <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
+                담김 · 오늘의 롤 {displayedCount}컷
               </ThemedText>
             </View>
           ) : null}
@@ -375,7 +470,9 @@ export function CaptureRecordPage() {
                   ? '앱을 닫지 말고 잠시 기다려 주세요'
                   : stage === 'review'
                     ? '보관함에서 이전 컷도 다시 고를 수 있어요'
-                    : `가운데 버튼을 꾹 누르는 동안 담겨요 · 최대 ${duration}초`}
+                    : collectedCount > 0
+                      ? '이어서 담거나, ✕를 눌러 오늘의 롤을 확인해요'
+                      : `가운데 버튼을 꾹 누르는 동안 담겨요 · 최대 ${duration}초`}
           </ThemedText>
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>

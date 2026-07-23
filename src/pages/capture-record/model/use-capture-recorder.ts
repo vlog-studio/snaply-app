@@ -59,6 +59,7 @@ export function useCaptureRecorder() {
   const isHolding = useRef(false);
   const holdStartedAt = useRef<number | undefined>(undefined);
   const heldMs = useRef<number | undefined>(undefined);
+  const collectNonce = useRef(0);
 
   const [mood, setMood] = useState<CaptureMood>(() => normalizeCaptureMood(undefined));
   const [duration, setDuration] = useState<CaptureDuration>(() =>
@@ -73,6 +74,10 @@ export function useCaptureRecorder() {
   const [isLibraryVisible, setIsLibraryVisible] = useState(false);
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
   const [captureError, setCaptureError] = useState<string>();
+  // The most recently collected clip, handed to the page so it can fly the clip
+  // into the roll counter. `nonce` makes each collect a distinct event even when
+  // the same file id recurs.
+  const [lastCollected, setLastCollected] = useState<{ nonce: number; uri: string }>();
 
   useEffect(() => {
     if (!cameraPermission || !microphonePermission || hasRequestedRecordingPermissions.current) {
@@ -181,10 +186,15 @@ export function useCaptureRecorder() {
       }
 
       if (isClosing.current) return;
+      // Continuous capture: stay in the viewfinder, ready for the next hold, so
+      // the user is never yanked Home mid-session. Hand the page the clip so it
+      // can fly it into the roll counter as in-camera feedback.
+      collectNonce.current += 1;
+      setLastCollected({ nonce: collectNonce.current, uri: clip.uri });
       if (process.env.EXPO_OS === 'ios') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
-      router.dismissAll();
+      setStage('idle');
     } catch {
       setCaptureError('촬영을 완료하지 못했어요. 카메라 상태를 확인하고 다시 시도해 주세요.');
       setStage('idle');
@@ -219,9 +229,12 @@ export function useCaptureRecorder() {
   };
 
   const closePage = () => {
+    // Explicit leave: always go Home (not the tab that opened capture) so the
+    // user lands on the roll they just built, and its landing beat plays.
     isClosing.current = true;
     if (isRecording.current) cameraRef.current?.stopRecording();
-    router.back();
+    router.dismissAll();
+    router.navigate('/');
   };
 
   const retake = () => {
@@ -285,6 +298,8 @@ export function useCaptureRecorder() {
     duration,
     selectMood,
     selectDuration,
+    // collect feedback
+    lastCollected,
     // recording state
     stage,
     remaining,

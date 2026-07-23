@@ -9,12 +9,16 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
 import { useCaptureRecorder } from '../model/use-capture-recorder';
+import { HoldRing } from './hold-ring';
 import { RecordingLibrary } from './recording-library';
 
 type CaptureRecordPageProps = {
   durationValue?: string;
   moodValue?: string;
 };
+
+// The 담기 ring sits just outside the 88px shutter (5px stroke + breathing gap).
+const HOLD_RING_SIZE = 108;
 
 export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPageProps) {
   const insets = useSafeAreaInsets();
@@ -37,8 +41,8 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
     handleMountError,
     selectedRecording,
     errorMessage,
-    startRecording,
-    stopRecording,
+    beginHold,
+    endHold,
     closePage,
     retake,
     dismissErrors,
@@ -245,28 +249,37 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
                   보관함 {recordings.length}
                 </ThemedText>
               </Pressable>
-              <Pressable
-                accessibilityLabel={stage === 'recording' ? '촬영 끝내기' : '촬영 시작'}
-                accessibilityRole="button"
-                accessibilityState={{
-                  disabled: stage === 'saving' || !isCameraReady || !isRecordingSupported,
-                }}
-                disabled={stage === 'saving' || !isCameraReady || !isRecordingSupported}
-                onPress={stage === 'recording' ? stopRecording : () => void startRecording()}
-                style={[
-                  styles.shutterOuter,
-                  stage === 'recording' && styles.shutterRecording,
-                  (!isCameraReady || !isRecordingSupported) && styles.disabledControl,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.shutterInner,
-                    { backgroundColor: theme.primary },
-                    stage === 'recording' && styles.shutterInnerRecording,
-                  ]}
+              <View style={styles.shutterArea}>
+                <HoldRing
+                  active={stage === 'recording'}
+                  durationMs={duration * 1000}
+                  size={HOLD_RING_SIZE}
                 />
-              </Pressable>
+                <Pressable
+                  accessibilityHint="누르는 동안 담기고, 손을 떼면 끝나요"
+                  accessibilityLabel="꾹 눌러 담기"
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    disabled: stage === 'saving' || !isCameraReady || !isRecordingSupported,
+                  }}
+                  disabled={stage === 'saving' || !isCameraReady || !isRecordingSupported}
+                  onPressIn={beginHold}
+                  onPressOut={endHold}
+                  style={[
+                    styles.shutterOuter,
+                    stage === 'recording' && styles.shutterRecording,
+                    (!isCameraReady || !isRecordingSupported) && styles.disabledControl,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.shutterInner,
+                      { backgroundColor: theme.primary },
+                      stage === 'recording' && styles.shutterInnerRecording,
+                    ]}
+                  />
+                </Pressable>
+              </View>
               <Pressable
                 accessibilityLabel="카메라 전환"
                 accessibilityRole="button"
@@ -287,12 +300,12 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
             {!isRecordingSupported
               ? '순간 담기는 iOS 또는 Android 기기에서 사용할 수 있어요'
               : stage === 'recording'
-                ? '가운데 버튼을 누르면 바로 담기를 끝낼 수 있어요'
+                ? '손을 떼면 바로 담기가 끝나요'
                 : stage === 'saving'
                   ? '앱을 닫지 말고 잠시 기다려 주세요'
                   : stage === 'review'
                     ? '보관함에서 이전 컷도 다시 고를 수 있어요'
-                    : '가운데 버튼을 누르면 자동으로 담기가 끝나요'}
+                    : `가운데 버튼을 꾹 누르는 동안 담겨요 · 최대 ${duration}초`}
           </ThemedText>
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
@@ -402,6 +415,12 @@ const styles = StyleSheet.create({
   errorDismiss: { color: 'rgba(255,255,255,0.72)' },
   bottomControls: { paddingHorizontal: Spacing.five, gap: Spacing.three },
   captureControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  shutterArea: {
+    width: HOLD_RING_SIZE,
+    height: HOLD_RING_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   shutterOuter: {
     width: 88,
     height: 88,

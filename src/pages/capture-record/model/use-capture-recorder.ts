@@ -8,6 +8,7 @@ import { useCaptureMoment } from '@/features/capture-moment';
 import { useLocalRecordings } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 
+import { shouldCollectHold } from './hold-gesture';
 import { useRecordingPermissions } from './use-recording-permissions';
 
 export type CaptureStage = 'idle' | 'recording' | 'saving' | 'review';
@@ -52,6 +53,9 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
   const isRecording = useRef(false);
   const isClosing = useRef(false);
   const hasRequestedRecordingPermissions = useRef(false);
+  const isHolding = useRef(false);
+  const holdStartedAt = useRef<number | undefined>(undefined);
+  const heldMs = useRef<number | undefined>(undefined);
 
   const mood = normalizeCaptureMood(moodValue);
   const duration = normalizeCaptureDuration(durationValue);
@@ -130,7 +134,9 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
         }
       }
 
-      if (!cameraRef.current) return;
+      // The mic permission prompt can outlast the press; a released finger
+      // means the user no longer intends to collect.
+      if (!cameraRef.current || !isHolding.current) return;
 
       setRemaining(duration);
       setStage('recording');
@@ -140,6 +146,19 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
 
       const result = await cameraRef.current.recordAsync({ maxDuration: duration });
       if (isClosing.current) return;
+
+      // Auto-stop at maxDuration resolves with the finger still down; measure
+      // the hold at resolution time in that case.
+      const finalHeldMs =
+        heldMs.current ??
+        (holdStartedAt.current !== undefined ? Date.now() - holdStartedAt.current : 0);
+      if (!shouldCollectHold(finalHeldMs)) {
+        // Accidental tap: leave the temp recording in the cache (the OS
+        // reclaims it) and return to idle without collecting or erroring.
+        setStage('idle');
+        return;
+      }
+
       if (!result?.uri) {
         setCaptureError('촬영 결과를 가져오지 못했어요. 다시 시도해 주세요.');
         setStage('idle');
@@ -172,6 +191,26 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
   const stopRecording = () => {
     if (!isRecording.current) return;
     cameraRef.current?.stopRecording();
+  };
+
+  // Press-and-hold collect gesture (concept §7): recording runs only while the
+  // shutter is held. Release stops it early; the native maxDuration still ends
+  // it automatically when the ring completes.
+  const beginHold = () => {
+    if (stage !== 'idle' || isRecording.current) return;
+    isHolding.current = true;
+    holdStartedAt.current = Date.now();
+    heldMs.current = undefined;
+    void startRecording();
+  };
+
+  const endHold = () => {
+    if (!isHolding.current) return;
+    isHolding.current = false;
+    if (holdStartedAt.current !== undefined) {
+      heldMs.current = Date.now() - holdStartedAt.current;
+    }
+    stopRecording();
   };
 
   const closePage = () => {
@@ -242,8 +281,8 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     selectedRecording,
     errorMessage: captureError ?? momentError ?? libraryError,
     // recording actions
-    startRecording,
-    stopRecording,
+    beginHold,
+    endHold,
     closePage,
     retake,
     dismissErrors,

@@ -146,7 +146,7 @@ M1→M2→M3가 핵심 루프 뼈대, M4가 "매직", M5·M6은 완성도, M7은
 
 ## 8. 미결정 / 리스크
 
-- press-and-hold 최소 시간·자동 종료(5초) 튜닝(concept §7).
+- ~~press-and-hold 최소 시간·자동 종료(5초) 튜닝(concept §7).~~ → 구현 완료(2026-07-23): 셔터가 press-and-hold + 담기 링(0→N초 linear, react-native-svg)으로 전환. 최소 홀드 250ms 미만은 담지 않고 버림, 자동 종료는 네이티브 `maxDuration` 그대로. 임계값 튜닝 여지는 `pages/capture-record/model/hold-gesture.ts`에 상수로 남김.
 - 순차 재생 릴을 `expo-video`로 어떻게 이어붙일지(끊김 없는 전환) — 기술 스파이크 필요.
 - 암실 다크 고정 전환이 기존 라이트 테마 자산과 충돌하는 범위(`shared/ui/theme`, `theme-mode` 스토어).
 - 오늘의 롤 자동 생성 트리거 위치(앱 부팅 vs 첫 촬영) — `src/_app/providers` 헤드리스 vs feature.

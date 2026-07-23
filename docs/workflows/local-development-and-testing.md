@@ -1,6 +1,16 @@
 # Local development and testing
 
-Run and verify changes on the **iOS Simulator and the Android emulator**, not the web target. Web (`expo start --web`) is not the reference runtime for this project. You can run **one iOS simulator and one Android emulator side by side** against a single Metro server.
+## Agent verification policy (read first)
+
+These rules were set by the project owner (2026-07-23) and override the procedures further down:
+
+1. **Do not verify on the web build or on the Android emulator.** Web (`expo start --web`) is not the reference runtime, and the emulator proved too limited for real verification (no real camera pipeline, Expo Go boot failure — see below). On-device verification happens on the owner's **physical Android device connected over wireless adb**.
+2. **Ask the owner to connect the wireless device before testing.** The device is not always attached. When a change needs on-device verification, explicitly request the connection ("무선 디버깅 기기 연결해 주세요") and wait; confirm with `adb devices` (the device appears as `adb-…-_adb-tls-connect._tcp`). Target it explicitly with `-s <serial>` (or `ANDROID_SERIAL`) — never assume it is the only device.
+3. **Never start the Metro server in the background.** A backgrounded Metro dies with its parent shell/timeout and silently takes down whatever device session the owner had open, and `expo run:android` piggybacks on an existing port-8081 server, chaining its lifetime to that hidden process. Ask the owner to run `npx expo start --dev-client` in their own terminal (or confirm the one they already run), and never kill port 8081 without asking.
+
+The sections below describe the machine constraints and the simulator/emulator commands. Treat the emulator/Expo Go procedures as background reference for the human developer, not as the agent's verification path.
+
+You can run **one iOS simulator and one Android emulator side by side** against a single Metro server.
 
 ## Automated checks
 
@@ -108,6 +118,8 @@ Verify each interaction with `xcrun simctl io "iPhone 16" screenshot <path>`. To
 - The `Pixel_API_35` image is a `default` (no Google Play) x86_64 image, which is correct for this Intel Mac and sufficient for Expo Go.
 
 ### Expo Go limitations
+
+**Expo Go no longer boots this app on Android** (verified 2026-07-23 on the Pixel_API_35 emulator): the app imports `expo-notifications` at startup (`_app/providers` push-token registrar → `shared/lib/notifications/local.ts`), and on Android Expo Go that import throws a fatal `Uncaught Error: expo-notifications: Android Push notifications … removed from Expo Go with the release of SDK 53` before anything renders. Android verification therefore requires a dev build (`npx expo run:android`) on the owner's wireless device (see the agent verification policy at the top). iOS Expo Go is unaffected.
 
 Only native modules bundled in Expo Go work, and `expo-dev-client` configuration is ignored. Custom native behavior (e.g. `expo-camera` config-plugin options, `expo-glass-effect`) may differ from a real build or be unavailable. When a feature depends on such modules, verify it with EAS Build instead.
 

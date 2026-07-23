@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
 import { normalizeCaptureDuration, normalizeCaptureMood } from '@/entities/capture-session';
+import { useCaptureMoment } from '@/features/capture-moment';
 import { useLocalRecordings } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 
@@ -43,9 +44,9 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     deletingId,
     errorMessage: libraryError,
     clearError: clearLibraryError,
-    saveRecording,
     removeRecording,
   } = useLocalRecordings();
+  const { captureMoment, error: momentError, clearError: clearMomentError } = useCaptureMoment();
 
   const cameraRef = useRef<CameraView>(null);
   const isRecording = useRef(false);
@@ -95,6 +96,7 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
   const dismissErrors = () => {
     setCaptureError(undefined);
     clearLibraryError();
+    clearMomentError();
   };
 
   const requestPermissions = () => {
@@ -145,17 +147,20 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
       }
 
       setStage('saving');
-      const savedRecording = await saveRecording(result.uri);
-      if (!savedRecording) {
+      // 담기: persist the clip and add it to today's roll. In the MVP loop there
+      // is no review/editing — the moment stays undeveloped and we return Home,
+      // where the roll counter reflects the new clip.
+      const clip = await captureMoment(result.uri, { durationSec: duration, mood });
+      if (!clip) {
         setStage('idle');
         return;
       }
 
-      setSelectedRecording(savedRecording);
-      setStage('review');
+      if (isClosing.current) return;
       if (process.env.EXPO_OS === 'ios') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      router.dismissAll();
     } catch {
       setCaptureError('촬영을 완료하지 못했어요. 카메라 상태를 확인하고 다시 시도해 주세요.');
       setStage('idle');
@@ -202,15 +207,6 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     if (wasDeleted && selectedRecording?.id === recording.id) retake();
   };
 
-  const continueToEditing = () => {
-    if (!selectedRecording) return;
-
-    router.replace({
-      pathname: '/capture/editing',
-      params: { duration: String(duration), mood },
-    });
-  };
-
   const toggleSound = () => setSoundEnabled((current) => !current);
 
   const toggleFacing = () => {
@@ -244,13 +240,12 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     handleCameraReady,
     handleMountError,
     selectedRecording,
-    errorMessage: captureError ?? libraryError,
+    errorMessage: captureError ?? momentError ?? libraryError,
     // recording actions
     startRecording,
     stopRecording,
     closePage,
     retake,
-    continueToEditing,
     dismissErrors,
     // library
     recordings,

@@ -7,6 +7,7 @@ import type { PropsWithChildren } from 'react';
 import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors } from '@/shared/ui/theme';
 
+import { DailyRollGate } from './daily-roll-gate';
 import { GeofenceGate } from './geofence-gate';
 import { queryClient } from './query-client';
 
@@ -36,6 +37,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <NavigationBar style="dark" />
         <PushTokenRegistrar />
         <GeofenceGate />
+        <DailyRollGate />
         {children}
       </ThemeProvider>
     </QueryClientProvider>

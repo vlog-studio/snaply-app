@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -18,8 +19,7 @@ import {
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
-
-import { formatReelLength, useDevelopedRolls } from '../model/use-developed-rolls';
+import { formatReelLength, useDevelopedRolls } from '@/widgets/developed-rolls-shelf';
 
 // "롤" = developed rolls (the shelf), "컷" = the raw clip archive (local
 // recordings). Both are now live.
@@ -73,7 +73,20 @@ export function ArchivePage() {
           <ThemedText type="edge" themeColor="amber">
             ARCHIVE · 롤 {developedRolls.length} · 컷 {recordings.length}
           </ThemedText>
-          <ThemedText type="title">보관함</ThemedText>
+          {/* Settings tucked into the archive corner — no longer a tab (concept §6). */}
+          <View style={styles.titleRow}>
+            <ThemedText type="title">보관함</ThemedText>
+            <Link href="/settings" asChild>
+              <Pressable
+                accessibilityLabel="설정"
+                accessibilityRole="button"
+                hitSlop={12}
+                style={styles.settingsButton}
+              >
+                <Ionicons color={theme.textSecondary} name="settings-outline" size={22} />
+              </Pressable>
+            </Link>
+          </View>
           <ThemedText themeColor="textSecondary">
             현상한 롤은 선반에, 담은 원본 컷은 그대로 쌓여요.
           </ThemedText>
@@ -332,6 +345,8 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
   },
   header: { gap: Spacing.two },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  settingsButton: { minWidth: 44, minHeight: 44, alignItems: 'flex-end', justifyContent: 'center' },
   segmented: {
     flexDirection: 'row',
     borderWidth: 1,

@@ -2,7 +2,7 @@
 
 ## User goal
 
-The Settings tab presents the intended controls for reminder timing, notification frequency, location alerts and quiet hours, interests, social connections, and account management.
+The Settings screen presents the intended controls for reminder timing, notification frequency, location alerts and quiet hours, interests, social connections, and account management. It is reached from a corner control on the Archive screen, not from the tab bar.
 
 This document owns the Settings controls and their persistence. The push/geofence mechanism the location-alert, quiet-hours, and interests preferences drive is owned by [Location alerts and push notifications](location-and-push-notifications.md).
 
@@ -10,7 +10,7 @@ This document owns the Settings controls and their persistence. The push/geofenc
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| Open Settings | `Functional` | Settings is a bottom-tab destination (`/settings`) alongside Home and Archive. |
+| Open Settings | `Functional` | Settings is a root-stack screen (`/settings`) opened from a `settings-outline` control in the Archive header corner; it is no longer a bottom-tab destination. |
 | Toggle morning, lunch, and evening windows | `Prototype` | Values update only in component-local state and reset when the screen remounts. |
 | Select one to three reminders per day | `Prototype` | The selection is local UI state and does not schedule notifications. |
 | Toggle location alerts (위치 알림 받기) | `Functional` | The master switch persists across restarts (SecureStore) and gates OS geofencing: turning it on (while signed in, with location permission granted) starts monitoring the nearest points; turning it off stops monitoring so no arrivals are reported. Backend sync (`PATCH /auth/me`) does not exist yet. Native only — no effect on web. |

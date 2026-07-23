@@ -80,6 +80,9 @@ function RootStack() {
         <Stack.Screen name="capture/editing" options={{ headerShown: false }} />
         <Stack.Screen name="capture/result" options={{ headerShown: false }} />
         <Stack.Screen name="roll/[id]" options={{ title: '롤 상세' }} />
+        {/* Settings moved out of the tab bar (concept §6): reached from the
+            archive corner, pushed as a normal stack screen. */}
+        <Stack.Screen name="settings" options={{ title: '설정' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>

@@ -4,7 +4,7 @@
 
 This directory is the product-level source of truth for behavior that is currently represented in the Snaply application. It complements the architecture guides: architecture documents define how code should be organized, while these documents record what users can currently do, which code owns that behavior, and which experiences are still prototypes.
 
-The inventory reflects the codebase as of 2026-07-22.
+The inventory reflects the codebase as of 2026-07-23.
 
 ## Implementation status vocabulary
 
@@ -25,28 +25,28 @@ Root stack
 ├── /sign-in           Social sign-in (shown when signed out)
 ├── (tabs)             (guarded: requires a session)
 │   ├── /              Home (with floating capture button)
-│   ├── /archive       Recording archive and vlog prototype
+│   ├── /archive       Clip archive + developed-roll shelf
 │   └── /settings      Settings tab
+├── /roll/[id]         Roll detail contact sheet; develop / view-reel entry (guarded)
 └── /capture           Capture setup (modal, guarded)
-    ├── /record        Camera recording and review
-    ├── /editing       Simulated AI-editing progress
-    └── /result        Simulated edited-result summary
+    ├── /record        Camera recording; 담기 into today's roll
+    ├── /editing       Develop ceremony (composes + persists the roll's reel)
+    └── /result        Sequential reel player
 ```
 
 Access control: `src/_app/routes/root-layout.tsx` guards the tab and capture routes with `Stack.Protected` based on session state. A signed-out user is routed to `/sign-in`.
 
-Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRegistrar` and `GeofenceGate`, and `src/_app/routes/register-background-tasks.ts` defines the background geofence task at startup. This has no route (see [Location alerts and push notifications](location-and-push-notifications.md)).
+Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRegistrar`, `GeofenceGate`, and `DailyRollGate` (ensures today's roll exists on entry), and `src/_app/routes/register-background-tasks.ts` defines the background geofence task at startup. These have no route (see [Location alerts and push notifications](location-and-push-notifications.md)).
 
 The main user journey is:
 
 ```text
-Home floating capture button (or contextual card)
+Home safelight capture ring
   → choose mood and 3- or 5-second duration
-  → record and persist a local video on iOS or Android
-  → review the selected original recording
-  → simulated AI editing
-  → simulated result
-  → Archive or another capture
+  → record a short clip on iOS or Android
+  → the clip is collected into today's roll (undeveloped) and returns Home
+  → open the roll (contact sheet) → 현상하기 → develop ceremony composes the reel
+  → the reel plays its clips back-to-back (sequential reel player)
 ```
 
 ## Feature index
@@ -55,9 +55,10 @@ Home floating capture button (or contextual card)
 | --- | --- | --- |
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, native/web tabs, route adapters, theme | `Functional` |
 | [Authentication](authentication.md) | Supabase Google/Apple OAuth sign-in, Supabase-owned session persistence, route guard, sign-out | `Functional` |
-| [Home and moment overview](home.md) | Daily prompt, contextual capture entry, moment progress, daily-vlog entry | `Prototype` |
-| [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, review, simulated editing and result | `Partial` |
-| [Recording archive](recording-archive.md) | Local recording persistence, listing, playback, selection, and deletion; vlog archive preview | `Partial` |
+| [Home and moment overview](home.md) | Daily prompt, contextual capture entry, real today's-roll clip counter and contact-sheet preview, roll-detail entry | `Partial` |
+| [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, 담기 into today's roll, develop ceremony, sequential reel playback | `Partial` |
+| [Roll detail](roll-detail.md) | Roll contact-sheet grid of undeveloped clips, clip counter, develop / view-reel CTA | `Functional` |
+| [Recording archive](recording-archive.md) | Local clip persistence, listing, playback, deletion; developed-roll shelf backed by the roll store | `Partial` |
 | [Settings](settings.md) | Reminder, frequency, social connection, and account controls | `Prototype` |
 | [Location alerts and push notifications](location-and-push-notifications.md) | FCM token registration, geofence monitoring, arrival reporting, foreground notification presentation | `Partial` |
 
@@ -66,11 +67,11 @@ Home floating capture button (or contextual card)
 | Layer | Current modules | Responsibility |
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
-| `src/_app` | `providers`, `routes`, `styles` | Compose the scheme-resolved (light/dark) navigation theme, splash overlay, root stack with the session route guard, and the cross-platform tab navigation. Also mount the headless `PushTokenRegistrar` and `GeofenceGate`, and define the background geofence task at startup (`register-background-tasks`). |
-| `src/pages` | `sign-in`, `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `archive`, `settings` | Own screen composition and screen-specific state. |
-| `src/features` | `manage-recordings`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Reuse local-recording handling across capture and archive screens, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
-| `src/entities` | `capture-session`, `session`, `location` | Define supported capture moods and durations, own the authenticated session and current user, and define geofence points and their reads. |
-| `src/shared` | `lib/recording-files`, `lib/secure-storage`, `lib/location`, `lib/notifications`, UI modules | Provide the platform-specific file, secure-storage, location, and notification adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
+| `src/_app` | `providers`, `routes`, `styles` | Compose the darkroom navigation theme, splash overlay, root stack with the session route guard, and the cross-platform tab navigation. Also mount the headless `PushTokenRegistrar`, `GeofenceGate`, and `DailyRollGate`, and define the background geofence task at startup (`register-background-tasks`). |
+| `src/pages` | `sign-in`, `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `roll-detail`, `archive`, `settings` | Own screen composition and screen-specific state (including the roll↔clip join in `roll-detail`). |
+| `src/features` | `capture-moment`, `develop-roll`, `manage-recordings`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own the 담기 action (persist clip + add to today's roll), the 현상 action (rules-based reel composition + status), reuse local-recording handling, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
+| `src/entities` | `capture-session`, `clip`, `roll`, `session`, `location` | Define capture moods/durations, own the clip archive and rolls (today's-roll selection, membership, develop status), the authenticated session and current user, and geofence points. |
+| `src/shared` | `lib/recording-files`, `lib/local-store`, `lib/secure-storage`, `lib/location`, `lib/notifications`, UI modules | Provide the platform-specific file, JSON local-store, secure-storage, location, and notification adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
 
 No `widgets` layer is currently needed. Page-specific blocks remain inside their owning page slices.
 

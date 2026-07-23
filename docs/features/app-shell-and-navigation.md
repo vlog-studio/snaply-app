@@ -28,16 +28,17 @@ Snaply opens into a three-tab application with Home, Archive, and Settings desti
 | `/capture/record` | Headerless root-stack screen | `pages/capture-record` |
 | `/capture/editing` | Headerless root-stack screen | `pages/capture-editing` |
 | `/capture/result` | Headerless root-stack screen | `pages/capture-result` |
+| `/roll/[id]` | Root-stack screen with a themed native header ("롤 상세") | `pages/roll-detail` |
 
 `src/app` parses string search parameters where needed and passes them to page components as explicit props. The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
 
 ## Composition and ownership
 
 - `src/app/_layout.tsx` exposes `RootLayout` from the `_app` Public API.
-- `src/_app/providers/app-providers.tsx` fixes the Expo Router navigation theme, status-bar style, and Android navigation-bar button style to the dark darkroom palette. It also mounts two headless nodes for the whole authenticated session — `PushTokenRegistrar` and `GeofenceGate` — which own no UI; see [Location alerts and push notifications](location-and-push-notifications.md).
+- `src/_app/providers/app-providers.tsx` fixes the Expo Router navigation theme, status-bar style, and Android navigation-bar button style to the dark darkroom palette. It also mounts three headless nodes for the whole authenticated session — `PushTokenRegistrar`, `GeofenceGate`, and `DailyRollGate` (ensures today's roll exists after the roll store hydrates) — which own no UI; see [Location alerts and push notifications](location-and-push-notifications.md) and [Roll detail](roll-detail.md).
 - `src/_app/routes/root-layout.tsx` composes providers, splash behavior, and stack presentations, mounts the app-wide `FilmGrain` overlay (`shared/ui/film-grain`), and imports `register-background-tasks` for its side effect so the background geofence task is defined at startup (including on a headless OS relaunch).
 - `src/_app/routes/app-tabs.tsx` is the single cross-platform tab navigator (`Tabs` from `expo-router`) with the Home, Archive, and Settings screens; there is no platform-specific tab variant.
-- `src/shared/ui/theme` owns the darkroom palette (including the `amber`, `lumen`, and `film` tokens), spacing, radii, content width, dark-fixed theme access, the (now unconsumed) persisted theme-mode store, the Android top content inset helper, and the tab bar height helper (`useTabBarHeight`) used to offset scrollable screens beneath the translucent bar.
+- `src/shared/ui/theme` owns the darkroom palette (including the `amber`, `lumen`, and `film` tokens), spacing, radii, content width, dark-fixed theme access, the (now unconsumed) persisted theme-mode store, the Android top content inset helper, the tab bar height helper (`useTabBarHeight`) used to offset scrollable screens beneath the translucent bar, and the `useReducedMotion` accessibility helper that lets animated screens (develop ceremony, mount fade-ins) present their final state immediately.
 - `src/shared/ui/fade-in-view` owns the mount fade-in used instead of Reanimated `entering` presets, which never start on iOS in Expo Go and left content invisible.
 
 ## Known limitations

@@ -53,6 +53,7 @@ src/
 - [`Supabase 소셜 로그인 설정 가이드`](docs/guides/supabase-auth-setup.md): Google·Apple 로그인을 켜기 위한 `.env` 값, Supabase·Google·Apple 콘솔 설정, 개발 빌드 실행 절차
 - [`위치 기반 FCM 알림 선행 개발 계획`](docs/guides/location-notifications-plan.md): 백엔드 API 이전에 프론트에서 만들 수 있는 범위, FSD 배치, 단계별 계획, 네이티브 설정 체크리스트
 - [`FCM 푸시 알림 설정 가이드`](docs/guides/fcm-push-setup.md): 네이티브 FCM 토큰용 Firebase 프로젝트·앱 등록, `google-services.json`/`GoogleService-Info.plist`/APNs 준비 절차
+- [`순간 수집 앱 리디자인 — 기획 컨셉`](docs/guides/moment-collection-redesign/concept.md): "순간 수집" 방향의 제품 프레이밍, 필름/현상 메타포, 컷↔롤 N:M 데이터 모델, 암실 시각 언어와 화면·모션 설계 (인터랙티브 프로토타입 HTML 포함)
 
 에이전트용 문서는 [`AGENTS.md`](AGENTS.md)에서 작업 유형별로 찾을 수 있습니다.
 

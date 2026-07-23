@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snaply — 비주얼 아이덴티티</title>
+<style>
+  :root {
+    /* LIGHTBOX (light default) — cold white you inspect negatives on */
+    --ground: #E7ECEC;
+    --surface: #F4F7F6;
+    --surface-2: #FCFDFD;
+    --line: #CBD4D3;
+    --ink: #1A1611;
+    --ink-dim: #635A50;
+    --ember: #C2452A;   /* safelight, deep for contrast on light */
+    --amber: #A9711F;   /* negative film base */
+    --lumen: #1F847E;   /* lightbox cool counter */
+    --glow: 0.0;
+
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+
+    --step: 0.5rem;
+    --maxw: 900px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* DARKROOM — warm near-black under a safelight */
+      --ground: #16110D;
+      --surface: #201811;
+      --surface-2: #2B2018;
+      --line: #3A2C20;
+      --ink: #F1E6DA;
+      --ink-dim: #A8927E;
+      --ember: #EA5E38;
+      --amber: #E7A24A;
+      --lumen: #82D6CE;
+      --glow: 0.55;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #E7ECEC; --surface: #F4F7F6; --surface-2: #FCFDFD; --line: #CBD4D3;
+    --ink: #1A1611; --ink-dim: #635A50; --ember: #C2452A; --amber: #A9711F; --lumen: #1F847E; --glow: 0.0;
+  }
+  :root[data-theme="dark"] {
+    --ground: #16110D; --surface: #201811; --surface-2: #2B2018; --line: #3A2C20;
+    --ink: #F1E6DA; --ink-dim: #A8927E; --ember: #EA5E38; --amber: #E7A24A; --lumen: #82D6CE; --glow: 0.55;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .page {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
+  }
+  /* film grain overlay */
+  .page::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+  }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* mono edge-code label — the signature type device */
+  .edge {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ember);
+  }
+  .edge-dim { color: var(--ink-dim); }
+
+  h1, h2, h3 { text-wrap: balance; }
+  .display {
+    font-family: var(--sans);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    font-size: clamp(2.6rem, 7vw, 5rem);
+    margin: 0.4em 0 0.3em;
+  }
+  h2.sec {
+    font-weight: 800; letter-spacing: -0.02em;
+    font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+    margin: 0 0 0.2em;
+  }
+  h3 { font-weight: 700; letter-spacing: -0.01em; font-size: 1.15rem; margin: 0 0 0.35em; }
+  p { margin: 0 0 1rem; max-width: 60ch; }
+  .lead { font-size: 1.2rem; color: var(--ink-dim); max-width: 46ch; }
+  .dim { color: var(--ink-dim); }
+
+  section { padding: clamp(56px, 9vw, 104px) 0; border-top: 1px solid var(--line); }
+  section:first-of-type { border-top: none; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 2.2rem; flex-wrap: wrap; }
+  .sec-head .num { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.2em; color: var(--ink-dim); }
+
+  /* HERO */
+  .hero { padding-top: clamp(72px, 12vw, 140px); position: relative; }
+  .hero-glow {
+    position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
+    width: 720px; height: 720px; max-width: 120vw;
+    background: radial-gradient(circle, var(--ember), transparent 62%);
+    opacity: calc(var(--glow) * 0.5); filter: blur(20px); pointer-events: none; z-index: 0;
+  }
+  .hero .wrap { position: relative; z-index: 1; }
+  .hero .lead { margin-top: 0.5rem; }
+
+  /* two worlds */
+  .worlds { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 8px; }
+  @media (max-width: 640px) { .worlds { grid-template-columns: 1fr; } }
+  .world {
+    border-radius: 14px; padding: 22px; min-height: 190px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden; border: 1px solid;
+  }
+  .world .wlabel { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; }
+  .world .wtitle { font-weight: 800; font-size: 1.5rem; letter-spacing: -0.02em; margin-top: 4px; }
+  .world .wdesc { font-size: 0.9rem; margin-top: 10px; }
+  .world.dark { background: #16110D; color: #F1E6DA; border-color: #3A2C20; }
+  .world.dark::before {
+    content: ""; position: absolute; top: -40%; right: -20%; width: 320px; height: 320px;
+    background: radial-gradient(circle, #EA5E38, transparent 60%); opacity: 0.5; filter: blur(8px);
+  }
+  .world.dark .wlabel { color: #EA5E38; }
+  .world.dark .wdesc { color: #A8927E; }
+  .world.light { background: #EDF1F1; color: #1A1611; border-color: #CBD4D3; }
+  .world.light::before {
+    content: ""; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg, transparent 0 22px, rgba(31,132,126,0.06) 22px 23px);
+  }
+  .world.light .wlabel { color: #1F847E; }
+  .world.light .wdesc { color: #635A50; }
+  .world .wrow { position: relative; z-index: 1; }
+
+  /* palette */
+  .swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+  @media (max-width: 720px) { .swatches { grid-template-columns: repeat(2, 1fr); } }
+  .sw { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+  .sw .chip { height: 92px; }
+  .sw .meta { padding: 12px; }
+  .sw .name { font-weight: 700; font-size: 0.95rem; }
+  .sw .hex { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-dim); letter-spacing: 0.04em; }
+  .sw .role { font-size: 0.8rem; color: var(--ink-dim); margin-top: 6px; }
+
+  /* type specimen */
+  .specimen { display: grid; gap: 26px; }
+  .spec-row { border-bottom: 1px dashed var(--line); padding-bottom: 22px; }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-tag { font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); display: block; margin-bottom: 10px; }
+  .edge-print {
+    font-family: var(--mono); letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--amber); font-size: 0.9rem;
+    background: var(--surface); border-radius: 8px; padding: 12px 16px; display: inline-block;
+    border: 1px solid var(--line);
+  }
+
+  /* film frame / clip */
+  .motif-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 22px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+  .card h3 { margin-bottom: 6px; }
+  .card p { font-size: 0.9rem; margin-bottom: 0; }
+  .card .demo { margin: 6px 0 18px; display: flex; align-items: center; justify-content: center; min-height: 150px; }
+
+  .frame {
+    background: #0E0B08; border-radius: 8px; padding: 10px 6px; width: 150px;
+    position: relative;
+  }
+  .perf { height: 12px; background: repeating-linear-gradient(90deg, transparent 0 6px, #2d241b 6px 13px, transparent 13px 19px); border-radius: 2px; }
+  .frame .win {
+    height: 96px; margin: 8px 3px; border-radius: 3px; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #6b4a2e, #c98a44 55%, #e7c07f);
+  }
+  .frame .fnum { position: absolute; top: 14px; right: 10px; font-family: var(--mono); font-size: 0.6rem; color: var(--amber); letter-spacing: 0.15em; z-index: 2; }
+  /* undeveloped */
+  .frame.undev .win { background: #241a12; }
+  .frame.undev .win::after { content: "미현상"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.2em; color: #6b5844; }
+  /* developing (scan line) */
+  .frame.devel .win::before {
+    content: ""; position: absolute; left: 0; right: 0; height: 30%;
+    background: linear-gradient(180deg, transparent, rgba(130,214,206,0.55), transparent);
+    animation: scan 2.4s ease-in-out infinite;
+  }
+  @keyframes scan { 0%{ top: -30%; } 100%{ top: 100%; } }
+
+  /* capture ring */
+  .ring-wrap { position: relative; width: 116px; height: 116px; }
+  .ring-svg { transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--line); stroke-width: 5; }
+  .ring-prog { fill: none; stroke: var(--ember); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 326; stroke-dashoffset: 326; animation: fill 5s cubic-bezier(.4,0,.2,1) infinite; }
+  @keyframes fill { 0%{ stroke-dashoffset: 326; } 70%,100%{ stroke-dashoffset: 0; } }
+  .ring-core { position: absolute; inset: 22px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 24px rgba(234,94,56,calc(var(--glow) + 0.15)); }
+
+  /* shelf */
+  .shelf { display: flex; gap: 12px; flex-wrap: wrap; }
+  .spine { width: 62px; height: 96px; border-radius: 8px; display: flex; align-items: flex-end; padding: 8px; }
+  .spine .s-num { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; color: rgba(255,255,255,0.85); }
+  .spine.a { background: linear-gradient(160deg, #7a3f2a, #ea5e38); }
+  .spine.b { background: linear-gradient(160deg, #1f5f5b, #82d6ce); }
+  .spine.c { background: linear-gradient(160deg, #5a4718, #e7a24a); }
+  .spine.empty { background: transparent; border: 2px dashed var(--line); }
+  .spine.empty::after { content: "빈 롤"; margin: auto; font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.12em; color: var(--ink-dim); }
+
+  /* phone mock */
+  .phone-block { display: grid; grid-template-columns: 300px 1fr; gap: 40px; align-items: center; }
+  @media (max-width: 720px) { .phone-block { grid-template-columns: 1fr; justify-items: center; } }
+  .phone {
+    width: 300px; border-radius: 40px; background: var(--surface); border: 1px solid var(--line);
+    padding: 16px 14px 22px; box-shadow: 0 30px 60px rgba(0,0,0,calc(var(--glow) * 0.5 + 0.12));
+  }
+  .phone .status { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.6rem; color: var(--ink-dim); letter-spacing: 0.1em; padding: 4px 8px 14px; }
+  .roll-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 6px 12px; }
+  .roll-head .rt { font-weight: 800; letter-spacing: -0.01em; }
+  .roll-head .rc { font-family: var(--mono); font-size: 0.72rem; color: var(--ember); letter-spacing: 0.08em; }
+  .mini-strip { display: flex; gap: 6px; background: #0E0B08; border-radius: 10px; padding: 8px 6px; overflow: hidden; }
+  .mini-strip .m { width: 40px; height: 56px; border-radius: 3px; flex: none; }
+  .mini-strip .m.f1 { background: linear-gradient(135deg,#6b4a2e,#e7c07f); }
+  .mini-strip .m.f2 { background: linear-gradient(135deg,#255,#82d6ce); }
+  .mini-strip .m.f3 { background: linear-gradient(135deg,#5a4718,#e7a24a); }
+  .mini-strip .m.empty { background: #241a12; border: 1px dashed #3a2c20; }
+  .cap { display: flex; justify-content: center; padding: 22px 0 10px; }
+  .cap .btn { width: 68px; height: 68px; border-radius: 50%; background: var(--ember); box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--line), 0 0 26px rgba(234,94,56,calc(var(--glow)+0.1)); }
+  .cap-hint { text-align: center; font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.15em; color: var(--ink-dim); text-transform: uppercase; }
+  .mock-shelf { display: flex; gap: 8px; padding: 16px 6px 4px; border-top: 1px solid var(--line); margin-top: 16px; }
+  .mock-shelf .sp { width: 44px; height: 62px; border-radius: 6px; }
+  .mock-shelf .sp.a { background: linear-gradient(160deg,#7a3f2a,#ea5e38); }
+  .mock-shelf .sp.b { background: linear-gradient(160deg,#1f5f5b,#82d6ce); }
+  .mock-shelf .sp.empty { border: 2px dashed var(--line); }
+
+  .principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 18px; }
+  .principle { border-left: 2px solid var(--ember); padding: 4px 0 4px 18px; }
+  .principle .pt { font-weight: 700; margin-bottom: 4px; }
+  .principle p { font-size: 0.9rem; color: var(--ink-dim); margin: 0; }
+
+  footer { border-top: 1px solid var(--line); padding: 40px 0 64px; }
+  footer .edge { color: var(--ink-dim); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring-prog, .frame.devel .win::before { animation: none; }
+    .ring-prog { stroke-dashoffset: 90; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="hero">
+    <div class="hero-glow"></div>
+    <div class="wrap">
+      <span class="edge">SNAPLY · VISUAL LANGUAGE · v0.1</span>
+      <h1 class="display">어둠 속에 담고,<br>빛으로 꺼낸다.</h1>
+      <p class="lead">순간을 모으는 앱의 시각 언어. 촬영/편집 도구가 아니라 <strong>암실과 라이트박스</strong>라는 필름의 실제 작업 공간에서 색과 질감을 가져온다.</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">01</span><h2 class="sec">두 개의 세계</h2></div>
+      <p class="dim">테마 전환은 단순한 명암 반전이 아니라 개념의 전환이다. 다크모드는 컷이 잠들어 있는 <strong>암실</strong>, 라이트모드는 네거티브를 들여다보는 <strong>라이트박스</strong>. 지금 이 문서도 당신의 테마를 따라 두 세계를 오간다.</p>
+      <div class="worlds">
+        <div class="world dark">
+          <div class="wrow"><span class="wlabel">Dark = Darkroom</span><div class="wtitle">암실</div></div>
+          <div class="wrow"><div class="wdesc">따뜻한 흑색 바닥 위 세이프라이트(앰버) 글로우. 아직 미현상인 컷들이 어둠 속에 잠겨 기대를 만든다.</div></div>
+        </div>
+        <div class="world light">
+          <div class="wrow"><span class="wlabel">Light = Lightbox</span><div class="wtitle">라이트박스</div></div>
+          <div class="wrow"><div class="wdesc">차가운 백색 위에서 네거티브를 검수하는 상태. 시안 톤이 앰버와 온도 대비를 이룬다.</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">02</span><h2 class="sec">팔레트</h2></div>
+      <p class="dim">시그니처는 단색 포인트가 아니라 <strong>온도 대비</strong>다 — 따뜻한 앰버(세이프라이트·필름 베이스)와 차가운 시안(라이트박스)이 맞선다. 값은 다크(암실) 기준.</p>
+      <div class="swatches">
+        <div class="sw"><div class="chip" style="background:#16110D"></div><div class="meta"><div class="name">Ground</div><div class="hex">#16110D</div><div class="role">암실 바닥. 순수 흑색이 아닌 따뜻한 흑갈색.</div></div></div>
+        <div class="sw"><div class="chip" style="background:#EA5E38"></div><div class="meta"><div class="name">Ember</div><div class="hex">#EA5E38</div><div class="role">세이프라이트. 주 강조색·촬영 버튼.</div></div></div>
+        <div class="sw"><div class="chip" style="background:#E7A24A"></div><div class="meta"><div class="name">Amber</div><div class="hex">#E7A24A</div><div class="role">네거티브 필름 베이스. 엣지 코드 각인.</div></div></div>
+        <div class="sw"><div class="chip" style="background:#82D6CE"></div><div class="meta"><div class="name">Lumen</div><div class="hex">#82D6CE</div><div class="role">라이트박스 냉광. 차가운 대비축.</div></div></div>
+        <div class="sw"><div class="chip" style="background:#F1E6DA"></div><div class="meta"><div class="name">Ink</div><div class="hex">#F1E6DA</div><div class="role">따뜻한 오프화이트 텍스트.</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">03</span><h2 class="sec">타이포그래피</h2></div>
+      <p class="dim">두 개의 목소리. 표제는 굵은 휴머니스트 산세리프, 그리고 정체성을 싣는 <strong>모노스페이스 엣지 프린트</strong> — 필름 가장자리에 빛으로 찍힌 프레임 번호·날짜·ISO 각인을 그대로 UI 언어로 가져온다.</p>
+      <div class="specimen">
+        <div class="spec-row">
+          <span class="spec-tag">Display · Sans 800 · -3% tracking</span>
+          <div class="display" style="font-size:clamp(2rem,5vw,3.4rem);margin:0">오늘의 롤을 현상하세요</div>
+        </div>
+        <div class="spec-row">
+          <span class="spec-tag">Body · Sans 400</span>
+          <p style="margin:0">하루 동안 담은 순간들이 어둠 속에 모입니다. 하루가 끝나면 필름을 현상하듯, AI가 컷들을 하나의 릴로 엮어 처음으로 보여줍니다.</p>
+        </div>
+        <div class="spec-row">
+          <span class="spec-tag">Edge print · Mono · uppercase · +18% tracking</span>
+          <div class="edge-print">ROLL 019 · 2026-07-23 · 03/12 · ISO 400</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">04</span><h2 class="sec">모티프</h2></div>
+      <p class="dim">순간에 물성을 주는 요소들. 컷은 파일 썸네일이 아니라 <strong>퍼포레이션이 있는 필름 프레임</strong>으로, 상태는 현상 단계로 표현된다.</p>
+      <div class="motif-grid">
+        <div class="card">
+          <div class="demo">
+            <div class="frame"><div class="perf"></div><div class="win"><span class="fnum">019·03</span></div><div class="perf"></div></div>
+          </div>
+          <h3>컷 — 현상 완료</h3>
+          <p>퍼포레이션·프레임 번호가 각인된 필름 프레임. 색이 들어온 상태.</p>
+        </div>
+        <div class="card">
+          <div class="demo">
+            <div class="frame undev"><div class="perf"></div><div class="win"></div><div class="perf"></div></div>
+          </div>
+          <h3>컷 — 미현상</h3>
+          <p>담긴 직후엔 어둠에 잠긴 상태. "무엇이 나올까"라는 기대를 만든다.</p>
+        </div>
+        <div class="card">
+          <div class="demo">
+            <div class="frame devel"><div class="perf"></div><div class="win"><span class="fnum">현상중</span></div><div class="perf"></div></div>
+          </div>
+          <h3>현상 중</h3>
+          <p>라이트박스 냉광 스캔 라인이 프레임을 훑으며 색을 꺼낸다.</p>
+        </div>
+        <div class="card">
+          <div class="demo">
+            <div class="ring-wrap">
+              <svg class="ring-svg" width="116" height="116"><circle class="ring-track" cx="58" cy="58" r="52"></circle><circle class="ring-prog" cx="58" cy="58" r="52"></circle></svg>
+              <div class="ring-core"></div>
+            </div>
+          </div>
+          <h3>꾹-담기 링</h3>
+          <p>길게 누르는 5초 동안 세이프라이트 링이 차오르고, 손을 떼면 롤로 빨려든다.</p>
+        </div>
+        <div class="card">
+          <div class="demo">
+            <div class="shelf">
+              <div class="spine a"><span class="s-num">R017</span></div>
+              <div class="spine b"><span class="s-num">R018</span></div>
+              <div class="spine empty"></div>
+            </div>
+          </div>
+          <h3>수집 선반</h3>
+          <p>현상된 롤이 스파인처럼 꽂힌다. <strong>빈 슬롯</strong>이 채우고 싶은 욕구를 건드린다.</p>
+        </div>
+        <div class="card">
+          <div class="demo" style="min-height:150px">
+            <div style="width:100%;height:110px;border-radius:10px;background:var(--ground);position:relative;overflow:hidden;border:1px solid var(--line)">
+              <div style="position:absolute;inset:0;background-image:url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22g%22%3E%3CfeTurbulence baseFrequency=%220.9%22 numOctaves=%222%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23g)%22/%3E%3C/svg%3E');opacity:0.12;mix-blend-mode:overlay"></div>
+            </div>
+          </div>
+          <h3>그레인 텍스처</h3>
+          <p>전 화면에 은은한 필름 그레인. "AI로 찍어낸 매끈함"을 지우는 결정적 질감.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">05</span><h2 class="sec">적용 — 홈 화면</h2></div>
+      <p class="dim">위=오늘(습관), 가운데=담기(행동), 아래=선반(수집). 세 층이 매일 조금씩 움직인다.</p>
+      <div class="phone-block">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span>SNAPLY</span></div>
+          <div class="roll-head"><span class="rt">오늘의 롤</span><span class="rc">03/12 · 미현상</span></div>
+          <div class="mini-strip">
+            <div class="m f1"></div><div class="m f2"></div><div class="m f3"></div>
+            <div class="m empty"></div><div class="m empty"></div><div class="m empty"></div>
+          </div>
+          <div class="cap"><div class="btn"></div></div>
+          <div class="cap-hint">꾹 눌러 담기</div>
+          <div class="mock-shelf"><div class="sp a"></div><div class="sp b"></div><div class="sp empty"></div></div>
+        </div>
+        <div>
+          <div class="principles">
+            <div class="principle"><div class="pt">미현상 상태를 보여준다</div><p>완성본을 바로 안 주고 "미현상"으로 둬 하루 종일 기대를 쌓는다.</p></div>
+            <div class="principle"><div class="pt">빈칸이 보인다</div><p>03/12의 빈 프레임과 선반의 빈 롤이 수집을 유도한다.</p></div>
+            <div class="principle"><div class="pt">촬영은 세이프라이트다</div><p>단 하나의 앰버 버튼. 나머지는 조용히 물러난다.</p></div>
+            <div class="principle"><div class="pt">AI는 현상소에 숨는다</div><p>편집 툴을 전면에 두지 않는다. "현상하기" 뒤에서 알아서 엮는다.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <span class="edge">END OF ROLL · SNAPLY VISUAL LANGUAGE · v0.1 · 2026-07-23</span>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

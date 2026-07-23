@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snaply — 화면 설계 v0.1</title>
+<style>
+  :root {
+    --ground: #E7ECEC; --surface: #F4F7F6; --line: #CBD4D3;
+    --ink: #1A1611; --ink-dim: #635A50; --ember: #C2452A; --amber: #A9711F; --lumen: #1F847E;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+    --maxw: 1040px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#16110D; --surface:#201811; --line:#3A2C20; --ink:#F1E6DA; --ink-dim:#A8927E; --ember:#EA5E38; --amber:#E7A24A; --lumen:#82D6CE; }
+  }
+  :root[data-theme="light"] { --ground:#E7ECEC; --surface:#F4F7F6; --line:#CBD4D3; --ink:#1A1611; --ink-dim:#635A50; --ember:#C2452A; --amber:#A9711F; --lumen:#1F847E; }
+  :root[data-theme="dark"] { --ground:#16110D; --surface:#201811; --line:#3A2C20; --ink:#F1E6DA; --ink-dim:#A8927E; --ember:#EA5E38; --amber:#E7A24A; --lumen:#82D6CE; }
+
+  /* fixed darkroom palette used INSIDE every device screen (app identity) */
+  :root {
+    --d-ground:#16110D; --d-surface:#221910; --d-surface2:#2C2118; --d-line:#3A2C20;
+    --d-ink:#F1E6DA; --d-dim:#A8927E; --d-ember:#EA5E38; --d-amber:#E7A24A; --d-lumen:#82D6CE; --d-film:#0E0B08;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .page { background: var(--ground); color: var(--ink); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; position: relative; overflow-x: hidden; }
+  .page::after { content:""; position:fixed; inset:0; z-index:60; pointer-events:none; opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  .edge { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ember); }
+  h1.display { font-weight: 800; letter-spacing: -0.03em; line-height: 1.03; font-size: clamp(2.4rem, 6vw, 4rem); margin: 0.4em 0 0.3em; }
+  .lead { font-size: 1.15rem; color: var(--ink-dim); max-width: 52ch; }
+  .dim { color: var(--ink-dim); }
+
+  header.hero { padding: clamp(64px,11vw,120px) 0 clamp(40px,6vw,64px); }
+  section { padding: clamp(52px,8vw,92px) 0; border-top: 1px solid var(--line); }
+  .sec-head { display:flex; align-items:baseline; gap:16px; margin-bottom:0.5rem; flex-wrap:wrap; }
+  .sec-head .num { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.2em; color:var(--ink-dim); }
+  .sec-head h2 { font-weight:800; letter-spacing:-0.02em; font-size:clamp(1.5rem,3.2vw,2.1rem); margin:0; }
+  .sec-sub { color: var(--ink-dim); max-width: 60ch; margin: 0 0 2.4rem; }
+
+  /* nav architecture diagram */
+  .navmap { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap; }
+  .navmap .node { flex:1; min-width:180px; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:18px 18px 20px; }
+  .navmap .node.center { border-color: var(--ember); }
+  .navmap .node .tag { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-dim); }
+  .navmap .node .nm { font-weight:800; font-size:1.15rem; letter-spacing:-0.01em; margin:6px 0 4px; }
+  .navmap .node.center .nm { color: var(--ember); }
+  .navmap .node p { font-size:0.86rem; color:var(--ink-dim); margin:0; }
+
+  /* flow rows of devices */
+  .flow { display:flex; gap:26px; overflow-x:auto; padding:6px 2px 22px; scroll-snap-type:x proximity; }
+  .flow > figure { scroll-snap-align:start; }
+  figure { margin:0; flex:none; width:264px; }
+  figure figcaption { margin-top:14px; }
+  figcaption .cap-t { font-weight:700; letter-spacing:-0.01em; }
+  figcaption .cap-e { font-family:var(--mono); font-size:0.64rem; letter-spacing:0.12em; color:var(--ember); text-transform:uppercase; margin-top:4px; display:block; }
+  figcaption .cap-d { font-size:0.85rem; color:var(--ink-dim); margin-top:6px; }
+  .arrow { align-self:center; flex:none; color:var(--ink-dim); font-family:var(--mono); font-size:1.4rem; padding:0 2px; }
+
+  /* device */
+  .device { width:264px; border-radius:36px; background:#0a0806; border:1px solid var(--d-line); padding:10px; box-shadow:0 26px 50px rgba(0,0,0,0.28); }
+  .screen { border-radius:28px; background:var(--d-ground); color:var(--d-ink); overflow:hidden; position:relative; height:512px; display:flex; flex-direction:column;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"); }
+  .screen::before { content:""; position:absolute; inset:0; background:var(--d-ground); opacity:0.94; z-index:0; }
+  .screen > * { position:relative; z-index:1; }
+  .sbar { display:flex; justify-content:space-between; padding:12px 18px 4px; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; color:var(--d-dim); }
+
+  .e-print { font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; color:var(--d-amber); font-size:0.6rem; }
+  .badge { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.12em; text-transform:uppercase; padding:3px 8px; border-radius:999px; border:1px solid var(--d-line); color:var(--d-dim); }
+  .badge.warm { color:var(--d-ember); border-color:rgba(234,94,56,0.5); }
+  .badge.cool { color:var(--d-lumen); border-color:rgba(130,214,206,0.5); }
+
+  /* VIEWFINDER */
+  .vf { flex:1; display:flex; flex-direction:column; }
+  .vf .top { display:flex; justify-content:space-between; align-items:center; padding:6px 16px; }
+  .vf .roll-pick { display:flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:700; background:rgba(255,255,255,0.06); padding:5px 12px; border-radius:999px; border:1px solid var(--d-line); }
+  .vf .roll-pick .car { color:var(--d-dim); font-size:0.7rem; }
+  .vf .feed { flex:1; margin:8px 14px; border-radius:14px; position:relative; overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 30%, #c98a44 0%, #7a4e2b 45%, #241a12 100%); }
+  .vf .feed::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 70px 20px rgba(0,0,0,0.55); } /* vignette */
+  .vf .feed .fmeta { position:absolute; top:10px; left:12px; }
+  .vf .feed .fmeta2 { position:absolute; bottom:10px; right:12px; }
+  .vf .bottom { padding:10px 0 22px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .cap-hint { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--d-dim); }
+
+  .ringwrap { position:relative; width:88px; height:88px; }
+  .ringwrap svg { transform:rotate(-90deg); }
+  .rt { fill:none; stroke:rgba(255,255,255,0.18); stroke-width:5; }
+  .rp { fill:none; stroke:var(--d-ember); stroke-width:5; stroke-linecap:round; stroke-dasharray:245; }
+  .rp.idle { stroke-dashoffset:245; }
+  .rp.rec { stroke-dashoffset:150; }
+  .core { position:absolute; inset:18px; border-radius:50%; background:var(--d-ember); box-shadow:0 0 22px rgba(234,94,56,0.5); }
+  .core.rec { inset:24px; border-radius:12px; } /* rounded square while holding */
+  .timer { font-family:var(--mono); font-size:0.7rem; color:var(--d-ember); letter-spacing:0.1em; }
+
+  /* toast + flying frame */
+  .toast { position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(20,15,11,0.92); border:1px solid var(--d-line); border-radius:999px; padding:7px 16px; font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--d-lumen); }
+  .flyframe { position:absolute; top:70px; right:26px; width:34px; height:46px; border-radius:4px; background:linear-gradient(135deg,#6b4a2e,#e7c07f); border:1px solid rgba(0,0,0,0.4); box-shadow:0 6px 16px rgba(0,0,0,0.4); }
+
+  /* generic app header inside screen */
+  .ah { display:flex; justify-content:space-between; align-items:baseline; padding:6px 18px 12px; }
+  .ah .h-t { font-weight:800; font-size:1.15rem; letter-spacing:-0.01em; }
+  .ah .h-c { font-family:var(--mono); font-size:0.66rem; color:var(--d-ember); letter-spacing:0.08em; }
+  .body-pad { padding:0 16px; flex:1; overflow:hidden; }
+
+  /* contact sheet */
+  .sheet { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .cell { aspect-ratio:3/4; border-radius:5px; position:relative; overflow:hidden; }
+  .cell .cn { position:absolute; top:5px; right:5px; font-family:var(--mono); font-size:0.5rem; color:var(--d-amber); letter-spacing:0.08em; }
+  .cell.c1 { background:linear-gradient(135deg,#6b4a2e,#e7c07f); }
+  .cell.c2 { background:linear-gradient(135deg,#1f5f5b,#82d6ce); }
+  .cell.c3 { background:linear-gradient(135deg,#5a4718,#e7a24a); }
+  .cell.c4 { background:linear-gradient(135deg,#5a2e3a,#d98aa0); }
+  .cell.c5 { background:linear-gradient(135deg,#2e4a5a,#7fb2d9); }
+  .cell.undev { background:#221910; }
+  .cell.undev::after { content:"?"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#4d3d2c; font-family:var(--mono); }
+  .cell.empty { border:1px dashed var(--d-line); }
+
+  /* big CTA */
+  .cta-wrap { padding:14px 16px 20px; }
+  .cta { width:100%; border:none; border-radius:14px; background:var(--d-ember); color:#1a0f0a; font-family:var(--sans); font-weight:800; font-size:1rem; padding:15px; letter-spacing:-0.01em; box-shadow:0 0 26px rgba(234,94,56,0.28); }
+  .cta-sub { text-align:center; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.12em; color:var(--d-dim); text-transform:uppercase; margin-top:10px; }
+  .cta.ghost { background:transparent; color:var(--d-ink); border:1px solid var(--d-line); box-shadow:none; }
+
+  /* develop ceremony */
+  .develop { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px; position:relative; }
+  .develop .glow { position:absolute; width:260px; height:260px; background:radial-gradient(circle,var(--d-ember),transparent 62%); opacity:0.4; filter:blur(10px); }
+  .dev-stack { position:relative; width:150px; height:120px; }
+  .dev-stack .df { position:absolute; width:96px; height:112px; border-radius:6px; overflow:hidden; }
+  .dev-stack .df.a { left:0; top:6px; transform:rotate(-8deg); background:linear-gradient(135deg,#6b4a2e,#e7c07f); }
+  .dev-stack .df.b { left:26px; top:0; background:#221910; }
+  .dev-stack .df.b::before { content:""; position:absolute; left:0; right:0; height:34%; background:linear-gradient(180deg,transparent,rgba(130,214,206,0.6),transparent); animation:scan 2s ease-in-out infinite; }
+  .dev-stack .df.c { left:52px; top:6px; transform:rotate(8deg); background:linear-gradient(135deg,#1f5f5b,#82d6ce); }
+  @keyframes scan { 0%{top:-34%} 100%{top:100%} }
+  .dev-status { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--d-lumen); }
+  .dev-bar { width:150px; height:4px; border-radius:2px; background:rgba(255,255,255,0.12); overflow:hidden; }
+  .dev-bar > i { display:block; height:100%; width:64%; background:var(--d-ember); }
+
+  /* reel player */
+  .reel { flex:1; position:relative; margin:0; border-radius:0; overflow:hidden;
+    background:radial-gradient(130% 80% at 40% 35%, #d98aa0 0%, #7a4e2b 50%, #16110D 100%); }
+  .reel::after { content:""; position:absolute; inset:0; box-shadow:inset 0 -80px 90px -20px rgba(10,7,5,0.9), inset 0 60px 60px -30px rgba(10,7,5,0.7); }
+  .reel .r-top { position:absolute; top:14px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; z-index:2; }
+  .reel .play { position:absolute; inset:0; margin:auto; width:56px; height:56px; border-radius:50%; background:rgba(20,15,11,0.5); border:1px solid rgba(255,255,255,0.4); display:flex; align-items:center; justify-content:center; z-index:2; }
+  .reel .play::after { content:""; border-left:16px solid var(--d-ink); border-top:10px solid transparent; border-bottom:10px solid transparent; margin-left:4px; }
+  .reel .r-bottom { position:absolute; bottom:16px; left:16px; right:16px; z-index:2; }
+  .reel .mood { display:inline-flex; align-items:center; gap:6px; background:rgba(20,15,11,0.6); border:1px solid var(--d-line); border-radius:999px; padding:5px 12px; font-size:0.72rem; font-weight:700; margin-bottom:12px; }
+  .reel .r-actions { display:flex; gap:8px; }
+  .reel .r-actions button { flex:1; border:none; border-radius:10px; padding:11px 0; font-family:var(--sans); font-weight:700; font-size:0.8rem; }
+  .reel .r-actions .primary { background:var(--d-ember); color:#1a0f0a; }
+  .reel .r-actions .sec { background:rgba(255,255,255,0.1); color:var(--d-ink); border:1px solid var(--d-line); }
+  .rprog { position:absolute; bottom:0; left:0; right:0; height:3px; background:rgba(255,255,255,0.15); z-index:3; }
+  .rprog > i { display:block; height:100%; width:38%; background:var(--d-lumen); }
+
+  /* preset cards list */
+  .presets { display:flex; flex-direction:column; gap:10px; }
+  .preset { border:1px solid var(--d-line); border-radius:12px; padding:13px 14px; background:var(--d-surface); }
+  .preset.sel { border-color:var(--d-ember); box-shadow:0 0 0 1px rgba(234,94,56,0.4); }
+  .preset .p-t { font-weight:800; font-size:0.95rem; letter-spacing:-0.01em; }
+  .preset .p-r { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--d-dim); margin-top:5px; }
+  .preset.sel .p-r { color:var(--d-amber); }
+
+  /* shelf */
+  .seg { display:flex; gap:4px; background:rgba(255,255,255,0.06); border-radius:999px; padding:3px; margin:0 16px 14px; }
+  .seg span { flex:1; text-align:center; font-family:var(--mono); font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; padding:6px 0; border-radius:999px; color:var(--d-dim); }
+  .seg span.on { background:var(--d-ember); color:#1a0f0a; }
+  .covers { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .cover { border-radius:10px; height:118px; padding:12px; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; }
+  .cover .cv-t { font-weight:800; font-size:0.92rem; color:#fff; letter-spacing:-0.01em; text-shadow:0 1px 6px rgba(0,0,0,0.4); }
+  .cover .cv-e { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.08em; color:rgba(255,255,255,0.85); }
+  .cover.a { background:linear-gradient(155deg,#7a3f2a,#ea5e38); }
+  .cover.b { background:linear-gradient(155deg,#1f5f5b,#82d6ce); }
+  .cover.c { background:linear-gradient(155deg,#5a4718,#e7a24a); }
+  .cover.d { background:linear-gradient(155deg,#5a2e3a,#d98aa0); }
+  .cover.empty { background:transparent; border:2px dashed var(--d-line); align-items:center; justify-content:center; }
+  .cover.empty::after { content:"+ 새 롤"; font-family:var(--mono); font-size:0.6rem; letter-spacing:0.1em; color:var(--d-dim); }
+
+  /* bottom tab bar */
+  .tabbar { display:flex; align-items:center; justify-content:space-around; padding:12px 22px 20px; border-top:1px solid var(--d-line); background:rgba(14,11,8,0.6); }
+  .tabbar .tb { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--d-dim); text-align:center; }
+  .tabbar .tb.on { color:var(--d-ink); }
+  .tabbar .capbtn { width:52px; height:52px; border-radius:50%; background:var(--d-ember); box-shadow:0 0 0 4px var(--d-ground),0 0 20px rgba(234,94,56,0.4); margin-top:-26px; }
+
+  .note { margin-top:36px; padding:20px 22px; border-left:2px solid var(--ember); background:var(--surface); border-radius:0 12px 12px 0; }
+  .note b { font-weight:700; }
+  .note p { margin:0.3rem 0 0; color:var(--ink-dim); font-size:0.92rem; }
+
+  footer { border-top:1px solid var(--line); padding:36px 0 60px; }
+  footer .edge { color:var(--ink-dim); }
+
+  @media (prefers-reduced-motion: reduce) { .dev-stack .df.b::before { animation:none; } }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <div class="wrap">
+      <span class="edge">SNAPLY · SCREEN DESIGN · v0.1</span>
+      <h1 class="display">담고 · 현상하고 · 모은다</h1>
+      <p class="lead">암실/라이트박스 시각 언어를 실제 흐름에 얹은 화면 설계. 세 개의 시그니처 플로우로 앱 전체가 돈다.</p>
+    </div>
+  </header>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">00</span><h2>네비게이션</h2></div>
+      <p class="sec-sub">하단 2탭 + 가운데 세이프라이트 촬영 버튼. 담기는 언제나 한 번의 탭. 설정·프로필은 보관함 구석에 접어둔다.</p>
+      <div class="navmap">
+        <div class="node"><span class="tag">Tab · Left</span><div class="nm">오늘</div><p>오늘의 롤, 촬영 중 테마 롤, 선반 미리보기. 매일 여는 홈.</p></div>
+        <div class="node center"><span class="tag">Center · Always</span><div class="nm">담기</div><p>전체화면 뷰파인더. 꾹 눌러 순간을 담는다.</p></div>
+        <div class="node"><span class="tag">Tab · Right</span><div class="nm">보관함</div><p>현상된 롤 선반 + 컷 아카이브. 새 롤 만들기 진입.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">A</span><h2>담기 플로우</h2></div>
+      <p class="sec-sub">뷰파인더에서 담을 롤을 확인하고, 꾹 누르는 5초 동안 세이프라이트 링이 차오른다. 손을 떼면 컷이 프레임이 되어 롤로 빨려들고 카운터가 오른다.</p>
+      <div class="flow">
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>담기</span></div>
+            <div class="vf">
+              <div class="top"><div class="roll-pick">오늘의 롤 <span class="car">▾</span></div><span class="e-print">03/12</span></div>
+              <div class="feed"><span class="fmeta e-print">2026-07-23 · 성수동</span><span class="fmeta2 e-print">ISO 400</span></div>
+              <div class="bottom">
+                <div class="ringwrap"><svg width="88" height="88"><circle class="rt" cx="44" cy="44" r="39"></circle><circle class="rp idle" cx="44" cy="44" r="39"></circle></svg><div class="core"></div></div>
+                <span class="cap-hint">꾹 눌러 담기</span>
+              </div>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">뷰파인더 (대기)</div><span class="cap-e">Target: 오늘의 롤</span><div class="cap-d">담길 롤을 상단에서 확인·전환. 필름 각인처럼 날짜·위치가 모서리에.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>담기</span></div>
+            <div class="vf">
+              <div class="top"><div class="roll-pick">오늘의 롤 <span class="car">▾</span></div><span class="timer">0:03</span></div>
+              <div class="feed" style="background:radial-gradient(120% 90% at 50% 30%,#e7c07f 0%,#a9711f 45%,#3a2814 100%)"><span class="fmeta e-print">● REC</span><span class="fmeta2 e-print">03 / 05s</span></div>
+              <div class="bottom">
+                <div class="ringwrap"><svg width="88" height="88"><circle class="rt" cx="44" cy="44" r="39"></circle><circle class="rp rec" cx="44" cy="44" r="39"></circle></svg><div class="core rec"></div></div>
+                <span class="cap-hint">누르는 중… 손 떼면 저장</span>
+              </div>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">담는 중 (0–5초)</div><span class="cap-e">Ring filling · haptic</span><div class="cap-d">링이 세이프라이트로 차오르고 코어는 둥근 사각으로. 5초 차면 자동 저장.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>담기</span></div>
+            <div class="vf">
+              <div class="top"><div class="roll-pick">오늘의 롤 <span class="car">▾</span></div><span class="e-print" style="color:var(--d-lumen)">04/12</span></div>
+              <div class="feed"><span class="fmeta e-print">2026-07-23 · 성수동</span><span class="fmeta2 e-print">ISO 400</span><div class="flyframe"></div></div>
+              <div class="toast">담김 · 미현상</div>
+              <div class="bottom">
+                <div class="ringwrap"><svg width="88" height="88"><circle class="rt" cx="44" cy="44" r="39"></circle><circle class="rp idle" cx="44" cy="44" r="39"></circle></svg><div class="core"></div></div>
+                <span class="cap-hint">꾹 눌러 담기</span>
+              </div>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">담김</div><span class="cap-e">03/12 → 04/12</span><div class="cap-d">컷이 프레임이 되어 상단으로 빨려들고 카운터가 오른다. 완성본은 아직 안 보여준다(미현상).</div></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    /* wide-roll guidance */
+    .rp-badge { font-family:var(--mono); font-size:0.5rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--d-lumen); border:1px solid rgba(130,214,206,0.5); border-radius:999px; padding:2px 6px; margin-left:6px; }
+    .feed .wbars::before, .feed .wbars::after { content:""; position:absolute; left:0; right:0; height:27%; background:rgba(8,6,4,0.74); z-index:2; }
+    .feed .wbars::before { top:0; } .feed .wbars::after { bottom:0; }
+    .feed .wwin { position:absolute; left:8px; right:8px; top:27%; bottom:27%; border:1px solid rgba(130,214,206,0.7); border-radius:4px; z-index:3; }
+    .feed .wwin::before { content:"16:9"; position:absolute; top:4px; left:6px; font-family:var(--mono); font-size:0.5rem; letter-spacing:0.1em; color:var(--d-lumen); }
+    .feed .rothint { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); z-index:4; text-align:center; }
+    .feed .rothint span { display:inline-block; background:rgba(20,15,11,0.82); border:1px solid rgba(130,214,206,0.5); color:var(--d-lumen); font-family:var(--mono); font-size:0.58rem; letter-spacing:0.12em; padding:6px 12px; border-radius:999px; }
+    /* landscape device */
+    figure.wfig { width:420px; }
+    @media (max-width:520px){ figure.wfig { width:300px; } }
+    .device.land { width:420px; }
+    .device.land .screen { height:210px; }
+    .land-wrap { position:absolute; inset:0; }
+    .land-feed { position:absolute; inset:0; background:radial-gradient(110% 130% at 50% 42%,#e7c07f 0%,#a9711f 46%,#3a2814 100%); }
+    .land-feed::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 60px 18px rgba(0,0,0,0.5); }
+    .land .lp { position:absolute; top:12px; left:14px; z-index:2; }
+    .land .lm { position:absolute; top:14px; right:14px; z-index:2; }
+    .land .lhint { position:absolute; bottom:12px; left:14px; z-index:2; }
+    .land .lring { position:absolute; right:20px; top:50%; transform:translateY(-50%); width:54px; height:54px; border-radius:50%; background:var(--d-ember); box-shadow:0 0 0 4px rgba(255,255,255,0.12), 0 0 20px rgba(234,94,56,0.45); z-index:2; }
+    /* mismatch letterbox */
+    .wide-reel { position:relative; width:100%; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:#0E0B08; margin-top:26px; }
+    .wide-reel .pcut { position:absolute; top:0; bottom:0; left:50%; transform:translateX(-50%); width:38%; background:linear-gradient(135deg,#5a2e3a,#d98aa0); }
+    .wide-reel .bar { position:absolute; top:0; bottom:0; width:31%; background:repeating-linear-gradient(0deg,#0E0B08 0 9px,#1c150e 9px 11px); z-index:2; }
+    .wide-reel .bar.l { left:0; } .wide-reel .bar.r { right:0; }
+    .wide-reel .wl { position:absolute; bottom:8px; left:10px; z-index:3; font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; color:var(--d-lumen); }
+  </style>
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">A+</span><h2>와이드 롤 유도</h2></div>
+      <p class="sec-sub">롤에 <strong>지향 화면비</strong>를 주입할 수 있다. 와이드(16:9) 롤에 담을 땐 뷰파인더가 가로로 유도하지만 <strong>강제하지 않는다</strong>. 세로로 담으면 저장은 되고 방향 불일치로 표시되며, 릴에선 필름 바(레터박스)로 채운다.</p>
+      <div class="flow">
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>담기</span></div>
+            <div class="vf">
+              <div class="top"><div class="roll-pick">제주 시네마 <span class="rp-badge">와이드</span> <span class="car">▾</span></div><span class="e-print">08/24</span></div>
+              <div class="feed"><span class="fmeta e-print">2026-07-23 · 제주</span><span class="fmeta2 e-print">ISO 200</span><div class="wbars"></div><div class="wwin"></div><div class="rothint"><span>↻ 가로로 돌려 담기</span></div></div>
+              <div class="bottom">
+                <div class="ringwrap"><svg width="88" height="88"><circle class="rt" cx="44" cy="44" r="39"></circle><circle class="rp idle" cx="44" cy="44" r="39"></circle></svg><div class="core"></div></div>
+                <span class="cap-hint">가로 롤 · 세로로 들림</span>
+              </div>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">세로로 들었을 때 (유도)</div><span class="cap-e">Soft guide · not blocked</span><div class="cap-d">16:9 가이드 프레임과 회전 힌트가 뜬다. 무시하고 담아도 막지 않는다.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure class="wfig">
+          <div class="device land"><div class="screen">
+            <div class="land-wrap land">
+              <div class="land-feed"></div>
+              <div class="lp"><div class="roll-pick">제주 시네마 <span class="rp-badge">와이드 16:9</span></div></div>
+              <span class="lm e-print">● REC · 03/05s</span>
+              <div class="lring"></div>
+              <span class="lhint cap-hint" style="color:var(--d-lumen)">제대로 담기는 중</span>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">가로로 돌려 담기</div><span class="cap-e">Landscape · on-orientation</span><div class="cap-d">폰을 돌리면 가이드가 확정되고(햅틱·색) 와이드 컷이 롤에 맞게 담긴다.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>롤</span></div>
+            <div class="ah"><div><div class="h-t">제주 시네마</div><span class="h-c">ROLL 020 · 와이드 16:9</span></div><span class="badge cool">현상 완료</span></div>
+            <div class="body-pad">
+              <div class="wide-reel"><div class="bar l"></div><div class="pcut"></div><div class="bar r"></div><span class="wl">세로 컷 · 필름 바</span></div>
+              <p style="font-size:0.78rem;color:var(--d-dim);margin:14px 2px 0;line-height:1.5">방향이 안 맞는 세로 컷은 원본을 자르지 않고 양옆을 <strong style="color:var(--d-ink)">필름 게이트 바</strong>로 채운다.</p>
+            </div>
+            <div class="cta-wrap"><button class="cta ghost">채움 방식 바꾸기</button><div class="cta-sub">레터박스 · 블러 확장 · 크롭</div></div>
+          </div></div>
+          <figcaption><div class="cap-t">방향 불일치 → 레터박스</div><span class="cap-e">Immutable original</span><div class="cap-d">N:M이라 세로 컷이 와이드 롤에 섞일 수 있다. 원본 왜곡 없이 필름 바로 채우는 게 기본.</div></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">B</span><h2>현상 플로우</h2></div>
+      <p class="sec-sub">하루/여행이 끝나면 롤을 현상한다. 컨택트시트의 미현상 컷들이 스캔 라인 아래에서 색을 얻고, AI가 엮은 릴이 처음으로 공개된다 — 지연된 보상.</p>
+      <div class="flow">
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>롤</span></div>
+            <div class="ah"><div><div class="h-t">오늘의 롤</div><span class="h-c">ROLL 019 · 2026-07-23</span></div><span class="badge warm">미현상</span></div>
+            <div class="body-pad">
+              <div class="sheet">
+                <div class="cell c1"><span class="cn">01</span></div><div class="cell c2"><span class="cn">02</span></div><div class="cell c3"><span class="cn">03</span></div>
+                <div class="cell c4"><span class="cn">04</span></div><div class="cell undev"></div><div class="cell undev"></div>
+                <div class="cell empty"></div><div class="cell empty"></div><div class="cell empty"></div>
+              </div>
+            </div>
+            <div class="cta-wrap"><button class="cta">현상하기</button><div class="cta-sub">4컷 · 예상 릴 0:20</div></div>
+          </div></div>
+          <figcaption><div class="cap-t">롤 상세 (미현상)</div><span class="cap-e">Contact sheet · 04/12</span><div class="cap-d">담긴 컷은 색이 있고, 빈 슬롯이 남은 자리를 보여줘 수집을 유도한다.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>현상 중</span></div>
+            <div class="develop">
+              <div class="glow"></div>
+              <div class="dev-stack"><div class="df a"></div><div class="df b"></div><div class="df c"></div></div>
+              <div class="dev-status">컷을 엮는 중…</div>
+              <div class="dev-bar"><i></i></div>
+              <span class="cap-hint">음악 · 전환 · 속도 맞추는 중</span>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">현상 세리머니</div><span class="cap-e">AI develop · 저물기</span><div class="cap-d">스캔 라인이 필름을 훑고 앰버 글로우가 짙어진다. AI는 "현상소"에 숨어 릴을 엮는다.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="reel">
+              <div class="r-top"><span class="e-print" style="color:#fff">ROLL 019 · 0:24</span><span class="badge cool">현상 완료</span></div>
+              <div class="play"></div>
+              <div class="r-bottom">
+                <div class="mood">무드: 잔잔 <span style="color:var(--d-dim)">▾</span></div>
+                <div class="r-actions"><button class="sec">다르게 현상</button><button class="primary">저장 · 공유</button></div>
+              </div>
+              <div class="rprog"><i></i></div>
+            </div>
+          </div></div>
+          <figcaption><div class="cap-t">릴 공개 · 재생</div><span class="cap-e">Re-develop / share</span><div class="cap-d">엮인 숏폼이 재생된다. "다르게 현상"으로 무드·길이·BGM만 바꿔 재편집.</div></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">C</span><h2>수집 플로우</h2></div>
+      <p class="sec-sub">새 롤은 프리셋 카드로 시작한다. 각 카드는 수집 규칙을 엣지 코드로 드러낸다. 현상된 롤은 보관함 선반에 스파인처럼 쌓이고, 빈 슬롯이 다음 롤을 부른다.</p>
+      <div class="flow">
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>새 롤</span></div>
+            <div class="ah"><div class="h-t">새 롤 만들기</div></div>
+            <div class="body-pad">
+              <div class="presets">
+                <div class="preset"><div class="p-t">오늘 · 자동</div><div class="p-r">규칙: 그날 담은 컷 전체</div></div>
+                <div class="preset sel"><div class="p-t">여행</div><div class="p-r">규칙: 기간 + 위치(지오펜스)</div></div>
+                <div class="preset"><div class="p-t">챌린지</div><div class="p-r">규칙: N일 · 하루 1컷</div></div>
+                <div class="preset"><div class="p-t">자유</div><div class="p-r">규칙: 내가 직접 담기</div></div>
+              </div>
+            </div>
+            <div class="cta-wrap"><button class="cta">이 롤 시작하기</button><div class="cta-sub">성격·규칙은 나중에 바꿀 수 있어요</div></div>
+          </div></div>
+          <figcaption><div class="cap-t">새 롤 — 프리셋</div><span class="cap-e">Preset = 성격 + 규칙</span><div class="cap-d">풀 커스텀은 한 겹 뒤로 숨기고, 첫 경험은 카드 한 번 탭. 여행은 기존 지오펜스 재활용.</div></figcaption>
+        </figure>
+
+        <div class="arrow">→</div>
+
+        <figure>
+          <div class="device"><div class="screen">
+            <div class="sbar"><span>9:41</span><span>보관함</span></div>
+            <div class="ah"><div class="h-t">보관함</div><span class="h-c">롤 12 · 컷 318</span></div>
+            <div class="seg"><span class="on">롤</span><span>컷</span></div>
+            <div class="body-pad">
+              <div class="covers">
+                <div class="cover a"><span class="cv-e">ROLL 019</span><span class="cv-t">오늘의 롤</span></div>
+                <div class="cover b"><span class="cv-e">ROLL 018 · 3박4일</span><span class="cv-t">제주</span></div>
+                <div class="cover c"><span class="cv-e">ROLL 015 · D30</span><span class="cv-t">아침 루틴</span></div>
+                <div class="cover empty"></div>
+              </div>
+            </div>
+            <div class="tabbar"><div class="tb on">오늘</div><div class="capbtn"></div><div class="tb">보관함</div></div>
+          </div></div>
+          <figcaption><div class="cap-t">보관함 — 선반</div><span class="cap-e">Shelf · empty slot</span><div class="cap-d">현상된 롤이 커버로 꽂힌다. 롤/컷 토글로 아카이브 전환. 빈 슬롯 = 수집 트리거.</div></figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">✳</span><h2>설계 원칙 요약</h2></div>
+      <div class="note"><b>지연된 현상이 심장이다.</b><p>담는 순간엔 완성본을 주지 않는다. "미현상" 상태가 하루 종일 기대를 쌓고, 현상 세리머니가 그 보상을 터뜨린다.</p></div>
+      <div class="note"><b>빈칸을 항상 보여준다.</b><p>컨택트시트의 빈 프레임, 선반의 빈 롤 — 채워질 자리가 보일 때 수집욕이 생긴다.</p></div>
+      <div class="note"><b>AI는 현상소에 숨는다.</b><p>편집 UI를 전면에 두지 않는다. 기본은 자동, 심화는 "다르게 현상" 뒤에.</p></div>
+      <div class="note"><b>담기는 언제나 한 탭.</b><p>세이프라이트 버튼은 어느 화면에서든 중앙에. 마찰 0의 캡처가 습관을 만든다.</p></div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><span class="edge">END OF ROLL · SNAPLY SCREEN DESIGN · v0.1 · 2026-07-23</span></div></footer>
+</div>
+
+</body>
+</html>

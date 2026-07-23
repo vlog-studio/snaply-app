@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snaply — 모션 & 인터랙션</title>
+<style>
+  :root {
+    /* darkroom, single world */
+    --ground:#16110D; --surface:#221910; --surface2:#2C2118; --line:#3A2C20;
+    --ink:#F1E6DA; --dim:#A8927E; --ember:#EA5E38; --amber:#E7A24A; --lumen:#82D6CE; --film:#0E0B08;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+    --maxw: 1000px;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; }
+  .page { background:var(--ground); color:var(--ink); font-family:var(--sans); line-height:1.6; -webkit-font-smoothing:antialiased; position:relative; overflow-x:hidden; }
+  .page::after { content:""; position:fixed; inset:0; z-index:80; pointer-events:none; opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .wrap { max-width:var(--maxw); margin:0 auto; padding:0 24px; }
+  .edge { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--ember); }
+  h1.display { font-weight:800; letter-spacing:-0.03em; line-height:1.03; font-size:clamp(2.4rem,6vw,4rem); margin:0.4em 0 0.3em; }
+  .lead { font-size:1.15rem; color:var(--dim); max-width:52ch; }
+  header.hero { padding:clamp(60px,10vw,110px) 0 clamp(30px,5vw,50px); }
+  section { padding:clamp(48px,7vw,84px) 0; border-top:1px solid var(--line); }
+  .sec-head { display:flex; align-items:baseline; gap:16px; margin-bottom:0.5rem; flex-wrap:wrap; }
+  .sec-head .num { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.2em; color:var(--dim); }
+  .sec-head h2 { font-weight:800; letter-spacing:-0.02em; font-size:clamp(1.5rem,3.2vw,2.1rem); margin:0; }
+  .sec-sub { color:var(--dim); max-width:62ch; margin:0 0 2rem; }
+  .try { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--lumen); border:1px solid rgba(130,214,206,0.4); border-radius:999px; padding:5px 12px; display:inline-block; margin-bottom:22px; }
+
+  .stage { display:flex; gap:40px; align-items:center; flex-wrap:wrap; }
+  .stage .notes { flex:1; min-width:260px; }
+
+  /* device */
+  .device { width:280px; border-radius:38px; background:#0a0806; border:1px solid var(--line); padding:11px; box-shadow:0 30px 60px rgba(0,0,0,0.4); flex:none; }
+  .screen { border-radius:29px; background:var(--ground); overflow:hidden; position:relative; height:544px; display:flex; flex-direction:column;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"); }
+  .screen::before { content:""; position:absolute; inset:0; background:var(--ground); opacity:0.94; z-index:0; }
+  .screen > * { position:relative; z-index:1; }
+  .sbar { display:flex; justify-content:space-between; padding:13px 20px 4px; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; color:var(--dim); }
+  .e-print { font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; color:var(--amber); font-size:0.6rem; }
+  .badge { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.12em; text-transform:uppercase; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--dim); }
+  .badge.warm { color:var(--ember); border-color:rgba(234,94,56,0.5); }
+  .badge.cool { color:var(--lumen); border-color:rgba(130,214,206,0.5); }
+
+  /* ===== capture demo ===== */
+  .vf { flex:1; display:flex; flex-direction:column; }
+  .vf .top { display:flex; justify-content:space-between; align-items:center; padding:6px 18px; }
+  .roll-pick { display:flex; align-items:center; gap:6px; font-size:0.8rem; font-weight:700; background:rgba(255,255,255,0.06); padding:5px 12px; border-radius:999px; border:1px solid var(--line); }
+  .roll-pick .car { color:var(--dim); font-size:0.7rem; }
+  #capCount { color:var(--amber); font-family:var(--mono); font-size:0.62rem; letter-spacing:0.08em; transition:color .3s; }
+  #capCount.tick { color:var(--lumen); }
+  .strip { display:flex; gap:5px; padding:8px 16px; min-height:56px; }
+  .strip .th { width:34px; height:46px; border-radius:4px; flex:none; }
+  .strip .th.undev { background:#221910; border:1px dashed #3a2c20; }
+  .feed { flex:1; margin:4px 16px 8px; border-radius:14px; position:relative; overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 32%,#c98a44 0%,#7a4e2b 45%,#241a12 100%); }
+  .feed::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 70px 20px rgba(0,0,0,0.5); }
+  .feed .fm { position:absolute; top:10px; left:12px; }
+  .feed .fm2 { position:absolute; bottom:10px; right:12px; }
+  .feed.rec { background:radial-gradient(120% 90% at 50% 30%,#e7c07f 0%,#a9711f 45%,#3a2814 100%); }
+  .capbottom { padding:10px 0 24px; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .cap-hint { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--dim); }
+  .ringwrap { position:relative; width:92px; height:92px; touch-action:none; cursor:pointer; -webkit-user-select:none; user-select:none; }
+  .ringwrap svg { transform:rotate(-90deg); display:block; }
+  .rt { fill:none; stroke:rgba(255,255,255,0.16); stroke-width:5; }
+  .rp { fill:none; stroke:var(--ember); stroke-width:5; stroke-linecap:round; stroke-dasharray:245; stroke-dashoffset:245; }
+  .core { position:absolute; inset:20px; border-radius:50%; background:var(--ember); box-shadow:0 0 22px rgba(234,94,56,0.5); transition:border-radius .25s, inset .25s; }
+  .ringwrap.holding .core { inset:26px; border-radius:12px; }
+  .flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:5; }
+  /* flying frame */
+  .flyer { position:absolute; width:34px; height:46px; border-radius:4px; z-index:6; pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,0.5); }
+
+  /* ===== develop demo ===== */
+  .ah { display:flex; justify-content:space-between; align-items:baseline; padding:8px 20px 12px; }
+  .ah .h-t { font-weight:800; font-size:1.15rem; letter-spacing:-0.01em; }
+  .ah .h-c { font-family:var(--mono); font-size:0.66rem; color:var(--ember); letter-spacing:0.08em; }
+  .sheetzone { position:relative; flex:1; margin:0 16px; }
+  .sheet { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+  .cell { aspect-ratio:3/4; border-radius:5px; position:relative; overflow:hidden; background:#221910; }
+  .cell .cn { position:absolute; top:5px; right:6px; font-family:var(--mono); font-size:0.5rem; color:var(--amber); letter-spacing:0.06em; z-index:3; opacity:0.4; }
+  .cell .img { position:absolute; inset:0; opacity:0; transition:opacity 0.9s ease; }
+  .cell.developed .img { opacity:1; }
+  .cell .grain { position:absolute; inset:0; opacity:0.9; mix-blend-mode:overlay; transition:opacity 0.9s ease;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='gg'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23gg)'/%3E%3C/svg%3E"); }
+  .cell.developed .grain { opacity:0; }
+  .cell.empty { background:transparent; border:1px dashed var(--line); }
+  /* scan bar */
+  .scan { position:absolute; left:-4px; right:-4px; height:64px; top:-70px; z-index:4; pointer-events:none; opacity:0;
+    background:linear-gradient(180deg,transparent,rgba(130,214,206,0.5) 45%,rgba(200,245,240,0.85) 50%,rgba(130,214,206,0.5) 55%,transparent);
+    filter:blur(2px); }
+  .glow2 { position:absolute; inset:0; background:radial-gradient(circle at 50% 45%,var(--ember),transparent 60%); opacity:0; filter:blur(14px); z-index:2; pointer-events:none; transition:opacity .8s; }
+  .glow2.on { opacity:0.4; }
+  /* reel reveal */
+  .reelcard { position:absolute; inset:14px; border-radius:16px; overflow:hidden; z-index:7; opacity:0; transform:scale(.62); pointer-events:none;
+    transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1);
+    background:radial-gradient(130% 80% at 42% 34%,#d98aa0 0%,#7a4e2b 50%,#16110D 100%); }
+  .reelcard.show { opacity:1; transform:scale(1); pointer-events:auto; }
+  .reelcard::after { content:""; position:absolute; inset:0; box-shadow:inset 0 -80px 90px -20px rgba(10,7,5,0.9), inset 0 60px 60px -30px rgba(10,7,5,0.6); }
+  .reelcard .r-top { position:absolute; top:14px; left:16px; right:16px; display:flex; justify-content:space-between; align-items:center; z-index:2; }
+  .reelcard .play { position:absolute; inset:0; margin:auto; width:56px; height:56px; border-radius:50%; background:rgba(20,15,11,0.5); border:1px solid rgba(255,255,255,0.45); z-index:2; }
+  .reelcard .play::after { content:""; position:absolute; inset:0; margin:auto; width:0; height:0; border-left:16px solid var(--ink); border-top:10px solid transparent; border-bottom:10px solid transparent; margin-left:22px; }
+  .reelcard .r-bottom { position:absolute; bottom:16px; left:16px; right:16px; z-index:2; }
+  .reelcard .mood { display:inline-flex; align-items:center; gap:6px; background:rgba(20,15,11,0.6); border:1px solid var(--line); border-radius:999px; padding:5px 12px; font-size:0.72rem; font-weight:700; margin-bottom:12px; }
+  .reelcard .r-actions { display:flex; gap:8px; }
+  .reelcard .r-actions button { flex:1; border:none; border-radius:10px; padding:11px 0; font-family:var(--sans); font-weight:700; font-size:0.8rem; }
+  .reelcard .primary { background:var(--ember); color:#1a0f0a; }
+  .reelcard .sec { background:rgba(255,255,255,0.12); color:var(--ink); border:1px solid var(--line); }
+  .rprog { position:absolute; bottom:0; left:0; height:3px; width:0; background:var(--lumen); z-index:3; }
+  /* status + cta */
+  .dev-status { text-align:center; font-family:var(--mono); font-size:0.64rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--lumen); height:16px; opacity:0; transition:opacity .4s; }
+  .dev-status.on { opacity:1; }
+  .cta-wrap { padding:12px 16px 20px; }
+  .cta { width:100%; border:none; border-radius:14px; background:var(--ember); color:#1a0f0a; font-family:var(--sans); font-weight:800; font-size:1rem; padding:15px; letter-spacing:-0.01em; box-shadow:0 0 26px rgba(234,94,56,0.28); cursor:pointer; }
+  .cta.hidden { display:none; }
+  .cta-sub { text-align:center; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.12em; color:var(--dim); text-transform:uppercase; margin-top:9px; }
+  .replay { background:none; border:none; color:var(--lumen); font-family:var(--mono); font-size:0.62rem; letter-spacing:0.14em; text-transform:uppercase; cursor:pointer; padding:8px; display:none; }
+  .replay.show { display:inline-block; }
+
+  /* notes / spec */
+  .notes h3 { font-weight:800; letter-spacing:-0.01em; margin:0 0 10px; }
+  .notes p { color:var(--dim); margin:0 0 14px; max-width:46ch; }
+  .spec { width:100%; border-collapse:collapse; font-size:0.86rem; }
+  .spec th, .spec td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .spec th { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--dim); font-weight:400; }
+  .spec td.k { font-weight:700; }
+  .spec td .m { font-family:var(--mono); font-size:0.78rem; color:var(--amber); letter-spacing:0.03em; }
+  .spec-wrap { overflow-x:auto; }
+  .princ { color:var(--dim); font-size:0.9rem; border-left:2px solid var(--ember); padding:2px 0 2px 16px; margin-top:16px; }
+
+  footer { border-top:1px solid var(--line); padding:36px 0 60px; }
+  footer .edge { color:var(--dim); }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <div class="wrap">
+      <span class="edge">SNAPLY · MOTION & INTERACTION · v0.1</span>
+      <h1 class="display">움직임이<br>물성을 만든다</h1>
+      <p class="lead">다크(암실) 고정. 두 개의 시그니처 모션을 직접 눌러보고 재생해보자 — 꾹-담기, 그리고 현상 세리머니.</p>
+    </div>
+  </header>
+
+  <!-- CAPTURE -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">A</span><h2>꾹-담기</h2></div>
+      <p class="sec-sub">담기 버튼을 <strong>길게 누르고 있어봐.</strong> 세이프라이트 링이 5초 동안 차오르고, 손을 떼면 그 순간이 프레임이 되어 위 필름스트립으로 빨려든다. 카운터가 오른다.</p>
+      <div class="stage">
+        <div class="device"><div class="screen">
+          <div class="flash" id="capFlash"></div>
+          <div class="sbar"><span>9:41</span><span>담기</span></div>
+          <div class="vf">
+            <div class="top"><div class="roll-pick">오늘의 롤 <span class="car">▾</span></div><span id="capCount">03/12</span></div>
+            <div class="strip" id="capStrip">
+              <div class="th" style="background:linear-gradient(135deg,#6b4a2e,#e7c07f)"></div>
+              <div class="th" style="background:linear-gradient(135deg,#1f5f5b,#82d6ce)"></div>
+              <div class="th" style="background:linear-gradient(135deg,#5a4718,#e7a24a)"></div>
+            </div>
+            <div class="feed" id="capFeed"><span class="fm e-print">2026-07-23 · 성수동</span><span class="fm2 e-print">ISO 400</span></div>
+            <div class="capbottom">
+              <div class="ringwrap" id="ring"><svg width="92" height="92"><circle class="rt" cx="46" cy="46" r="39"></circle><circle class="rp" id="ringProg" cx="46" cy="46" r="39"></circle></svg><div class="core"></div></div>
+              <span class="cap-hint" id="capHint">꾹 눌러 담기</span>
+            </div>
+          </div>
+        </div></div>
+        <div class="notes">
+          <h3>손을 떼는 순간이 시그니처다</h3>
+          <p>탭-투-레코드가 아니라 press-and-hold. 누르는 동안만 담기고, 최대 5초에서 자동으로 끊긴다. 릴리즈 시 프레임이 스트립으로 날아가며 medium 햅틱.</p>
+          <p class="princ">담는 순간엔 색이 살아있지만, 롤 전체는 여전히 "미현상" 상태로 남아 현상 세리머니의 보상을 아껴둔다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEVELOP -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">B</span><h2>현상 세리머니</h2></div>
+      <p class="sec-sub"><strong>현상하기를 눌러봐.</strong> 라이트박스 냉광이 컨택트시트를 훑고 지나가면 그레인 속에서 색이 떠오른다. 프레임들이 하나의 릴로 조립되고, AI가 엮은 결과가 처음으로 공개된다.</p>
+      <div class="stage">
+        <div class="device"><div class="screen">
+          <div class="sbar"><span>9:41</span><span id="devTitle">롤</span></div>
+          <div class="ah"><div><div class="h-t">오늘의 롤</div><span class="h-c">ROLL 019 · 2026-07-23</span></div><span class="badge warm" id="devBadge">미현상</span></div>
+          <div class="sheetzone">
+            <div class="glow2" id="devGlow"></div>
+            <div class="sheet" id="devSheet">
+              <div class="cell" data-c="linear-gradient(135deg,#6b4a2e,#e7c07f)"><span class="cn">01</span><div class="img"></div><div class="grain"></div></div>
+              <div class="cell" data-c="linear-gradient(135deg,#1f5f5b,#82d6ce)"><span class="cn">02</span><div class="img"></div><div class="grain"></div></div>
+              <div class="cell" data-c="linear-gradient(135deg,#5a4718,#e7a24a)"><span class="cn">03</span><div class="img"></div><div class="grain"></div></div>
+              <div class="cell" data-c="linear-gradient(135deg,#5a2e3a,#d98aa0)"><span class="cn">04</span><div class="img"></div><div class="grain"></div></div>
+              <div class="cell empty"></div><div class="cell empty"></div>
+              <div class="cell empty"></div><div class="cell empty"></div><div class="cell empty"></div>
+            </div>
+            <div class="scan" id="devScan"></div>
+            <div class="reelcard" id="devReel">
+              <div class="r-top"><span class="e-print" style="color:#fff">ROLL 019 · 0:24</span><span class="badge cool">현상 완료</span></div>
+              <div class="play"></div>
+              <div class="r-bottom">
+                <div class="mood">무드: 잔잔 <span style="color:var(--dim)">▾</span></div>
+                <div class="r-actions"><button class="sec">다르게 현상</button><button class="primary">저장 · 공유</button></div>
+              </div>
+              <div class="rprog" id="devProg"></div>
+            </div>
+          </div>
+          <div class="dev-status" id="devStatus">컷을 엮는 중…</div>
+          <div class="cta-wrap">
+            <button class="cta" id="devBtn">현상하기</button>
+            <div class="cta-sub" id="devSub">4컷 · 예상 릴 0:20</div>
+            <div style="text-align:center"><button class="replay" id="devReplay">↺ 다시 재생</button></div>
+          </div>
+        </div></div>
+        <div class="notes">
+          <h3>지연된 보상을 터뜨리는 순간</h3>
+          <p>하루 종일 미현상으로 쌓인 기대가 여기서 풀린다. 어둠(암실)에서 냉광(라이트박스)이 스치며 이미지가 화학 현상처럼 떠오르는 연출 — 라이트박스 컨셉이 테마가 아니라 "순간"으로 산다.</p>
+          <div class="spec-wrap">
+          <table class="spec">
+            <thead><tr><th>모션</th><th>타이밍 · 이징</th></tr></thead>
+            <tbody>
+              <tr><td class="k">담기 링 채움</td><td><span class="m">0→5s · linear</span><br>stroke-dashoffset</td></tr>
+              <tr><td class="k">릴리즈 스냅</td><td><span class="m">250ms · ease-out-back</span><br>프레임 fly-to-strip + 햅틱</td></tr>
+              <tr><td class="k">현상 스캔</td><td><span class="m">2000ms · ease-in-out</span><br>냉광 스윕 top→bottom</td></tr>
+              <tr><td class="k">컬러 블룸</td><td><span class="m">900ms · stagger 380ms</span><br>그레인 dissolve → 색</td></tr>
+              <tr><td class="k">릴 조립·공개</td><td><span class="m">500ms · cubic-bezier</span><br>scale-in reveal</td></tr>
+              <tr><td class="k">저감 모션</td><td><span class="m">reduce</span><br>스캔 생략, 최종상태 즉시</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><span class="edge">END OF ROLL · SNAPLY MOTION · v0.1 · 2026-07-23</span></div></footer>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var C = 2 * Math.PI * 39; // ~245
+  var grads = [
+    'linear-gradient(135deg,#5a2e3a,#d98aa0)',
+    'linear-gradient(135deg,#2e4a5a,#7fb2d9)',
+    'linear-gradient(135deg,#6b4a2e,#e7c07f)',
+    'linear-gradient(135deg,#1f5f5b,#82d6ce)',
+    'linear-gradient(135deg,#5a4718,#e7a24a)'
+  ];
+
+  /* ---- capture ---- */
+  var ring = document.getElementById('ring');
+  var prog = document.getElementById('ringProg');
+  var feed = document.getElementById('capFeed');
+  var strip = document.getElementById('capStrip');
+  var countEl = document.getElementById('capCount');
+  var hint = document.getElementById('capHint');
+  var flash = document.getElementById('capFlash');
+  prog.style.strokeDasharray = C; prog.style.strokeDashoffset = C;
+  var holding=false, holdStart=0, autoT=null, gi=0, count=3, total=12;
+
+  function startHold(e){
+    e.preventDefault();
+    if(holding) return;
+    holding=true; holdStart=Date.now();
+    ring.classList.add('holding');
+    feed.classList.add('rec');
+    hint.textContent='누르는 중… 손 떼면 저장';
+    prog.style.transition = reduce ? 'none' : 'stroke-dashoffset 5s linear';
+    // force reflow then animate
+    void prog.getBoundingClientRect();
+    prog.style.strokeDashoffset = reduce ? C*0.4 : 0;
+    autoT = setTimeout(function(){ if(holding) endHold(); }, 5000);
+  }
+  function endHold(){
+    if(!holding) return;
+    holding=false;
+    clearTimeout(autoT);
+    var dur = Date.now()-holdStart;
+    ring.classList.remove('holding');
+    feed.classList.remove('rec');
+    hint.textContent='꾹 눌러 담기';
+    prog.style.transition='stroke-dashoffset .25s ease';
+    prog.style.strokeDashoffset = C;
+    if(dur>250 && count<total){ capture(); }
+  }
+  function capture(){
+    // flash
+    flash.animate([{opacity:0.5},{opacity:0}], {duration:220, easing:'ease-out'});
+    if(navigator.vibrate) navigator.vibrate(18);
+    var g = grads[gi % grads.length]; gi++;
+    // flyer from ring to strip
+    var scr = ring.closest('.screen');
+    var sb = scr.getBoundingClientRect();
+    var rb = ring.getBoundingClientRect();
+    var flyer = document.createElement('div');
+    flyer.className='flyer'; flyer.style.background=g;
+    flyer.style.left=(rb.left-sb.left+rb.width/2-17)+'px';
+    flyer.style.top=(rb.top-sb.top+rb.height/2-23)+'px';
+    scr.appendChild(flyer);
+    var targetTop = 12 - (rb.top-sb.top);
+    var anim = flyer.animate([
+      {transform:'translate(0,0) scale(1.4)', opacity:1},
+      {transform:'translate(0,'+targetTop+'px) scale(1)', opacity:1, offset:0.8},
+      {transform:'translate(0,'+targetTop+'px) scale(0.9)', opacity:0}
+    ], {duration:reduce?1:520, easing:'cubic-bezier(.3,.9,.3,1)'});
+    anim.onfinish=function(){
+      flyer.remove();
+      var th=document.createElement('div'); th.className='th'; th.style.background=g;
+      th.style.transform='scale(0.4)'; th.style.opacity='0';
+      strip.appendChild(th);
+      th.animate([{transform:'scale(0.4)',opacity:0},{transform:'scale(1)',opacity:1}],{duration:260,easing:'ease-out',fill:'forwards'});
+      // keep last 6
+      while(strip.children.length>6) strip.removeChild(strip.firstChild);
+    };
+    count++;
+    countEl.textContent = String(count).padStart(2,'0')+'/'+total;
+    countEl.classList.add('tick');
+    setTimeout(function(){ countEl.classList.remove('tick'); }, 500);
+  }
+  ring.addEventListener('pointerdown', startHold);
+  window.addEventListener('pointerup', endHold);
+  ring.addEventListener('pointercancel', endHold);
+
+  /* ---- develop ---- */
+  var btn=document.getElementById('devBtn');
+  var sub=document.getElementById('devSub');
+  var status=document.getElementById('devStatus');
+  var scan=document.getElementById('devScan');
+  var glow=document.getElementById('devGlow');
+  var reel=document.getElementById('devReel');
+  var prog2=document.getElementById('devProg');
+  var replay=document.getElementById('devReplay');
+  var badge=document.getElementById('devBadge');
+  var devTitle=document.getElementById('devTitle');
+  var cells=[].slice.call(document.querySelectorAll('#devSheet .cell:not(.empty)'));
+  cells.forEach(function(c){ c.querySelector('.img').style.backgroundImage=c.getAttribute('data-c'); });
+  var sheetH=0;
+
+  function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+  function reset(){
+    cells.forEach(function(c){ c.classList.remove('developed'); });
+    scan.style.opacity=0; scan.style.transform='translateY(0)'; scan.style.transition='none';
+    glow.classList.remove('on');
+    reel.classList.remove('show'); prog2.style.width='0'; prog2.style.transition='none';
+    status.classList.remove('on'); status.textContent='컷을 엮는 중…';
+    badge.textContent='미현상'; badge.className='badge warm'; devTitle.textContent='롤';
+    btn.classList.remove('hidden'); sub.style.display=''; replay.classList.remove('show');
+  }
+  async function develop(){
+    btn.classList.add('hidden'); sub.style.display='none'; replay.classList.remove('show');
+    devTitle.textContent='현상 중';
+    if(reduce){
+      cells.forEach(function(c){ c.classList.add('developed'); });
+      finishReveal(true); return;
+    }
+    glow.classList.add('on');
+    status.classList.add('on'); status.textContent='현상 중…';
+    await sleep(150);
+    // scan sweep
+    var zone=document.getElementById('devSheet').getBoundingClientRect();
+    sheetH = zone.height + 140;
+    scan.style.opacity=1;
+    scan.style.transition='transform 2000ms ease-in-out';
+    void scan.getBoundingClientRect();
+    scan.style.transform='translateY('+sheetH+'px)';
+    // color bloom staggered under the scan
+    for(var i=0;i<cells.length;i++){
+      (function(idx){ setTimeout(function(){ cells[idx].classList.add('developed'); }, 260 + idx*380); })(i);
+    }
+    await sleep(2100);
+    scan.style.transition='opacity .4s'; scan.style.opacity=0;
+    status.textContent='컷을 엮는 중…';
+    await sleep(700);
+    finishReveal(false);
+  }
+  function finishReveal(instant){
+    glow.classList.remove('on');
+    status.classList.remove('on');
+    badge.textContent='현상 완료'; badge.className='badge cool'; devTitle.textContent='릴';
+    reel.classList.add('show');
+    prog2.style.transition = instant ? 'none' : 'width 3s linear';
+    void prog2.getBoundingClientRect();
+    setTimeout(function(){ prog2.style.width='100%'; }, instant?0:520);
+    setTimeout(function(){ replay.classList.add('show'); }, instant?0:700);
+  }
+  btn.addEventListener('click', develop);
+  replay.addEventListener('click', function(){ reset(); setTimeout(develop, 260); });
+})();
+</script>
+
+</body>
+</html>

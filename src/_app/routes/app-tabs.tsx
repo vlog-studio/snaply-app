@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurTargetView, BlurView } from 'expo-blur';
-import { Tabs, useIsFocused } from 'expo-router';
+import { Tabs, useIsFocused, useRouter } from 'expo-router';
 import {
   createContext,
   useContext,
@@ -64,6 +64,9 @@ export function AppTabs() {
   return (
     <SceneBlurTargetContext value={setBlurTargetView}>
       <Tabs
+        // Only two tabs — the safelight capture button sits between them as an
+        // overlay (SafelightButton below), not as a tab, because /capture is a
+        // modal in the root stack rather than a tab route.
         screenLayout={({ children }) => <SceneBlurTarget>{children}</SceneBlurTarget>}
         screenOptions={{
           headerShown: false,
@@ -116,18 +119,39 @@ export function AppTabs() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: '설정',
-            tabBarAccessibilityLabel: '설정',
-            tabBarIcon: ({ color, focused }) => (
-              <TabBarIcon color={color} name={focused ? 'settings' : 'settings-outline'} />
-            ),
-          }}
-        />
       </Tabs>
+      {/* The safelight — capture is always one tap, centered over the bar on
+          every tab. It opens the /capture modal in the root stack. */}
+      <SafelightButton bottom={inset.bottom} />
     </SceneBlurTargetContext>
+  );
+}
+
+// Floating amber capture button straddling the top edge of the tab bar. Lives
+// outside <Tabs> because /capture is a root-stack modal, not a tab route; the
+// container is pointer-transparent so only the button itself is tappable.
+function SafelightButton({ bottom }: { bottom: number }) {
+  const theme = useTheme();
+  const router = useRouter();
+
+  return (
+    <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+      <Pressable
+        accessibilityLabel="담기"
+        accessibilityRole="button"
+        onPress={() => router.push('/capture')}
+        style={[
+          styles.safelight,
+          {
+            bottom: bottom + TabBarContentHeight - SafelightSize / 2,
+            backgroundColor: theme.primary,
+            borderColor: theme.background,
+          },
+        ]}
+      >
+        <Ionicons color={theme.onPrimary} name="ellipse" size={20} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -135,6 +159,21 @@ function TabBarIcon({ color, name }: { color: ColorValue; name: TabIconName }) {
   return <Ionicons color={color} name={name} size={24} />;
 }
 
+const SafelightSize = 62;
+
 const styles = StyleSheet.create({
   scene: { flex: 1 },
+  safelight: {
+    position: 'absolute',
+    alignSelf: 'center',
+    width: SafelightSize,
+    height: SafelightSize,
+    borderRadius: SafelightSize / 2,
+    // A ring in the ground color separates the button from the blurred bar,
+    // matching the mockup's safelight halo.
+    borderWidth: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 20px rgba(234,94,56,0.45)',
+  },
 });

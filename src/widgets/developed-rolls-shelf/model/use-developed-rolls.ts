@@ -15,10 +15,13 @@ export type DevelopedRollSummary = {
 type DevelopedRoll = Roll & { reel: Reel };
 
 /**
- * The archive shelf: developed rolls, newest-developed first, summarized for
- * cover display. Cross-entity composition (rolls + clip durations) that belongs
- * at the page layer. A roll counts as developed only once it has both the
- * `developed` status and a persisted reel.
+ * The developed-rolls shelf read model: developed rolls, newest-developed
+ * first, summarized for cover display. Cross-entity composition (rolls + clip
+ * durations) reused by both the archive shelf grid and the home shelf preview,
+ * so it lives in a widget rather than in either page (FSD: entities must not
+ * import one another for runtime data, and pages must not import pages). A roll
+ * counts as developed only once it has both the `developed` status and a
+ * persisted reel.
  */
 export function useDevelopedRolls(): DevelopedRollSummary[] {
   const rolls = useRolls();

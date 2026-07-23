@@ -23,16 +23,18 @@ Never describe a prototype as functional merely because its controls can be pres
 ```text
 Root stack
 ├── /sign-in           Social sign-in (shown when signed out)
-├── (tabs)             (guarded: requires a session)
-│   ├── /              Home (with floating capture button)
-│   ├── /archive       Clip archive + developed-roll shelf
-│   └── /settings      Settings tab
+├── (tabs)             (guarded: requires a session — two tabs + a center safelight button)
+│   ├── /              Home (오늘)
+│   └── /archive       Clip archive + developed-roll shelf (보관함); settings entry in its corner
+├── /settings          Settings (guarded; opened from the archive corner, no longer a tab)
 ├── /roll/[id]         Roll detail contact sheet; develop / view-reel entry (guarded)
-└── /capture           Capture setup (modal, guarded)
+└── /capture           Capture setup (modal, guarded; opened by the center safelight button)
     ├── /record        Camera recording; 담기 into today's roll
     ├── /editing       Develop ceremony (composes + persists the roll's reel)
     └── /result        Sequential reel player
 ```
+
+The tab bar hosts two tabs (오늘 / 보관함) with a floating amber safelight button centered over the bar. The safelight is not a tab; it opens the `/capture` modal from either tab. Settings is reached from a corner control on the archive screen.
 
 Access control: `src/_app/routes/root-layout.tsx` guards the tab and capture routes with `Stack.Protected` based on session state. A signed-out user is routed to `/sign-in`.
 
@@ -41,7 +43,7 @@ Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRe
 The main user journey is:
 
 ```text
-Home safelight capture ring
+Tap the center safelight button in the tab bar
   → choose mood and 3- or 5-second duration
   → record a short clip on iOS or Android
   → the clip is collected into today's roll (undeveloped) and returns Home
@@ -55,7 +57,7 @@ Home safelight capture ring
 | --- | --- | --- |
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, native/web tabs, route adapters, theme | `Functional` |
 | [Authentication](authentication.md) | Supabase Google/Apple OAuth sign-in, Supabase-owned session persistence, route guard, sign-out | `Functional` |
-| [Home and moment overview](home.md) | Daily prompt, contextual capture entry, real today's-roll clip counter and contact-sheet preview, roll-detail entry | `Partial` |
+| [Home and moment overview](home.md) | Today's-roll edge print, real clip counter and contact-sheet preview, delayed-develop notice, real developed-roll shelf preview, roll-detail entry | `Partial` |
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, 담기 into today's roll, develop ceremony, sequential reel playback | `Partial` |
 | [Roll detail](roll-detail.md) | Roll contact-sheet grid of undeveloped clips, clip counter, develop / view-reel CTA | `Functional` |
 | [Recording archive](recording-archive.md) | Local clip persistence, listing, playback, deletion; developed-roll shelf backed by the roll store | `Partial` |
@@ -69,6 +71,7 @@ Home safelight capture ring
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
 | `src/_app` | `providers`, `routes`, `styles` | Compose the darkroom navigation theme, splash overlay, root stack with the session route guard, and the cross-platform tab navigation. Also mount the headless `PushTokenRegistrar`, `GeofenceGate`, and `DailyRollGate`, and define the background geofence task at startup (`register-background-tasks`). |
 | `src/pages` | `sign-in`, `home`, `capture-setup`, `capture-record`, `capture-editing`, `capture-result`, `roll-detail`, `archive`, `settings` | Own screen composition and screen-specific state (including the roll↔clip join in `roll-detail`). |
+| `src/widgets` | `developed-rolls-shelf` | Own the cross-entity developed-rolls read model (rolls + clip durations) shared by the home shelf preview and the archive shelf grid. |
 | `src/features` | `capture-moment`, `develop-roll`, `manage-recordings`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own the 담기 action (persist clip + add to today's roll), the 현상 action (rules-based reel composition + status), reuse local-recording handling, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
 | `src/entities` | `capture-session`, `clip`, `roll`, `session`, `location` | Define capture moods/durations, own the clip archive and rolls (today's-roll selection, membership, develop status), the authenticated session and current user, and geofence points. |
 | `src/shared` | `lib/recording-files`, `lib/local-store`, `lib/secure-storage`, `lib/location`, `lib/notifications`, UI modules | Provide the platform-specific file, JSON local-store, secure-storage, location, and notification adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |

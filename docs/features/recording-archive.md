@@ -45,14 +45,15 @@ Recordings are app-private local files. They are not entries in the device media
 
 The “롤” segment is `Functional`, backed by the real roll store.
 
-- The shelf lists developed rolls only (status `developed` with a persisted reel), newest-developed first (`pages/archive/model/use-developed-rolls.ts` joins `entities/roll` + `entities/clip`).
+- The shelf lists developed rolls only (status `developed` with a persisted reel), newest-developed first (`widgets/developed-rolls-shelf` joins `entities/roll` + `entities/clip`; the read model is shared with the home shelf preview).
 - Each cover shows the roll's day key, clip count, and total reel length (summed from the referenced clips' durations), plus a "현상 완료" badge. Cover tints are cycled by shelf position (rolls carry no color of their own yet).
 - Tapping a cover opens `/capture/result?rollId=<id>` and plays that roll's reel sequentially (see [Capture flow](capture-flow.md)).
 - When no roll is developed yet, the segment shows an empty state prompting the user to develop today's roll. A trailing dashed "빈 롤" slot is decorative (non-interactive); manual roll creation is not part of the MVP.
 
 ## Ownership
 
-- `src/pages/archive` owns the two archive segments (컷 / 롤), archive-specific UI, the playback modal, and the developed-roll shelf join (`model/use-developed-rolls.ts`).
+- `src/pages/archive` owns the two archive segments (컷 / 롤), archive-specific UI, and the playback modal; it renders the shelf grid from the `widgets/developed-rolls-shelf` read model.
+- `src/widgets/developed-rolls-shelf` owns the developed-rolls read model (`useDevelopedRolls`, `formatReelLength`) joining `entities/roll` + `entities/clip`, shared with the home shelf preview.
 - `src/entities/roll` and `src/entities/clip` back the roll shelf (developed rolls and clip durations).
 - `src/features/manage-recordings` owns reusable recording operations and formatting.
 - `src/shared/ui/video-preview` owns the business-agnostic looping video player used by the playback modal.

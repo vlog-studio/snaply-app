@@ -1,8 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-
-import { CaptureSetupPage } from '@/pages/capture-setup';
+import { CaptureRecordPage } from '@/pages/capture-record';
 
 export default function CaptureRoute() {
-  const { context } = useLocalSearchParams<{ context?: string }>();
-  return <CaptureSetupPage context={typeof context === 'string' ? context : undefined} />;
+  return <CaptureRecordPage />;
 }

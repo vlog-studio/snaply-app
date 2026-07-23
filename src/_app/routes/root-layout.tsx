@@ -74,9 +74,8 @@ function RootStack() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="capture/index"
-          options={{ headerShown: false, presentation: 'modal' }}
+          options={{ headerShown: false, presentation: 'fullScreenModal' }}
         />
-        <Stack.Screen name="capture/record" options={{ headerShown: false }} />
         <Stack.Screen name="capture/editing" options={{ headerShown: false }} />
         <Stack.Screen name="capture/result" options={{ headerShown: false }} />
         <Stack.Screen name="roll/[id]" options={{ title: '롤 상세' }} />

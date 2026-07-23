@@ -1,51 +1,31 @@
-import { Link } from 'expo-router';
-import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import {
-  getCaptureMoodLabel,
-  normalizeCaptureDuration,
-  normalizeCaptureMood,
-} from '@/entities/capture-session';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
+import { useDevelopCeremony } from '../model/use-develop-ceremony';
+
 type CaptureEditingPageProps = {
-  durationValue?: string;
-  moodValue?: string;
+  rollId?: string;
 };
 
 // The develop ceremony — the emotional payoff of the delayed-develop hook. A
 // cold lightbox scan line sweeps the film while color blooms out of the dark.
-// The simulation timer (unchanged) drives both the scan position and the bloom.
+// The progress timer drives both the scan position and the bloom; on completion
+// the reel is composed and persisted (see use-develop-ceremony).
 const developFrames = [
   { key: 'a', color: '#C98A44', rotate: '-9deg', translateX: -40, z: 1 },
   { key: 'b', color: '#82D6CE', rotate: '0deg', translateX: 0, z: 3 },
   { key: 'c', color: '#D98AA0', rotate: '9deg', translateX: 40, z: 2 },
 ];
 
-export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingPageProps) {
+export function CaptureEditingPage({ rollId }: CaptureEditingPageProps) {
   const theme = useTheme();
   const topInset = useTopContentInset();
-  const mood = normalizeCaptureMood(moodValue);
-  const duration = normalizeCaptureDuration(durationValue);
-  const [progress, setProgress] = useState(0);
+  const { roll, clipCount, progress, isComplete, revealReel } = useDevelopCeremony(rollId);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setProgress((current) => {
-        const next = Math.min(current + 4, 100);
-        if (next === 100) clearInterval(timer);
-        return next;
-      });
-    }, 90);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const isComplete = progress === 100;
   const bloom = progress / 100;
   const status =
     progress < 32
@@ -53,6 +33,18 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
       : progress < 70
         ? '음악 · 전환 · 속도 맞추는 중'
         : '릴로 엮는 중';
+
+  if (!roll) {
+    return (
+      <ScrollView
+        style={{ backgroundColor: theme.background }}
+        contentContainerStyle={[styles.content, styles.centered, { paddingTop: Spacing.six + topInset }]}
+      >
+        <ThemedText type="heading">현상할 롤을 찾을 수 없어요</ThemedText>
+        <ThemedText themeColor="textSecondary">이미 사라졌거나 잘못된 주소예요.</ThemedText>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -109,14 +101,14 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
             {isComplete ? '릴이 준비됐어요' : '현상하는 중'}
           </ThemedText>
           <ThemedText themeColor="textSecondary" style={styles.centerText}>
-            {isComplete ? `${getCaptureMoodLabel(mood)} 무드로 엮었어요.` : status}
+            {isComplete ? `${clipCount}컷을 하나의 릴로 엮었어요.` : status}
           </ThemedText>
         </View>
 
         <View style={styles.progressBlock}>
           <View style={styles.progressHeader}>
             <ThemedText type="edge" themeColor="amber">
-              {duration}초 릴
+              {clipCount}컷 릴
             </ThemedText>
             <ThemedText type="edge" themeColor="lumen" style={styles.tabularNumber}>
               {progress}%
@@ -134,13 +126,7 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
 
         {isComplete ? (
           <FadeInView duration={300} style={styles.resultAction}>
-            <Link
-              href={{ pathname: '/capture/result', params: { mood, duration: String(duration) } }}
-              replace
-              asChild
-            >
-              <SnaplyButton title="릴 공개" icon="▶" />
-            </Link>
+            <SnaplyButton title="릴 공개" icon="▶" onPress={revealReel} />
           </FadeInView>
         ) : (
           <View style={styles.tipRow}>
@@ -148,7 +134,7 @@ export function CaptureEditingPage({ durationValue, moodValue }: CaptureEditingP
               ♬
             </ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              AI가 현상소에서 컷을 알아서 엮고 있어요.
+              현상소에서 컷을 순서·음악·전환으로 엮고 있어요.
             </ThemedText>
           </View>
         )}
@@ -166,6 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     paddingBottom: Spacing.seven,
   },
+  centered: { alignItems: 'center', justifyContent: 'center', gap: Spacing.two },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   mark: {
     width: 34,

@@ -41,7 +41,6 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
     stopRecording,
     closePage,
     retake,
-    continueToEditing,
     dismissErrors,
     recordings,
     isLibraryLoading,
@@ -228,17 +227,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + Spacing.five }]}>
           {stage === 'review' ? (
             <View style={styles.reviewActions}>
-              <SnaplyButton
-                title="다시 담기"
-                variant="secondary"
-                style={styles.reviewButton}
-                onPress={retake}
-              />
-              <SnaplyButton
-                title="이 컷 쓰기"
-                style={styles.reviewButton}
-                onPress={continueToEditing}
-              />
+              <SnaplyButton title="다시 담기" style={styles.reviewButton} onPress={retake} />
             </View>
           ) : (
             <View style={styles.captureControls}>

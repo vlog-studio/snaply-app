@@ -3,7 +3,12 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
-import { normalizeCaptureDuration, normalizeCaptureMood } from '@/entities/capture-session';
+import {
+  type CaptureDuration,
+  type CaptureMood,
+  normalizeCaptureDuration,
+  normalizeCaptureMood,
+} from '@/entities/capture-session';
 import { useCaptureMoment } from '@/features/capture-moment';
 import { useLocalRecordings } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
@@ -12,11 +17,6 @@ import { shouldCollectHold } from './hold-gesture';
 import { useRecordingPermissions } from './use-recording-permissions';
 
 export type CaptureStage = 'idle' | 'recording' | 'saving' | 'review';
-
-type UseCaptureRecorderParams = {
-  durationValue?: string;
-  moodValue?: string;
-};
 
 const isRecordingSupported = process.env.EXPO_OS === 'ios' || process.env.EXPO_OS === 'android';
 
@@ -28,8 +28,11 @@ const PERMISSION_REQUEST_FAILED =
  * machine, the countdown timer, permission-request orchestration, saving the
  * result through the recordings feature, the review/library flow, and screen
  * navigation. The page component consumes this and only renders.
+ *
+ * The capture options (mood, duration) are owned here as local state and tuned
+ * inline in the viewfinder while idle, rather than in a separate setup screen.
  */
-export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecorderParams) {
+export function useCaptureRecorder() {
   const router = useRouter();
   const {
     cameraPermission,
@@ -57,8 +60,10 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
   const holdStartedAt = useRef<number | undefined>(undefined);
   const heldMs = useRef<number | undefined>(undefined);
 
-  const mood = normalizeCaptureMood(moodValue);
-  const duration = normalizeCaptureDuration(durationValue);
+  const [mood, setMood] = useState<CaptureMood>(() => normalizeCaptureMood(undefined));
+  const [duration, setDuration] = useState<CaptureDuration>(() =>
+    normalizeCaptureDuration(undefined),
+  );
 
   const [stage, setStage] = useState<CaptureStage>('idle');
   const [remaining, setRemaining] = useState<number>(duration);
@@ -246,6 +251,20 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     if (wasDeleted && selectedRecording?.id === recording.id) retake();
   };
 
+  // Options are tuned only while idle; once a hold starts the run is committed.
+  const selectMood = (nextMood: CaptureMood) => {
+    if (stage !== 'idle') return;
+    setMood(nextMood);
+    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+  };
+
+  const selectDuration = (nextDuration: CaptureDuration) => {
+    if (stage !== 'idle') return;
+    setDuration(nextDuration);
+    setRemaining(nextDuration);
+    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
+  };
+
   const toggleSound = () => setSoundEnabled((current) => !current);
 
   const toggleFacing = () => {
@@ -264,6 +283,8 @@ export function useCaptureRecorder({ durationValue, moodValue }: UseCaptureRecor
     // capture options
     mood,
     duration,
+    selectMood,
+    selectDuration,
     // recording state
     stage,
     remaining,

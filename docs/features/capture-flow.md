@@ -2,34 +2,33 @@
 
 ## User goal and screen flow
 
-Users open capture from Home, choose a mood and clip duration, and capture a short clip in the darkroom viewfinder. In the MVP "delayed develop" loop, the captured moment is collected into **today's roll** as an undeveloped clip and the user is returned Home — the completed reel is deliberately not shown at capture time. Developing a roll into a reel happens later, initiated from the roll's detail screen ([Roll detail](roll-detail.md)).
+Users open capture from the center safelight button, land directly in the darkroom viewfinder, tune the mood and clip duration inline, and capture a short clip. In the MVP "delayed develop" loop, the captured moment is collected into **today's roll** as an undeveloped clip and the user is returned Home — the completed reel is deliberately not shown at capture time. Developing a roll into a reel happens later, initiated from the roll's detail screen ([Roll detail](roll-detail.md)).
 
 ```text
-/ (Home safelight capture ring)
-  -- open capture --> /capture (root-stack modal, mood/duration picker)
-  -- mood + duration --> /capture/record   (viewfinder)
-  -- clip collected into today's roll --> / (Home)   (capture loop ends here; the clip is undeveloped)
+/ (tab bar center safelight button)
+  -- open capture --> /capture   (root-stack full-screen modal, darkroom viewfinder with inline mood/duration options)
+  -- press-and-hold, clip collected into today's roll --> / (Home)   (capture loop ends here; the clip is undeveloped)
 
 /roll/[id] (Roll detail)
   -- 현상하기 --> /capture/editing   (develop ceremony; composes and persists the reel)
   -- 릴 공개 --> /capture/result     (sequential reel player)
 ```
 
-The develop ceremony (`/capture/editing`) and reel player (`/capture/result`) are now driven by real roll data (`rollId`), not the capture flow. They are reached from Roll detail, not from the recorder; the recorder's library is browse/preview/delete only.
+There is no longer a separate mood/duration setup screen: the options are tuned inline in the viewfinder (see [Capture options](#capture-options)). The develop ceremony (`/capture/editing`) and reel player (`/capture/result`) are driven by real roll data (`rollId`), not the capture flow. They are reached from Roll detail, not from the recorder; the recorder's library is browse/preview/delete only.
 
 The supported capture options are owned by `entities/capture-session`:
 
 - Moods: `hip`, `lovely`, and `energy`
 - Durations: 3 or 5 seconds
-- Invalid or missing route values normalize to `hip` and 3 seconds
+- Invalid or missing values normalize to `hip` and 3 seconds; these defaults seed the recorder's initial option state
 
-## Capture setup
+## Capture options
 
-`pages/capture-setup` owns the setup form as local React state. Selecting a mood triggers selection haptics on iOS. The page passes the selected mood and duration as route parameters to `/capture/record`.
+The mood and duration are tuned inline in the viewfinder, not on a separate setup screen. `/capture` opens straight into the recorder (`pages/capture-record`), which owns the selected mood and duration as local React state, seeded with the `entities/capture-session` defaults (`hip`, 3s).
 
-The setup screen is presented by the root stack as a modal (`presentation: 'modal'`, header hidden), so the tab bar is not part of this presentation and no tab-bar visibility toggle is needed. A close button in the hero returns to Home. The mood accents are tuned to the darkroom palette (ember / warm rose / lumen). The start button is docked in a fixed footer below the scrollable option list, padded by the bottom safe area, so it stays visible without scrolling. Its label reflects the selected duration ("N초 담기 시작").
+While the recorder is `idle`, an options bar sits above the shutter: three mood chips (🔥 힙하게 / 💕 러블리하게 / ⚡ 신나게, accented with the darkroom ember / warm rose / lumen palette) and a `3초 / 5초` segment toggle. Selecting either triggers selection haptics on iOS and, for duration, resets the on-screen countdown. The options bar is hidden once a hold starts (`recording`/`saving`) and in the `review` stage, keeping the darkroom viewfinder clean; the top pill reads just "오늘의 롤". Because options can only change while idle, each collected clip is committed with the mood and duration shown at the moment the hold began.
 
-The optional `context=cafe` parameter only displays a recommendation banner. Context detection itself is not implemented.
+The former `context=cafe` recommendation banner was removed with the setup screen; context detection was never implemented.
 
 ## Camera recording and review
 
@@ -66,8 +65,7 @@ MVP honesty (see mvp-implementation-plan.md §5): the reel is a sequential playl
 
 ## Ownership and dependencies
 
-- `src/pages/capture-setup` owns setup-only selection state.
-- `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, and its internal recording-library modal.
+- `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, the inline mood/duration option state (idle-only), and its internal recording-library modal.
 - `src/features/capture-moment` owns the 담기 action: persisting the clip file, building clip metadata, and adding the clip to today's roll (creating the daily roll on first capture). It owns its own pending/error state and does not navigate.
 - `src/entities/clip` owns clip metadata and its persisted store; `src/entities/roll` owns rolls, today's-roll selection/creation, and clip membership.
 - `src/_app/providers/daily-roll-gate.tsx` ensures today's roll exists on app entry (after the roll store hydrates).

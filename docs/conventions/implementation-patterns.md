@@ -74,7 +74,7 @@ bypass.
 **When:** every file under `src/app`. Routes wire a URL to a page; they hold no logic.
 
 **Canonical:** [`src/app/(tabs)/index.tsx`](../../src/app/(tabs)/index.tsx),
-[`src/app/capture/record.tsx`](../../src/app/capture/record.tsx).
+[`src/app/roll/[id].tsx`](../../src/app/roll/[id].tsx).
 
 ```ts
 // src/app/(tabs)/index.tsx — the common case: re-export the page Public API
@@ -82,19 +82,14 @@ export { HomePage as default } from '@/pages/home';
 ```
 
 ```tsx
-// src/app/capture/record.tsx — thin adapter variant: read params, pass as explicit props
+// src/app/roll/[id].tsx — thin adapter variant: read params, pass as explicit props
 import { useLocalSearchParams } from 'expo-router';
 
-import { CaptureRecordPage } from '@/pages/capture-record';
+import { RollDetailPage } from '@/pages/roll-detail';
 
-export default function CaptureRecordRoute() {
-  const { duration, mood } = useLocalSearchParams<{ duration?: string; mood?: string }>();
-  return (
-    <CaptureRecordPage
-      durationValue={typeof duration === 'string' ? duration : undefined}
-      moodValue={typeof mood === 'string' ? mood : undefined}
-    />
-  );
+export default function RollDetailRoute() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  return <RollDetailPage rollId={typeof id === 'string' ? id : undefined} />;
 }
 ```
 

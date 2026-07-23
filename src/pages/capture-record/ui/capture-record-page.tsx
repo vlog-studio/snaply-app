@@ -2,7 +2,11 @@ import { CameraView } from 'expo-camera';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getCaptureMoodLabel } from '@/entities/capture-session';
+import {
+  type CaptureDuration,
+  type CaptureMood,
+  getCaptureMoodLabel,
+} from '@/entities/capture-session';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -12,20 +16,27 @@ import { useCaptureRecorder } from '../model/use-capture-recorder';
 import { HoldRing } from './hold-ring';
 import { RecordingLibrary } from './recording-library';
 
-type CaptureRecordPageProps = {
-  durationValue?: string;
-  moodValue?: string;
-};
-
 // The 담기 ring sits just outside the 88px shutter (5px stroke + breathing gap).
 const HOLD_RING_SIZE = 108;
 
-export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPageProps) {
+// Inline viewfinder options. Accents track the darkroom mood palette shared with
+// the mood copy in entities/capture-session.
+const MOOD_CHIPS: { accent: string; emoji: string; id: CaptureMood }[] = [
+  { id: 'hip', emoji: '🔥', accent: '#EA5E38' }, // ember
+  { id: 'lovely', emoji: '💕', accent: '#D98AA0' }, // warm rose
+  { id: 'energy', emoji: '⚡', accent: '#82D6CE' }, // lumen
+];
+
+const DURATION_OPTIONS: readonly CaptureDuration[] = [3, 5];
+
+export function CaptureRecordPage() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const {
     mood,
     duration,
+    selectMood,
+    selectDuration,
     stage,
     remaining,
     isBusy,
@@ -61,7 +72,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
     permissionMessage,
     requestPermissions,
     openAppSettings,
-  } = useCaptureRecorder({ durationValue, moodValue });
+  } = useCaptureRecorder();
 
   if (!isCameraGranted && stage !== 'review') {
     return (
@@ -163,7 +174,7 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
           </Pressable>
           <View style={styles.modePill}>
             <ThemedText selectable={false} type="edge" style={styles.whiteText}>
-              오늘의 롤 · {getCaptureMoodLabel(mood)} · {duration}초
+              오늘의 롤
             </ThemedText>
           </View>
           <Pressable
@@ -229,6 +240,65 @@ export function CaptureRecordPage({ durationValue, moodValue }: CaptureRecordPag
         </View>
 
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + Spacing.five }]}>
+          {stage === 'idle' && isRecordingSupported ? (
+            <View style={styles.optionsBar}>
+              <View style={styles.moodChips}>
+                {MOOD_CHIPS.map((chip) => {
+                  const isSelected = mood === chip.id;
+                  return (
+                    <Pressable
+                      key={chip.id}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={getCaptureMoodLabel(chip.id)}
+                      onPress={() => selectMood(chip.id)}
+                      style={[
+                        styles.moodChip,
+                        isSelected && {
+                          borderColor: chip.accent,
+                          backgroundColor: `${chip.accent}26`,
+                        },
+                      ]}
+                    >
+                      <ThemedText selectable={false} style={styles.moodChipEmoji}>
+                        {chip.emoji}
+                      </ThemedText>
+                      <ThemedText
+                        selectable={false}
+                        type="smallBold"
+                        style={isSelected ? styles.whiteText : styles.mutedWhite}
+                      >
+                        {getCaptureMoodLabel(chip.id)}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <View style={styles.durationToggle}>
+                {DURATION_OPTIONS.map((seconds) => {
+                  const isSelected = duration === seconds;
+                  return (
+                    <Pressable
+                      key={seconds}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: isSelected }}
+                      accessibilityLabel={`${seconds}초`}
+                      onPress={() => selectDuration(seconds)}
+                      style={[styles.durationSeg, isSelected && styles.durationSegActive]}
+                    >
+                      <ThemedText
+                        selectable={false}
+                        type="smallBold"
+                        style={isSelected ? { color: theme.media } : styles.mutedWhite}
+                      >
+                        {seconds}초
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
           {stage === 'review' ? (
             <View style={styles.reviewActions}>
               <SnaplyButton title="다시 담기" style={styles.reviewButton} onPress={retake} />
@@ -414,6 +484,35 @@ const styles = StyleSheet.create({
   },
   errorDismiss: { color: 'rgba(255,255,255,0.72)' },
   bottomControls: { paddingHorizontal: Spacing.five, gap: Spacing.three },
+  optionsBar: { alignItems: 'center', gap: Spacing.three },
+  moodChips: { flexDirection: 'row', gap: Spacing.two },
+  moodChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(0,0,0,0.36)',
+  },
+  moodChipEmoji: { fontSize: 16 },
+  durationToggle: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+    padding: Spacing.one,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(0,0,0,0.36)',
+  },
+  durationSeg: {
+    minWidth: 56,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.pill,
+  },
+  durationSegActive: { backgroundColor: '#FFFFFF' },
   captureControls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   shutterArea: {
     width: HOLD_RING_SIZE,

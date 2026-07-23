@@ -2,7 +2,7 @@
 
 ## User goal
 
-Users can manage the original clips ("컷") stored inside Snaply and can view a prototype of the intended developed-roll shelf ("롤"). The Archive is a segmented view: "컷" is the live clip list, "롤" is the prototype shelf. Both are dressed in the moment-collection darkroom visual language (edge prints, film-black clip tiles, roll covers with "현상 완료" badges).
+Users can manage the original clips ("컷") stored inside Snaply and browse the shelf of developed rolls ("롤"). The Archive is a segmented view: "컷" is the live clip list, "롤" is the live shelf of developed rolls. Both are dressed in the moment-collection darkroom visual language (edge prints, film-black clip tiles, roll covers with "현상 완료" badges).
 
 ## Original recording management
 
@@ -43,15 +43,17 @@ Recordings are app-private local files. They are not entries in the device media
 
 ## Developed-roll shelf
 
-The “롤” segment is a `Prototype`.
+The “롤” segment is `Functional`, backed by the real roll store.
 
-- The roll covers (id, clip count / duration span, title, tint) and the "현상 완료" badges are static fixtures shown as a shelf grid with a trailing dashed "+ 새 롤" slot.
-- Tapping a cover opens `/capture/result` with fixed `mood=hip` and `duration=3` parameters.
-- No developed reel, capture grouping, or roll record exists in storage.
+- The shelf lists developed rolls only (status `developed` with a persisted reel), newest-developed first (`pages/archive/model/use-developed-rolls.ts` joins `entities/roll` + `entities/clip`).
+- Each cover shows the roll's day key, clip count, and total reel length (summed from the referenced clips' durations), plus a "현상 완료" badge. Cover tints are cycled by shelf position (rolls carry no color of their own yet).
+- Tapping a cover opens `/capture/result?rollId=<id>` and plays that roll's reel sequentially (see [Capture flow](capture-flow.md)).
+- When no roll is developed yet, the segment shows an empty state prompting the user to develop today's roll. A trailing dashed "빈 롤" slot is decorative (non-interactive); manual roll creation is not part of the MVP.
 
 ## Ownership
 
-- `src/pages/archive` owns the two archive segments (컷 / 롤), archive-specific UI, playback modal, and prototype roll-shelf fixtures.
+- `src/pages/archive` owns the two archive segments (컷 / 롤), archive-specific UI, the playback modal, and the developed-roll shelf join (`model/use-developed-rolls.ts`).
+- `src/entities/roll` and `src/entities/clip` back the roll shelf (developed rolls and clip durations).
 - `src/features/manage-recordings` owns reusable recording operations and formatting.
 - `src/shared/ui/video-preview` owns the business-agnostic looping video player used by the playback modal.
 - `src/shared/lib/recording-files` owns native file operations and the web fallback.
@@ -60,7 +62,7 @@ The “롤” segment is a `Prototype`.
 ## Known limitations
 
 - A recording stores file metadata only, so archive items cannot display capture mood, requested duration, or actual duration.
-- There is no thumbnail extraction; recording rows use a generic play tile.
+- There is no thumbnail extraction; recording rows and roll covers use generic tiles/tints rather than real cover art.
 - There is no share/export action, media-library save, cloud backup, or recovery after app deletion.
 - Deleting an original is permanent and is not mediated by a trash state.
 - The delete confirmation uses `Alert.alert`, which is a no-op on react-native-web; this is currently unreachable on web because the web adapter lists no recordings, but a web persistence implementation must also replace the confirmation UI.

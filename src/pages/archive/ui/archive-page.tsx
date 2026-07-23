@@ -19,15 +19,14 @@ import {
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
-// "롤" = developed rolls (the shelf), "컷" = the raw clip archive (real local
-// recordings). The roll shelf is still mocked; the clip list is live.
+import { formatReelLength, useDevelopedRolls } from '../model/use-developed-rolls';
+
+// "롤" = developed rolls (the shelf), "컷" = the raw clip archive (local
+// recordings). Both are now live.
 type ArchiveView = 'clips' | 'rolls';
 
-const shelfRolls = [
-  { id: 'R018', title: '성수동 오후', span: '4컷 · 0:20', tint: '#7A3F2A' },
-  { id: 'R017', title: '한강 노을', span: '6컷 · 0:30', tint: '#1F5F5B' },
-  { id: 'R015', title: '아침 루틴', span: 'D30 · 0:24', tint: '#5A4718' },
-];
+// Cover tints cycled by shelf position — rolls carry no color of their own yet.
+const COVER_TINTS = ['#7A3F2A', '#1F5F5B', '#5A4718', '#3E2C5A', '#245A3E'];
 
 export function ArchivePage() {
   const theme = useTheme();
@@ -38,6 +37,7 @@ export function ArchivePage() {
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
   const { recordings, isLoading, deletingId, errorMessage, reloadRecordings, removeRecording } =
     useLocalRecordings();
+  const developedRolls = useDevelopedRolls();
 
   useFocusEffect(
     useCallback(() => {
@@ -71,7 +71,7 @@ export function ArchivePage() {
       >
         <View style={styles.header}>
           <ThemedText type="edge" themeColor="amber">
-            ARCHIVE · 롤 {shelfRolls.length} · 컷 {recordings.length}
+            ARCHIVE · 롤 {developedRolls.length} · 컷 {recordings.length}
           </ThemedText>
           <ThemedText type="title">보관함</ThemedText>
           <ThemedText themeColor="textSecondary">
@@ -217,41 +217,66 @@ export function ArchivePage() {
           </FadeInView>
         ) : (
           <FadeInView duration={260} style={styles.rollList}>
-            <View style={styles.shelfGrid}>
-              {shelfRolls.map((roll) => (
-                <Link
-                  key={roll.id}
-                  href={{ pathname: '/capture/result', params: { mood: 'hip', duration: '3' } }}
-                  asChild
-                >
-                  <Pressable
-                    style={StyleSheet.flatten([styles.cover, { backgroundColor: roll.tint }])}
+            {developedRolls.length === 0 ? (
+              <View style={[styles.emptyCard, { borderColor: theme.border }]}>
+                <View style={[styles.emptyIcon, { backgroundColor: theme.film }]}>
+                  <ThemedText
+                    selectable={false}
+                    style={[styles.emptyIconText, { color: theme.lumen }]}
                   >
-                    <View style={styles.coverTop}>
-                      <ThemedText selectable={false} style={styles.coverEdge}>
-                        {roll.id} · {roll.span}
-                      </ThemedText>
-                      <View style={styles.developedBadge}>
-                        <ThemedText
-                          selectable={false}
-                          style={[styles.developedBadgeText, { color: theme.lumen }]}
-                        >
-                          현상 완료
-                        </ThemedText>
-                      </View>
-                    </View>
-                    <ThemedText selectable={false} style={styles.coverTitle}>
-                      {roll.title}
-                    </ThemedText>
-                  </Pressable>
-                </Link>
-              ))}
-              <View style={[styles.coverEmpty, { borderColor: theme.border }]}>
-                <ThemedText type="edge" themeColor="textSecondary">
-                  + 새 롤
-                </ThemedText>
+                    ◐
+                  </ThemedText>
+                </View>
+                <View style={styles.emptyCopy}>
+                  <ThemedText type="heading">아직 현상한 롤이 없어요</ThemedText>
+                  <ThemedText themeColor="textSecondary" style={styles.centerText}>
+                    오늘의 롤을 현상하면 이 선반에 릴로 꽂혀요.
+                  </ThemedText>
+                </View>
               </View>
-            </View>
+            ) : (
+              <View style={styles.shelfGrid}>
+                {developedRolls.map((roll, index) => (
+                  <Link
+                    key={roll.id}
+                    href={{ pathname: '/capture/result', params: { rollId: roll.id } }}
+                    asChild
+                  >
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${roll.title} 릴 재생`}
+                      style={StyleSheet.flatten([
+                        styles.cover,
+                        { backgroundColor: COVER_TINTS[index % COVER_TINTS.length] },
+                      ])}
+                    >
+                      <View style={styles.coverTop}>
+                        <ThemedText selectable={false} style={styles.coverEdge}>
+                          {roll.dayKey ?? '롤'} · {roll.clipCount}컷 · {formatReelLength(roll.totalSec)}
+                        </ThemedText>
+                        <View style={styles.developedBadge}>
+                          <ThemedText
+                            selectable={false}
+                            style={[styles.developedBadgeText, { color: theme.lumen }]}
+                          >
+                            현상 완료
+                          </ThemedText>
+                        </View>
+                      </View>
+                      <ThemedText selectable={false} style={styles.coverTitle}>
+                        {roll.title}
+                      </ThemedText>
+                    </Pressable>
+                  </Link>
+                ))}
+                {/* Decorative empty slot — invites the next developed roll. */}
+                <View style={[styles.coverEmpty, { borderColor: theme.border }]}>
+                  <ThemedText type="edge" themeColor="textSecondary">
+                    빈 롤
+                  </ThemedText>
+                </View>
+              </View>
+            )}
           </FadeInView>
         )}
       </ScrollView>

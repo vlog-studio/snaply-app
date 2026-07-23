@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useTodayRoll } from '@/entities/roll';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
@@ -12,17 +13,15 @@ import {
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-// Prototype "오늘의 롤" — today's roll of captured moments. Data is still
-// mocked (the roll/clip model is a later milestone); this screen dresses the
-// existing capture/archive flow in the darkroom visual language.
-const CAPTURED = 3;
+// The "n/총" counter and develop-card clip count are bound to today's real roll
+// (via useTodayRoll). The contact-sheet frames and shelf below are still
+// prototype fixtures until the full home binding (contact sheet thumbnails,
+// shelf) lands as its own milestone.
 const ROLL_SIZE = 12;
 
-const todayFrames = [
-  { id: '01', window: '#C98A44' },
-  { id: '02', window: '#3E8F88' },
-  { id: '03', window: '#B4762A' },
-];
+// Contact-sheet preview holds up to this many frames on Home; the full grid
+// lives on the roll-detail screen.
+const PREVIEW_SLOTS = 6;
 
 const shelf = [
   { id: 'R018', title: '성수동 오후', tint: '#7A3F2A' },
@@ -33,6 +32,10 @@ export function HomePage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
+  const todayRoll = useTodayRoll();
+  const captured = todayRoll?.clipRefs.length ?? 0;
+  const filledPreview = Math.min(captured, PREVIEW_SLOTS);
+  const emptyPreview = Math.max(PREVIEW_SLOTS - filledPreview, 0);
   const rollDate = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
     month: '2-digit',
@@ -58,41 +61,60 @@ export function HomePage() {
         <View style={styles.titleRow}>
           <ThemedText type="title">오늘의 롤</ThemedText>
           <ThemedText type="edge" themeColor="primary">
-            {String(CAPTURED).padStart(2, '0')}/{ROLL_SIZE} · 미현상
+            {String(captured).padStart(2, '0')}/{ROLL_SIZE} · 미현상
           </ThemedText>
         </View>
       </View>
 
-      {/* Contact sheet — filled frames, then the empty slots that invite more
-          captures. The whole strip lives on a film-black base. */}
-      <FadeInView duration={420} style={[styles.filmStrip, { backgroundColor: theme.film }]}>
-        <View style={styles.perf}>
-          {Array.from({ length: 9 }).map((_, index) => (
-            <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
-          ))}
-        </View>
-        <View style={styles.frameRow}>
-          {todayFrames.map((frame) => (
-            <View key={frame.id} style={[styles.frameWindow, { backgroundColor: frame.window }]}>
-              <ThemedText selectable={false} style={styles.frameNum}>
-                {frame.id}
-              </ThemedText>
+      {/* Contact sheet — undeveloped negatives for the day's real clips, then
+          the empty slots that invite more captures. The whole strip lives on a
+          film-black base and opens the full roll. */}
+      <Link
+        accessibilityLabel="오늘의 롤 열기"
+        href={{ pathname: '/roll/[id]', params: { id: todayRoll?.id ?? '' } }}
+        asChild
+        disabled={!todayRoll}
+      >
+        <Pressable accessibilityRole="button">
+          <FadeInView duration={420} style={[styles.filmStrip, { backgroundColor: theme.film }]}>
+            <View style={styles.perf}>
+              {Array.from({ length: 9 }).map((_, index) => (
+                <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
+              ))}
             </View>
-          ))}
-          {Array.from({ length: 3 }).map((_, index) => (
-            <View key={`empty-${index}`} style={[styles.frameEmpty, { borderColor: theme.border }]}>
-              <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
-                ?
-              </ThemedText>
+            <View style={styles.frameRow}>
+              {Array.from({ length: filledPreview }).map((_, index) => (
+                <View
+                  key={`clip-${index}`}
+                  style={[
+                    styles.frameWindow,
+                    { backgroundColor: theme.background, borderColor: theme.border, borderWidth: 1 },
+                  ]}
+                >
+                  <ThemedText selectable={false} type="edge" themeColor="amber">
+                    {String(index + 1).padStart(2, '0')}
+                  </ThemedText>
+                </View>
+              ))}
+              {Array.from({ length: emptyPreview }).map((_, index) => (
+                <View
+                  key={`empty-${index}`}
+                  style={[styles.frameEmpty, { borderColor: theme.border }]}
+                >
+                  <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
+                    ?
+                  </ThemedText>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
-        <View style={styles.perf}>
-          {Array.from({ length: 9 }).map((_, index) => (
-            <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
-          ))}
-        </View>
-      </FadeInView>
+            <View style={styles.perf}>
+              {Array.from({ length: 9 }).map((_, index) => (
+                <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
+              ))}
+            </View>
+          </FadeInView>
+        </Pressable>
+      </Link>
 
       {/* The safelight — capture is a single amber tap, everything else recedes. */}
       <View style={styles.captureBlock}>
@@ -131,7 +153,7 @@ export function HomePage() {
         </View>
         <View style={styles.developMeta}>
           <ThemedText type="edge" themeColor="amber">
-            {CAPTURED}컷 · 예상 릴 0:{String(CAPTURED * 5).padStart(2, '0')}
+            {captured}컷 · 예상 릴 0:{String(captured * 5).padStart(2, '0')}
           </ThemedText>
         </View>
       </View>
@@ -196,14 +218,9 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 0.72,
     borderRadius: 4,
+    borderCurve: 'continuous',
     padding: Spacing.two,
     alignItems: 'flex-end',
-  },
-  frameNum: {
-    fontSize: 9,
-    letterSpacing: 1,
-    color: 'rgba(20,15,11,0.7)',
-    fontWeight: '700',
   },
   frameEmpty: {
     flex: 1,

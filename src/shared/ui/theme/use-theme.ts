@@ -1,15 +1,12 @@
-import { useColorScheme } from 'react-native';
-
 import { Colors } from './theme';
-import { useThemeMode } from './theme-mode';
 
-/** The color scheme in effect after applying the user's theme-mode choice. */
+// The app is dark-fixed: it is a single world, the darkroom (concept §5). There
+// is no light theme, so the resolved scheme is always 'dark' regardless of the
+// OS setting or any stored theme-mode preference.
 export function useResolvedColorScheme(): 'light' | 'dark' {
-  const systemScheme = useColorScheme();
-  const mode = useThemeMode();
-  return mode === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : mode;
+  return 'dark';
 }
 
 export function useTheme() {
-  return Colors[useResolvedColorScheme()];
+  return Colors.dark;
 }

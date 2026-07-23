@@ -12,6 +12,7 @@ export type ThemedTextProps = TextProps & {
     | 'smallBold'
     | 'subtitle'
     | 'eyebrow'
+    | 'edge'
     | 'button'
     | 'link'
     | 'linkPrimary'
@@ -41,6 +42,7 @@ export function ThemedText({
         type === 'smallBold' && styles.smallBold,
         type === 'subtitle' && styles.subtitle,
         type === 'eyebrow' && styles.eyebrow,
+        type === 'edge' && styles.edge,
         type === 'button' && styles.button,
         type === 'link' && styles.link,
         type === 'linkPrimary' && [styles.linkPrimary, { color: theme.primary }],
@@ -66,6 +68,17 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     fontWeight: 800,
     letterSpacing: 1.1,
+    textTransform: 'uppercase',
+  },
+  // Edge print — the signature type device: a mono frame-code stamped along a
+  // film's edge (e.g. "ROLL 019 · 2026-07-23 · 03/12"). Pair with an amber or
+  // ember themeColor.
+  edge: {
+    fontFamily: Fonts.mono,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: 600,
+    letterSpacing: 2,
     textTransform: 'uppercase',
   },
   button: { fontSize: 16, lineHeight: 21, fontWeight: 800 },

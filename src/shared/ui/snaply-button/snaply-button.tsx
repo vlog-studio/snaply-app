@@ -39,6 +39,9 @@ export function SnaplyButton({
           borderColor: variant === 'secondary' ? theme.border : 'transparent',
           opacity: disabled ? 0.45 : state.pressed ? 0.78 : 1,
         },
+        // Safelight glow: the primary (capture) button reads as the amber
+        // safelight lamp in the darkroom.
+        variant === 'primary' && !disabled && styles.glow,
         typeof style === 'function' ? style(state) : style,
       ]}
       {...props}
@@ -68,4 +71,5 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   icon: { fontSize: 17, lineHeight: 22 },
+  glow: { boxShadow: '0 0 24px rgba(234,94,56,0.30)' },
 });

@@ -2,7 +2,6 @@ import { Link } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { FadeInView } from '@/shared/ui/fade-in-view';
-import { SnaplyButton } from '@/shared/ui/snaply-button';
 import {
   MaxContentWidth,
   Radius,
@@ -13,14 +12,31 @@ import {
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
+// Prototype "오늘의 롤" — today's roll of captured moments. Data is still
+// mocked (the roll/clip model is a later milestone); this screen dresses the
+// existing capture/archive flow in the darkroom visual language.
+const CAPTURED = 3;
+const ROLL_SIZE = 12;
+
+const todayFrames = [
+  { id: '01', window: '#C98A44' },
+  { id: '02', window: '#3E8F88' },
+  { id: '03', window: '#B4762A' },
+];
+
+const shelf = [
+  { id: 'R018', title: '성수동 오후', tint: '#7A3F2A' },
+  { id: 'R017', title: '한강 노을', tint: '#1F5F5B' },
+];
+
 export function HomePage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
-  const today = new Intl.DateTimeFormat('ko-KR', {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
+  const rollDate = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
   }).format(new Date());
 
   return (
@@ -36,122 +52,120 @@ export function HomePage() {
       ]}
     >
       <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <ThemedText type="eyebrow" themeColor="primary">
-            {today}
+        <ThemedText type="edge" themeColor="amber">
+          ROLL 019 · {rollDate}
+        </ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText type="title">오늘의 롤</ThemedText>
+          <ThemedText type="edge" themeColor="primary">
+            {String(CAPTURED).padStart(2, '0')}/{ROLL_SIZE} · 미현상
           </ThemedText>
-          <ThemedText type="title">오늘도 찰나를 남겨요.</ThemedText>
         </View>
       </View>
 
-      <FadeInView duration={420} style={[styles.contextCard, { backgroundColor: theme.media }]}>
-        <View style={[styles.glow, { backgroundColor: theme.primary }]} />
-        <View style={styles.contextTopRow}>
-          <View style={styles.contextBadge}>
-            <ThemedText selectable={false} style={styles.contextBadgeText}>
-              📍 카페 · 오후
-            </ThemedText>
-          </View>
-          <ThemedText style={styles.spark}>✦</ThemedText>
+      {/* Contact sheet — filled frames, then the empty slots that invite more
+          captures. The whole strip lives on a film-black base. */}
+      <FadeInView duration={420} style={[styles.filmStrip, { backgroundColor: theme.film }]}>
+        <View style={styles.perf}>
+          {Array.from({ length: 9 }).map((_, index) => (
+            <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
+          ))}
         </View>
-        <View style={styles.contextCopy}>
-          <ThemedText type="heading" style={styles.whiteText}>
-            지금 이 분위기,{`\n`}3초면 충분해요.
-          </ThemedText>
-          <ThemedText style={styles.mutedWhite}>힙한 무드로 바로 시작할까요?</ThemedText>
-        </View>
-        <Link href={{ pathname: '/capture', params: { context: 'cafe' } }} asChild>
-          <SnaplyButton title="3초 남기기" icon="●" />
-        </Link>
-      </FadeInView>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <ThemedText type="heading">오늘의 순간</ThemedText>
-          <ThemedText type="smallBold" themeColor="primary">
-            2 / 4
-          </ThemedText>
-        </View>
-        <View style={[styles.progressTrack, { backgroundColor: theme.border }]}>
-          <View style={[styles.progressValue, { backgroundColor: theme.primary }]} />
-        </View>
-        <View style={styles.momentRow}>
-          <MomentCard emoji="☕" label="카페 감성" time="14:34" color="#D7915D" />
-          <MomentCard emoji="🌇" label="퇴근길" time="18:15" color="#765A8E" />
-          <View style={[styles.emptyMoment, { borderColor: theme.border }]}>
-            <ThemedText selectable={false} style={styles.emptyIcon} themeColor="textSecondary">
-              ＋
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              다음 순간
-            </ThemedText>
-          </View>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.vlogCard,
-          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-        ]}
-      >
-        <View style={styles.vlogInfo}>
-          <View style={[styles.aiBadge, { backgroundColor: theme.aiSoft }]}>
-            <ThemedText type="eyebrow" themeColor="ai">
-              AI DAILY VLOG
-            </ThemedText>
-          </View>
-          <ThemedText type="heading">오늘의 브이로그</ThemedText>
-          <ThemedText themeColor="textSecondary">
-            순간을 두 개 더 모으면 자동으로 이어드려요.
-          </ThemedText>
-        </View>
-        <View style={styles.vlogPreview}>
-          {['☕', '🌇', '·', '·'].map((item, index) => (
-            <View
-              key={`${item}-${index}`}
-              style={[
-                styles.vlogFrame,
-                {
-                  backgroundColor: index < 2 ? ['#D7915D', '#765A8E'][index] : theme.background,
-                  borderColor: theme.border,
-                },
-              ]}
-            >
-              <ThemedText selectable={false} style={styles.vlogEmoji}>
-                {item}
+        <View style={styles.frameRow}>
+          {todayFrames.map((frame) => (
+            <View key={frame.id} style={[styles.frameWindow, { backgroundColor: frame.window }]}>
+              <ThemedText selectable={false} style={styles.frameNum}>
+                {frame.id}
+              </ThemedText>
+            </View>
+          ))}
+          {Array.from({ length: 3 }).map((_, index) => (
+            <View key={`empty-${index}`} style={[styles.frameEmpty, { borderColor: theme.border }]}>
+              <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
+                ?
               </ThemedText>
             </View>
           ))}
         </View>
-        <Link href="/archive" asChild>
-          <SnaplyButton title="보관함 둘러보기" variant="secondary" />
+        <View style={styles.perf}>
+          {Array.from({ length: 9 }).map((_, index) => (
+            <View key={index} style={[styles.perfHole, { backgroundColor: theme.background }]} />
+          ))}
+        </View>
+      </FadeInView>
+
+      {/* The safelight — capture is a single amber tap, everything else recedes. */}
+      <View style={styles.captureBlock}>
+        <Link
+          accessibilityLabel="담기"
+          href={{ pathname: '/capture', params: { context: 'cafe' } }}
+          style={styles.captureLink}
+        >
+          <View style={styles.ringOuter}>
+            <View style={[styles.ringTrack, { borderColor: theme.border }]} />
+            <View style={[styles.ringCore, { backgroundColor: theme.primary }]} />
+          </View>
         </Link>
+        <ThemedText type="edge" themeColor="textSecondary" style={styles.captureHint}>
+          꾹 눌러 담기
+        </ThemedText>
+      </View>
+
+      {/* Delayed develop — the day's roll stays undeveloped until it ends. */}
+      <View
+        style={[
+          styles.developCard,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        ]}
+      >
+        <View style={[styles.glow, { backgroundColor: theme.primary }]} />
+        <View style={styles.developCopy}>
+          <ThemedText type="edge" themeColor="lumen">
+            DARKROOM · 대기 중
+          </ThemedText>
+          <ThemedText type="heading">하루가 끝나면 현상해요</ThemedText>
+          <ThemedText themeColor="textSecondary">
+            담은 순간은 어둠 속에 모입니다. 아직은 완성본을 보여주지 않아요 — 하루가 끝나면 필름을
+            현상하듯 하나의 릴로 엮어 처음으로 공개됩니다.
+          </ThemedText>
+        </View>
+        <View style={styles.developMeta}>
+          <ThemedText type="edge" themeColor="amber">
+            {CAPTURED}컷 · 예상 릴 0:{String(CAPTURED * 5).padStart(2, '0')}
+          </ThemedText>
+        </View>
+      </View>
+
+      {/* Shelf preview — developed rolls stand like spines; the empty slot pulls
+          for the next one. */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <ThemedText type="heading">선반</ThemedText>
+          <Link href="/archive" style={styles.moreLink}>
+            <ThemedText type="edge" themeColor="lumen">
+              보관함 →
+            </ThemedText>
+          </Link>
+        </View>
+        <View style={styles.shelfRow}>
+          {shelf.map((roll) => (
+            <View key={roll.id} style={[styles.spine, { backgroundColor: roll.tint }]}>
+              <ThemedText selectable={false} style={styles.spineNum}>
+                {roll.id}
+              </ThemedText>
+              <ThemedText selectable={false} style={styles.spineTitle}>
+                {roll.title}
+              </ThemedText>
+            </View>
+          ))}
+          <View style={[styles.spineEmpty, { borderColor: theme.border }]}>
+            <ThemedText type="edge" themeColor="textSecondary">
+              빈 롤
+            </ThemedText>
+          </View>
+        </View>
       </View>
     </ScrollView>
-  );
-}
-
-type MomentCardProps = {
-  color: string;
-  emoji: string;
-  label: string;
-  time: string;
-};
-
-function MomentCard({ color, emoji, label, time }: MomentCardProps) {
-  return (
-    <View style={[styles.momentCard, { backgroundColor: color }]}>
-      <ThemedText selectable={false} style={styles.momentEmoji}>
-        {emoji}
-      </ThemedText>
-      <View>
-        <ThemedText type="smallBold" style={styles.whiteText}>
-          {label}
-        </ThemedText>
-        <ThemedText style={styles.momentTime}>{time}</ThemedText>
-      </View>
-    </View>
   );
 }
 
@@ -163,89 +177,109 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     gap: Spacing.six,
   },
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
-  headerCopy: { flex: 1, gap: Spacing.one },
-  contextCard: {
-    minHeight: 310,
+  header: { gap: Spacing.two },
+  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  filmStrip: {
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    paddingVertical: Spacing.two,
+    gap: Spacing.two,
+  },
+  perf: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: Spacing.two,
+  },
+  perfHole: { width: 14, height: 8, borderRadius: 2 },
+  frameRow: { flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.three },
+  frameWindow: {
+    flex: 1,
+    aspectRatio: 0.72,
+    borderRadius: 4,
+    padding: Spacing.two,
+    alignItems: 'flex-end',
+  },
+  frameNum: {
+    fontSize: 9,
+    letterSpacing: 1,
+    color: 'rgba(20,15,11,0.7)',
+    fontWeight: '700',
+  },
+  frameEmpty: {
+    flex: 1,
+    aspectRatio: 0.72,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  frameGhost: { fontSize: 18, fontWeight: '700' },
+  captureBlock: { alignItems: 'center', gap: Spacing.three },
+  captureLink: { borderRadius: Radius.pill },
+  ringOuter: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
+  ringTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 48,
+    borderWidth: 4,
+  },
+  ringCore: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    boxShadow: '0 0 26px rgba(234,94,56,0.5)',
+  },
+  captureHint: {},
+  developCard: {
     borderRadius: Radius.xlarge,
     borderCurve: 'continuous',
+    borderWidth: 1,
     padding: Spacing.five,
-    gap: Spacing.five,
+    gap: Spacing.four,
     overflow: 'hidden',
-    boxShadow: '0 18px 42px rgba(18,23,46,0.18)',
   },
   glow: {
     position: 'absolute',
     width: 230,
     height: 230,
     borderRadius: 115,
-    right: -80,
-    top: -100,
-    opacity: 0.24,
+    right: -90,
+    top: -110,
+    opacity: 0.16,
   },
-  contextTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  contextBadge: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: Radius.pill,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  contextBadgeText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
-  spark: { color: '#FFB397', fontSize: 28 },
-  contextCopy: { flex: 1, justifyContent: 'center', gap: Spacing.two },
-  whiteText: { color: '#FFFFFF' },
-  mutedWhite: { color: 'rgba(255,255,255,0.68)' },
+  developCopy: { gap: Spacing.two },
+  developMeta: { flexDirection: 'row' },
   section: { gap: Spacing.four },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  progressTrack: { height: 6, borderRadius: Radius.pill, overflow: 'hidden' },
-  progressValue: { width: '50%', height: '100%', borderRadius: Radius.pill },
-  momentRow: { flexDirection: 'row', gap: Spacing.three },
-  momentCard: {
+  moreLink: {},
+  shelfRow: { flexDirection: 'row', gap: Spacing.three },
+  spine: {
     flex: 1,
-    minHeight: 142,
-    borderRadius: Radius.large,
+    height: 118,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
-    padding: Spacing.four,
-    justifyContent: 'space-between',
+    padding: Spacing.three,
+    justifyContent: 'flex-end',
+    gap: Spacing.half,
   },
-  momentEmoji: { fontSize: 34 },
-  momentTime: { color: 'rgba(255,255,255,0.68)', fontSize: 12 },
-  emptyMoment: {
-    flex: 0.72,
-    minHeight: 142,
-    borderRadius: Radius.large,
-    borderCurve: 'continuous',
+  spineNum: {
+    fontSize: 10,
+    letterSpacing: 1,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '700',
+  },
+  spineTitle: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+  spineEmpty: {
+    flex: 1,
+    height: 118,
+    borderRadius: Radius.small,
     borderWidth: 1.5,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: Spacing.one,
   },
-  emptyIcon: { fontSize: 27 },
-  vlogCard: {
-    borderRadius: Radius.xlarge,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    padding: Spacing.five,
-    gap: Spacing.five,
-  },
-  vlogInfo: { gap: Spacing.two },
-  aiBadge: {
-    alignSelf: 'flex-start',
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.two,
-    borderRadius: Radius.small,
-  },
-  vlogPreview: { flexDirection: 'row', gap: Spacing.two },
-  vlogFrame: {
-    flex: 1,
-    aspectRatio: 0.76,
-    maxHeight: 112,
-    borderRadius: Radius.small,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vlogEmoji: { fontSize: 24 },
 });

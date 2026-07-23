@@ -27,65 +27,65 @@ export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPag
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
-      contentContainerStyle={[styles.content, { paddingTop: Spacing.seven + topInset }]}
+      contentContainerStyle={[styles.content, { paddingTop: Spacing.six + topInset }]}
     >
-      <FadeInView
-        duration={360}
-        fromScale={0.6}
-        offsetY={0}
-        style={[styles.successMark, { backgroundColor: theme.successSoft }]}
-      >
-        <ThemedText selectable={false} style={[styles.check, { color: theme.success }]}>
-          ✓
-        </ThemedText>
-      </FadeInView>
       <View style={styles.headerCopy}>
-        <ThemedText type="title" style={styles.centerText}>
-          찰나가 완성됐어요.
+        <ThemedText type="edge" themeColor="lumen">
+          ROLL 019 · 현상 완료
         </ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.centerText}>
-          {getCaptureMoodLabel(mood)} 무드의 {duration}초 클립을 보관함에 추가했어요.
+        <ThemedText type="title">릴이 공개됐어요</ThemedText>
+        <ThemedText themeColor="textSecondary">
+          {getCaptureMoodLabel(mood)} 무드의 {duration}초 릴을 오늘의 롤에서 처음으로 재생해요.
         </ThemedText>
       </View>
 
-      <FadeInView
-        delay={100}
-        duration={420}
-        style={[styles.preview, { backgroundColor: '#C4875B' }]}
-      >
-        <View style={[styles.previewGlow, { backgroundColor: theme.primary }]} />
-        <View style={styles.previewTopRow}>
-          <View style={styles.previewBadge}>
-            <ThemedText selectable={false} style={styles.previewBadgeText}>
-              ✦ AI EDIT
+      {/* Reel player — the developed short-form, framed like a viewfinder. */}
+      <FadeInView delay={100} duration={420} fromScale={0.92} style={styles.reel}>
+        <View style={[styles.reelWash, { backgroundColor: '#D98AA0' }]} />
+        <View style={styles.reelShade} pointerEvents="none" />
+        <View style={styles.reelTop}>
+          <ThemedText selectable={false} style={styles.reelEdge}>
+            ROLL 019 · {duration}.0s
+          </ThemedText>
+          <View style={styles.developedBadge}>
+            <ThemedText selectable={false} style={[styles.developedText, { color: theme.lumen }]}>
+              현상 완료
             </ThemedText>
           </View>
-          <ThemedText style={styles.previewTime}>{duration}.0s</ThemedText>
         </View>
-        <ThemedText selectable={false} style={styles.previewEmoji}>
-          ☕
-        </ThemedText>
-        <View style={styles.previewBottom}>
-          <ThemedText type="heading" style={styles.whiteText}>
-            카페의 한 장면
-          </ThemedText>
-          <ThemedText style={styles.mutedWhite}>오늘 오후 · {getCaptureMoodLabel(mood)}</ThemedText>
-        </View>
+
         <View style={styles.playButton}>
           <ThemedText selectable={false} style={styles.playIcon}>
             ▶
           </ThemedText>
         </View>
+
+        <View style={styles.reelBottom}>
+          <View style={styles.moodPill}>
+            <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
+              무드: {getCaptureMoodLabel(mood)}
+            </ThemedText>
+            <ThemedText selectable={false} style={styles.moodCaret}>
+              ▾
+            </ThemedText>
+          </View>
+          <View style={[styles.reelProgress, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <View style={[styles.reelProgressValue, { backgroundColor: theme.lumen }]} />
+          </View>
+        </View>
       </FadeInView>
 
       <View style={styles.editSummary}>
-        <ThemedText type="smallBold" themeColor="textSecondary">
-          자동 편집된 요소
+        <ThemedText type="edge" themeColor="textSecondary">
+          이 릴에 들어간 것
         </ThemedText>
         <View style={styles.tagRow}>
-          {['✦ 반짝이', '♬ 효과음', '◐ 웜 필터'].map((item) => (
-            <View key={item} style={[styles.editTag, { backgroundColor: theme.aiSoft }]}>
-              <ThemedText selectable={false} type="smallBold" themeColor="ai">
+          {['♬ BGM', '⇄ 전환', '◑ 톤 보정'].map((item) => (
+            <View
+              key={item}
+              style={[styles.editTag, { backgroundColor: theme.aiSoft, borderColor: theme.border }]}
+            >
+              <ThemedText selectable={false} type="smallBold" themeColor="lumen">
                 {item}
               </ThemedText>
             </View>
@@ -96,7 +96,7 @@ export function CaptureResultPage({ durationValue, moodValue }: CaptureResultPag
       <View style={styles.actions}>
         <SnaplyButton title="보관함에서 보기" onPress={() => router.replace('/archive')} />
         <SnaplyButton
-          title="다른 순간 촬영"
+          title="다른 순간 담기"
           variant="secondary"
           onPress={() => router.replace('/capture')}
         />
@@ -114,69 +114,88 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.eight,
     gap: Spacing.five,
   },
-  successMark: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-  },
-  check: { fontSize: 28, fontWeight: '900' },
   headerCopy: { gap: Spacing.two },
-  centerText: { textAlign: 'center' },
-  preview: {
-    width: '78%',
-    maxWidth: 330,
-    aspectRatio: 0.76,
-    maxHeight: 440,
+  reel: {
+    width: '82%',
+    maxWidth: 340,
+    aspectRatio: 0.62,
+    maxHeight: 460,
     alignSelf: 'center',
-    borderRadius: Radius.xlarge,
+    borderRadius: Radius.large,
     borderCurve: 'continuous',
     padding: Spacing.four,
     justifyContent: 'space-between',
     overflow: 'hidden',
-    boxShadow: '0 22px 52px rgba(18,23,46,0.22)',
+    backgroundColor: '#0E0B08',
+    boxShadow: '0 24px 52px rgba(0,0,0,0.5)',
   },
-  previewGlow: {
+  reelWash: {
     position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    top: -90,
-    right: -80,
-    opacity: 0.5,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.85,
   },
-  previewTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  previewBadge: {
-    backgroundColor: 'rgba(18,23,46,0.55)',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+  reelShade: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    boxShadow:
+      'inset 0 -90px 90px -20px rgba(10,7,5,0.92), inset 0 70px 60px -30px rgba(10,7,5,0.7)',
+  },
+  reelTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reelEdge: {
+    fontSize: 10,
+    letterSpacing: 1.4,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  developedBadge: {
+    backgroundColor: 'rgba(14,11,8,0.6)',
     borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 3,
   },
-  previewBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  previewTime: { color: '#FFFFFF', fontSize: 13, fontVariant: ['tabular-nums'] },
-  previewEmoji: { fontSize: 84, textAlign: 'center' },
-  previewBottom: { gap: Spacing.one },
-  whiteText: { color: '#FFFFFF' },
-  mutedWhite: { color: 'rgba(255,255,255,0.7)' },
+  developedText: { fontSize: 10, letterSpacing: 1, fontWeight: '700' },
   playButton: {
     position: 'absolute',
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(20,15,11,0.5)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    top: '45%',
+    top: '46%',
     left: '50%',
-    transform: [{ translateX: -29 }, { translateY: -29 }],
+    transform: [{ translateX: -30 }, { translateY: -30 }],
   },
-  playIcon: { color: '#1A1A2E', fontSize: 18 },
+  playIcon: { color: '#F1E6DA', fontSize: 20, marginLeft: 3 },
+  reelBottom: { gap: Spacing.three },
+  moodPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    backgroundColor: 'rgba(20,15,11,0.6)',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  moodCaret: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  whiteText: { color: '#FFFFFF' },
+  reelProgress: { height: 3, borderRadius: 2, overflow: 'hidden' },
+  reelProgressValue: { width: '38%', height: '100%', borderRadius: 2 },
   editSummary: { gap: Spacing.three },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   editTag: {
     borderRadius: Radius.pill,
+    borderWidth: 1,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },

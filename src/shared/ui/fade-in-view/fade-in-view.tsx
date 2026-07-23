@@ -8,6 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { useReducedMotion } from '@/shared/ui/theme';
+
 export type FadeInViewProps = React.PropsWithChildren<{
   delay?: number;
   duration?: number;
@@ -31,13 +33,19 @@ export function FadeInView({
   style,
 }: FadeInViewProps) {
   const progress = useSharedValue(0);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reducedMotion) {
+      // Reduced motion: present the final state immediately, no fade/translate.
+      progress.value = 1;
+      return;
+    }
     progress.value = withDelay(
       delay,
       withTiming(1, { duration, easing: Easing.out(Easing.cubic) }),
     );
-  }, [delay, duration, progress]);
+  }, [delay, duration, progress, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: progress.value,

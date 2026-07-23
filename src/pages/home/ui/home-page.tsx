@@ -1,7 +1,8 @@
 import { Link } from 'expo-router';
+import { useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useTodayRoll } from '@/entities/roll';
+import { useRolls, useTodayRoll } from '@/entities/roll';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
@@ -12,27 +13,29 @@ import {
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
+import { formatReelLength, useDevelopedRolls } from '@/widgets/developed-rolls-shelf';
 
-// The "n/총" counter and develop-card clip count are bound to today's real roll
-// (via useTodayRoll). The contact-sheet frames and shelf below are still
-// prototype fixtures until the full home binding (contact sheet thumbnails,
-// shelf) lands as its own milestone.
+// A daily roll shows its captures against a soft target of empty frames so the
+// gaps invite more collecting (concept §4, "빈칸을 보여준다"). This is a display
+// target, not a hard capacity — the "all-day" rule keeps accepting clips.
 const ROLL_SIZE = 12;
 
 // Contact-sheet preview holds up to this many frames on Home; the full grid
 // lives on the roll-detail screen.
 const PREVIEW_SLOTS = 6;
 
-const shelf = [
-  { id: 'R018', title: '성수동 오후', tint: '#7A3F2A' },
-  { id: 'R017', title: '한강 노을', tint: '#1F5F5B' },
-];
+// The home shelf teases the most recent developed rolls; the full shelf is in
+// the archive. Cover tints are cycled by position — rolls carry no color yet.
+const SHELF_PREVIEW = 2;
+const COVER_TINTS = ['#7A3F2A', '#1F5F5B', '#5A4718', '#3E2C5A', '#245A3E'];
 
 export function HomePage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
   const todayRoll = useTodayRoll();
+  const rolls = useRolls();
+  const developedRolls = useDevelopedRolls();
   const captured = todayRoll?.clipRefs.length ?? 0;
   const filledPreview = Math.min(captured, PREVIEW_SLOTS);
   const emptyPreview = Math.max(PREVIEW_SLOTS - filledPreview, 0);
@@ -41,6 +44,19 @@ export function HomePage() {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+
+  // The roll's real ordinal among daily rolls, so the edge print is honest
+  // rather than a fixed mock number.
+  const rollNumber = useMemo(() => {
+    if (!todayRoll) return undefined;
+    const index = rolls
+      .filter((roll) => roll.type === 'daily')
+      .sort((left, right) => left.createdAt - right.createdAt)
+      .findIndex((roll) => roll.id === todayRoll.id);
+    return index >= 0 ? index + 1 : undefined;
+  }, [rolls, todayRoll]);
+
+  const shelfPreview = developedRolls.slice(0, SHELF_PREVIEW);
 
   return (
     <ScrollView
@@ -56,7 +72,8 @@ export function HomePage() {
     >
       <View style={styles.header}>
         <ThemedText type="edge" themeColor="amber">
-          ROLL 019 · {rollDate}
+          {rollNumber ? `ROLL ${String(rollNumber).padStart(3, '0')} · ` : ''}
+          {rollDate}
         </ThemedText>
         <View style={styles.titleRow}>
           <ThemedText type="title">오늘의 롤</ThemedText>
@@ -68,7 +85,9 @@ export function HomePage() {
 
       {/* Contact sheet — undeveloped negatives for the day's real clips, then
           the empty slots that invite more captures. The whole strip lives on a
-          film-black base and opens the full roll. */}
+          film-black base and opens the full roll. Capture itself is the center
+          safelight button in the tab bar (concept §6), so Home no longer holds
+          its own capture ring. */}
       <Link
         accessibilityLabel="오늘의 롤 열기"
         href={{ pathname: '/roll/[id]', params: { id: todayRoll?.id ?? '' } }}
@@ -116,24 +135,9 @@ export function HomePage() {
         </Pressable>
       </Link>
 
-      {/* The safelight — capture is a single amber tap, everything else recedes. */}
-      <View style={styles.captureBlock}>
-        <Link
-          accessibilityLabel="담기"
-          href={{ pathname: '/capture', params: { context: 'cafe' } }}
-          style={styles.captureLink}
-        >
-          <View style={styles.ringOuter}>
-            <View style={[styles.ringTrack, { borderColor: theme.border }]} />
-            <View style={[styles.ringCore, { backgroundColor: theme.primary }]} />
-          </View>
-        </Link>
-        <ThemedText type="edge" themeColor="textSecondary" style={styles.captureHint}>
-          꾹 눌러 담기
-        </ThemedText>
-      </View>
-
-      {/* Delayed develop — the day's roll stays undeveloped until it ends. */}
+      {/* Delayed develop — the day's roll stays undeveloped until it ends. This
+          is the anticipation the whole home leans on now that capture moved to
+          the tab bar. */}
       <View
         style={[
           styles.developCard,
@@ -153,13 +157,13 @@ export function HomePage() {
         </View>
         <View style={styles.developMeta}>
           <ThemedText type="edge" themeColor="amber">
-            {captured}컷 · 예상 릴 0:{String(captured * 5).padStart(2, '0')}
+            {captured}컷 · 예상 릴 {formatReelLength(captured * 5)}
           </ThemedText>
         </View>
       </View>
 
       {/* Shelf preview — developed rolls stand like spines; the empty slot pulls
-          for the next one. */}
+          for the next one. Real developed rolls now (concept §6, "선반 미리보기"). */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <ThemedText type="heading">선반</ThemedText>
@@ -170,19 +174,33 @@ export function HomePage() {
           </Link>
         </View>
         <View style={styles.shelfRow}>
-          {shelf.map((roll) => (
-            <View key={roll.id} style={[styles.spine, { backgroundColor: roll.tint }]}>
-              <ThemedText selectable={false} style={styles.spineNum}>
-                {roll.id}
-              </ThemedText>
-              <ThemedText selectable={false} style={styles.spineTitle}>
-                {roll.title}
-              </ThemedText>
-            </View>
+          {shelfPreview.map((roll, index) => (
+            <Link
+              key={roll.id}
+              href={{ pathname: '/capture/result', params: { rollId: roll.id } }}
+              asChild
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${roll.title} 릴 재생`}
+                style={StyleSheet.flatten([
+                  styles.spine,
+                  { backgroundColor: COVER_TINTS[index % COVER_TINTS.length] },
+                ])}
+              >
+                <ThemedText selectable={false} style={styles.spineNum}>
+                  {roll.dayKey ?? '롤'} · {formatReelLength(roll.totalSec)}
+                </ThemedText>
+                <ThemedText selectable={false} style={styles.spineTitle} numberOfLines={1}>
+                  {roll.title}
+                </ThemedText>
+              </Pressable>
+            </Link>
           ))}
+          {/* An empty slot always trails the shelf — the invitation to fill it. */}
           <View style={[styles.spineEmpty, { borderColor: theme.border }]}>
             <ThemedText type="edge" themeColor="textSecondary">
-              빈 롤
+              {shelfPreview.length === 0 ? '첫 롤' : '빈 롤'}
             </ThemedText>
           </View>
         </View>
@@ -232,25 +250,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   frameGhost: { fontSize: 18, fontWeight: '700' },
-  captureBlock: { alignItems: 'center', gap: Spacing.three },
-  captureLink: { borderRadius: Radius.pill },
-  ringOuter: { width: 96, height: 96, alignItems: 'center', justifyContent: 'center' },
-  ringTrack: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 48,
-    borderWidth: 4,
-  },
-  ringCore: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    boxShadow: '0 0 26px rgba(234,94,56,0.5)',
-  },
-  captureHint: {},
   developCard: {
     borderRadius: Radius.xlarge,
     borderCurve: 'continuous',

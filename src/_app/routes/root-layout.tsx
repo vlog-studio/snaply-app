@@ -79,6 +79,7 @@ function RootStack() {
         <Stack.Screen name="capture/record" options={{ headerShown: false }} />
         <Stack.Screen name="capture/editing" options={{ headerShown: false }} />
         <Stack.Screen name="capture/result" options={{ headerShown: false }} />
+        <Stack.Screen name="roll/[id]" options={{ title: '롤 상세' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>

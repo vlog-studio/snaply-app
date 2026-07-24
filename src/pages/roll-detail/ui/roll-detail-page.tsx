@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getCaptureMoodLabel } from '@/entities/capture-session';
+import { NegativeFrame } from '@/shared/ui/negative-frame';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -79,8 +80,9 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
               accessibilityLabel={`${index + 1}번째 컷 · ${clip.durationSec}초${
                 clip.mood ? ` · ${getCaptureMoodLabel(clip.mood)}` : ''
               } · 미현상`}
-              style={[styles.frame, { backgroundColor: theme.film, borderColor: theme.border }]}
+              style={[styles.frameCell, { backgroundColor: theme.film, borderColor: theme.border }]}
             >
+              <NegativeFrame uri={clip.uri} />
               <ThemedText type="edge" themeColor="amber" style={styles.frameIndex}>
                 {String(index + 1).padStart(2, '0')}
               </ThemedText>
@@ -92,7 +94,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
           {Array.from({ length: emptySlots }).map((_, index) => (
             <View
               key={`empty-${index}`}
-              style={[styles.frameEmpty, { borderColor: theme.border }]}
+              style={[styles.frameCell, styles.frameEmpty, { borderColor: theme.border }]}
             >
               <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
                 ?
@@ -142,23 +144,23 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.two },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  frame: {
+  // One standardized contact-sheet cell drives both filled and empty frames, so
+  // the grid reads as regular equal negatives; only the fill (a thumbnail vs the
+  // dashed ghost) differs, never the geometry. The thumbnail fills exactly this
+  // cell (NegativeFrame is an absolute fill, clipped by `overflow: 'hidden'`).
+  frameCell: {
     width: '30%',
     aspectRatio: 0.72,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
     borderWidth: 1,
-    padding: Spacing.two,
-    justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  frameIndex: {},
-  frameMeta: { alignSelf: 'flex-end' },
+  // Edge index and duration float in opposite corners so neither displaces the
+  // negative fill.
+  frameIndex: { position: 'absolute', top: Spacing.two, left: Spacing.two },
+  frameMeta: { position: 'absolute', bottom: Spacing.two, right: Spacing.two },
   frameEmpty: {
-    width: '30%',
-    aspectRatio: 0.72,
-    borderRadius: Radius.small,
-    borderCurve: 'continuous',
-    borderWidth: 1,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',

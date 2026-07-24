@@ -2,9 +2,11 @@ import { Link } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { useClips, type Clip } from '@/entities/clip';
 import { useRolls, useTodayRoll } from '@/entities/roll';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { FadeInView } from '@/shared/ui/fade-in-view';
+import { NegativeFrame } from '@/shared/ui/negative-frame';
 import {
   MaxContentWidth,
   Radius,
@@ -32,9 +34,22 @@ export function HomePage() {
   const [developInfoOpen, setDevelopInfoOpen] = useState(false);
   const todayRoll = useTodayRoll();
   const rolls = useRolls();
+  const clips = useClips();
   const captured = todayRoll?.clipRefs.length ?? 0;
-  const filledPreview = Math.min(captured, PREVIEW_SLOTS);
-  const emptyPreview = Math.max(PREVIEW_SLOTS - filledPreview, 0);
+
+  // The first few real clips of today's roll, ordered, so each preview frame can
+  // sample its own negative. Cross-entity join (roll refs + clip archive) belongs
+  // at the page layer — neither entity imports the other (mirrors useRollDetail).
+  const previewClips = useMemo<Clip[]>(() => {
+    if (!todayRoll) return [];
+    const byId = new Map(clips.map((clip) => [clip.id, clip]));
+    return [...todayRoll.clipRefs]
+      .sort((left, right) => left.order - right.order)
+      .map((ref) => byId.get(ref.clipId))
+      .filter((clip): clip is Clip => clip !== undefined)
+      .slice(0, PREVIEW_SLOTS);
+  }, [todayRoll, clips]);
+  const emptyPreview = Math.max(PREVIEW_SLOTS - previewClips.length, 0);
   const rollDate = new Intl.DateTimeFormat('en-CA', {
     year: 'numeric',
     month: '2-digit',
@@ -111,19 +126,21 @@ export function HomePage() {
                   ))}
                 </View>
                 <View style={styles.frameRow}>
-                  {Array.from({ length: filledPreview }).map((_, index) => (
+                  {previewClips.map((clip, index) => (
                     <View
-                      key={`clip-${index}`}
+                      key={clip.id}
                       style={[
-                        styles.frameWindow,
-                        {
-                          backgroundColor: theme.background,
-                          borderColor: theme.border,
-                          borderWidth: 1,
-                        },
+                        styles.frameCell,
+                        { backgroundColor: theme.film, borderColor: theme.border },
                       ]}
                     >
-                      <ThemedText selectable={false} type="edge" themeColor="amber">
+                      <NegativeFrame uri={clip.uri} />
+                      <ThemedText
+                        selectable={false}
+                        type="edge"
+                        themeColor="amber"
+                        style={styles.frameIndex}
+                      >
                         {String(index + 1).padStart(2, '0')}
                       </ThemedText>
                     </View>
@@ -131,7 +148,7 @@ export function HomePage() {
                   {Array.from({ length: emptyPreview }).map((_, index) => (
                     <View
                       key={`empty-${index}`}
-                      style={[styles.frameEmpty, { borderColor: theme.border }]}
+                      style={[styles.frameCell, styles.frameEmpty, { borderColor: theme.border }]}
                     >
                       <ThemedText
                         selectable={false}
@@ -235,19 +252,21 @@ const styles = StyleSheet.create({
   },
   perfHole: { width: 14, height: 8, borderRadius: 2 },
   frameRow: { flexDirection: 'row', gap: Spacing.two, paddingHorizontal: Spacing.three },
-  frameWindow: {
+  // One standardized film cell drives both filled and empty frames, so the strip
+  // reads as a regular row of equal negatives; only the fill (a thumbnail vs the
+  // dashed ghost) differs, never the geometry. The thumbnail fills exactly this
+  // cell (NegativeFrame is an absolute fill, clipped by `overflow: 'hidden'`).
+  frameCell: {
     flex: 1,
     aspectRatio: 0.72,
     borderRadius: 4,
     borderCurve: 'continuous',
-    padding: Spacing.two,
-    alignItems: 'flex-end',
-  },
-  frameEmpty: {
-    flex: 1,
-    aspectRatio: 0.72,
-    borderRadius: 4,
     borderWidth: 1,
+    overflow: 'hidden',
+  },
+  // The edge index floats in the corner so it never displaces the negative fill.
+  frameIndex: { position: 'absolute', top: Spacing.one, right: Spacing.one },
+  frameEmpty: {
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',

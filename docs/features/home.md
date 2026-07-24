@@ -10,7 +10,7 @@ The Home tab is "오늘의 롤" (today's roll): a single bounded section that sh
 | --- | --- | --- |
 | Today's-roll section panel | `Partial` | The whole roll is one bounded panel on a raised surface (`backgroundElement` with a border) so the film-black strip reads as film against the near-black page instead of dissolving into it. Its header — the edge print, the `오늘의 롤` title (`heading`, integrated inside the panel), and the `NN/12 · 미현상` counter — sits inside the panel. |
 | Today's-roll edge print | `Partial` | The panel header stamps a mono "edge print" (`ROLL NNN · <date>`) with the device date formatted `en-CA` (ISO-like), plus a `NN/12 · 미현상` counter. The clip count (`NN`) and the roll number (`NNN`, the roll's real ordinal among daily rolls) are both derived from the roll store. The `/12` is an intentional soft display target (concept §4, "빈칸을 보여준다"), not a hard capacity — the "all-day" rule keeps accepting clips past 12. |
-| Contact-sheet film strip | `Partial` | The strip shows one undeveloped negative frame (edge index) per real clip in today's roll (up to a 6-frame preview), followed by dashed empty slots. Clip content is hidden by design (미현상). Tapping the strip opens the full roll at `/roll/[id]`. The perforation styling is decorative. |
+| Contact-sheet film strip | `Partial` | The strip shows one undeveloped negative frame per real clip in today's roll (up to a 6-frame preview), followed by dashed empty slots. Each filled frame is a frosted negative: the clip's first frame is sampled (`shared/ui/negative-frame` via `expo-video` `generateThumbnailsAsync`) and rendered heavily blurred, dimmed, and amber-washed with its edge index on top — present and unmistakably filled, but the moment stays illegible until develop (미현상). Tapping the strip opens the full roll at `/roll/[id]`. The perforation styling is decorative. |
 | Delayed-develop notice | `Partial` | A compact hint row inside the panel (`DARKROOM · 하루가 끝나면 현상돼요 · 자세히 ›`) opens a bottom sheet with the full "하루가 끝나면 현상해요" copy. The sheet's clip count and estimated-reel length (`clips × 5s`, formatted `m:ss`) are computed from today's real roll clip count; the explanatory copy is static. The sheet is the shared `shared/ui/bottom-sheet` shell. |
 
 Capture has moved off Home entirely. There is no longer a Home capture ring; the tab bar's center safelight button opens `/capture` from any tab (see [Application shell and navigation](app-shell-and-navigation.md)). Home no longer passes a `context` search param to Capture. The developed-rolls shelf preview has been removed from Home; developed rolls are reached through the 보관함 (archive) tab (see [Recording archive](recording-archive.md)).
@@ -23,12 +23,13 @@ Capture has moved off Home entirely. There is no longer a Home capture ring; the
 - `src/widgets/developed-rolls-shelf` still provides `formatReelLength` (used by the develop-notice estimate); its `useDevelopedRolls` read model now feeds only the archive, not Home.
 - `src/shared/ui/bottom-sheet` provides the business-agnostic bottom-sheet shell (platform `Modal` + native slide, backdrop-tap to dismiss) used for the develop notice.
 - `src/shared/ui/themed-text`, `fade-in-view`, and `theme` provide business-agnostic presentation primitives.
+- `src/shared/ui/negative-frame` renders a clip's frosted undeveloped negative from a bare URI (samples the first frame via `expo-video`, shows it blurred + amber-washed via `expo-image`); it is business-agnostic and shared with the roll-detail contact sheet.
 
 The clip counter and roll ordinal are backed by the persisted roll/clip stores (`entities/roll`, `entities/clip`, via `shared/lib/local-store`). The contact-sheet frame content stays hidden by design.
 
 ## Known limitations and next integration boundaries
 
-- The contact-sheet frame count is derived from today's roll, but frame content stays hidden (undeveloped) by design.
+- The contact-sheet frame count is derived from today's roll. Filled frames now show a frosted, heavily blurred + amber-washed sample of each clip's first frame (`shared/ui/negative-frame`) so a captured frame reads as present and real, while the moment stays unrecognizable (undeveloped) by design. Each preview frame instantiates a lightweight (non-playing) `expo-video` player to sample the still; the strip caps at 6 frames, so cost is bounded on Home.
 - The develop notice copy is static; only its clip count and estimated length are derived.
 - Home no longer previews developed rolls; that shelf lives in the 보관함 (archive) tab. Home is intentionally a single "오늘의 롤" section, so it looks sparse until the day's clips fill the strip.
 - "촬영 중 테마 롤" from the concept §6 Home description is not shown — the MVP only has the daily roll (themed rolls are deferred to v1.1+).

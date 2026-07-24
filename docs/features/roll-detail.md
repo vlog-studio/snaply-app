@@ -32,7 +32,7 @@ The empty slots and hidden negative content are intentional (concept §4 "빈칸
 - `src/app/roll/[id].tsx` is the thin route adapter that reads the `id` parameter.
 - `src/entities/roll` owns the roll and its clip references; `src/entities/clip` owns clip metadata. Neither imports the other — the join lives at this page.
 - `src/pages/capture-editing` (develop ceremony) and `src/features/develop-roll` (reel composition + status) own the develop action reached by 현상하기; `src/pages/capture-result` owns the reel player reached by 릴 보기.
-- `src/shared/ui` (`snaply-button`, `themed-text`, `theme`) provides presentation primitives; `src/shared/ui/negative-frame` renders each frame's frosted undeveloped-negative background from the clip URI.
+- `src/shared/ui` (`snaply-button`, `themed-text`, `theme`) provides presentation primitives; `src/shared/ui/negative-frame` renders each frame's frosted undeveloped-negative background from the clip URI, sampling the first frame through the shared disk-cached `shared/lib/video-thumbnails` util (a one-shot extraction, not a live per-frame video player, so a full contact sheet renders without exhausting hardware decoders).
 
 ## Persistence and privacy
 

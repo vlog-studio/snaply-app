@@ -45,7 +45,7 @@ Accepted video extensions are `.m4v`, `.mov`, `.mp4`, and `.webm`. New files are
 
 Recordings are app-private local files. They are not entries in the device media library and are not synchronized to a backend. App deletion removes them.
 
-Thumbnails are derived cover art, not part of `LocalRecording`. `shared/lib/recording-thumbnails` extracts the first frame on first request and caches it under the cache directory keyed by the source file name (`<base>.jpg`). Losing the cache only forces re-extraction; it never loses a clip. The web variant returns no thumbnail.
+Thumbnails are derived cover art, not part of `LocalRecording`. The extraction and caching live in the generic `shared/lib/video-thumbnails` util, which pulls the first frame on first request and caches it under the cache directory keyed by the source file's base name (`<base>.jpg`); `shared/lib/recording-thumbnails` is a thin adapter that maps `LocalRecording` onto it. Because the cache key is the base name, the same file resolves to one thumbnail shared across every surface that previews it (the cut grid, Home's contact-sheet strip, and roll-detail negatives). Losing the cache only forces re-extraction; it never loses a clip. The web variant returns no thumbnail.
 
 ## Developed-roll shelf
 
@@ -67,7 +67,7 @@ The “롤” segment is `Functional`, backed by the real roll store.
 - `src/shared/ui/tab-bar-chrome` owns the hidden/visible switch for the bottom chrome; `_app/routes/app-tabs` reads it to hide the tab bar and safelight while a screen shows its own action bar.
 - `src/shared/ui/video-preview` owns the business-agnostic looping video player used by the playback modal.
 - `src/shared/lib/recording-files` owns native file operations and the web fallback.
-- `src/shared/lib/recording-thumbnails` owns first-frame extraction/caching and the web fallback.
+- `src/shared/lib/video-thumbnails` owns first-frame extraction/caching (keyed by base name) and the web fallback; `src/shared/lib/recording-thumbnails` is the `LocalRecording` adapter over it.
 - `src/entities/capture-session` is not currently connected to persisted recordings; `LocalRecording` contains no mood or duration metadata.
 
 ## Known limitations

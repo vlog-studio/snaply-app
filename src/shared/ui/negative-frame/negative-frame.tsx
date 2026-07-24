@@ -1,13 +1,10 @@
 import { Image } from 'expo-image';
-import { useVideoPlayer, type VideoThumbnail } from 'expo-video';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useTheme } from '../theme';
+import { getVideoThumbnail } from '@/shared/lib/video-thumbnails';
 
-// Seconds into the clip to sample for the latent image. A hair past the very
-// start skips the occasional black leader frame at t=0.
-const SAMPLE_TIME_SEC = 0.2;
+import { useTheme } from '../theme';
 
 // The negative is a latent image — exposed but not yet developed, so it must
 // stay unreadable. A heavy blur (in points) abstracts the frame down to color
@@ -24,11 +21,16 @@ export type NegativeFrameProps = {
 
 /**
  * A clip rendered as a frosted, undeveloped negative: its first frame is sampled
- * via expo-video and shown heavily blurred, dimmed, and washed in amber
- * safelight, so the frame reads as "something real is exposed here" without
- * revealing the moment before it is developed (concept §2/§4). It gives the
- * captured frame presence the flat film-black box lacked, while keeping the
- * content illegible by design.
+ * and shown heavily blurred, dimmed, and washed in amber safelight, so the frame
+ * reads as "something real is exposed here" without revealing the moment before
+ * it is developed (concept §2/§4). It gives the captured frame presence the flat
+ * film-black box lacked, while keeping the content illegible by design.
+ *
+ * The frame is extracted through the shared, disk-cached `video-thumbnails` util
+ * (a one-shot native call), not a live video player. That is what lets a whole
+ * contact sheet of negatives render at once: mounting one `useVideoPlayer` per
+ * frame exhausts the platform's small pool of hardware decoders, so every frame
+ * but the last silently stays black.
  *
  * Business-agnostic — it takes a bare URI, not a `Clip`. It fills its parent
  * (absolute fill); the caller owns the frame's shape, border, `overflow:
@@ -36,35 +38,24 @@ export type NegativeFrameProps = {
  */
 export function NegativeFrame({ uri, blurRadius = DEFAULT_BLUR, style }: NegativeFrameProps) {
   const theme = useTheme();
-  const [thumbnail, setThumbnail] = useState<VideoThumbnail | null>(null);
-
-  // No VideoView is mounted — the player exists only to sample one still frame,
-  // so it never plays and stays cheap even with several frames on screen.
-  const player = useVideoPlayer(uri, (instance) => {
-    instance.muted = true;
-  });
+  const [thumbnailUri, setThumbnailUri] = useState<string>();
 
   useEffect(() => {
     let cancelled = false;
-    player
-      .generateThumbnailsAsync(SAMPLE_TIME_SEC)
-      .then((thumbnails) => {
-        if (!cancelled && thumbnails[0]) setThumbnail(thumbnails[0]);
-      })
-      .catch(() => {
-        // Leave the film-black fallback in place if sampling fails.
-      });
+    void getVideoThumbnail(uri).then((resolved) => {
+      if (!cancelled) setThumbnailUri(resolved);
+    });
     return () => {
       cancelled = true;
     };
-  }, [player]);
+  }, [uri]);
 
   return (
     <View style={[styles.fill, { backgroundColor: theme.film }, style]}>
-      {thumbnail ? (
+      {thumbnailUri ? (
         <Image
           accessible={false}
-          source={thumbnail}
+          source={{ uri: thumbnailUri }}
           contentFit="cover"
           blurRadius={blurRadius}
           style={StyleSheet.absoluteFill}

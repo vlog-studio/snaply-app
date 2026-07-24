@@ -82,6 +82,12 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
               } · 미현상`}
               style={[styles.frameCell, { backgroundColor: theme.film, borderColor: theme.border }]}
             >
+              {/* In-flow sizing anchor — see the `frameFill` style note. Without a
+                flex child a percentage-width + aspectRatio cell doesn't take its
+                aspectRatio height in the wrapping grid, so it collapses. Every
+                other child here (the negative, the two edge labels) is absolutely
+                positioned and can't serve as that anchor. */}
+              <View style={styles.frameFill} />
               <NegativeFrame uri={clip.uri} />
               <ThemedText type="edge" themeColor="amber" style={styles.frameIndex}>
                 {String(index + 1).padStart(2, '0')}
@@ -96,9 +102,14 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
               key={`empty-${index}`}
               style={[styles.frameCell, styles.frameEmpty, { borderColor: theme.border }]}
             >
-              <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
-                ?
-              </ThemedText>
+              {/* Same in-flow anchor as a filled cell so the empty slot keeps its
+                aspectRatio height even in an all-empty row (with no filled sibling
+                to stretch it); it also centers the ghost glyph. */}
+              <View style={styles.frameFill}>
+                <ThemedText selectable={false} style={[styles.frameGhost, { color: theme.border }]}>
+                  ?
+                </ThemedText>
+              </View>
             </View>
           ))}
         </View>
@@ -133,7 +144,12 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  centered: { alignItems: 'center', justifyContent: 'center', gap: Spacing.two, padding: Spacing.six },
+  centered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    padding: Spacing.six,
+  },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,
@@ -144,6 +160,11 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.two },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
+  // In-flow anchor shared by both cell kinds: a `flex: 1` child is what makes the
+  // percentage-width + aspectRatio cell actually take its aspectRatio height in
+  // the wrapping grid. Filled cells stack the negative + edge labels on top as
+  // absolute fills; empty cells put their ghost glyph inside it (hence centered).
+  frameFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   // One standardized contact-sheet cell drives both filled and empty frames, so
   // the grid reads as regular equal negatives; only the fill (a thumbnail vs the
   // dashed ghost) differs, never the geometry. The thumbnail fills exactly this
@@ -160,10 +181,9 @@ const styles = StyleSheet.create({
   // negative fill.
   frameIndex: { position: 'absolute', top: Spacing.two, left: Spacing.two },
   frameMeta: { position: 'absolute', bottom: Spacing.two, right: Spacing.two },
+  // Centering lives on the inner `frameFill`; the empty cell only adds the dash.
   frameEmpty: {
     borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   frameGhost: { fontSize: 18, fontWeight: '700' },
   footer: {

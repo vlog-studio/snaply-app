@@ -30,6 +30,7 @@ type RollState = {
   hasHydrated: boolean;
   addClipToRoll: (rollId: string, clipId: string) => void;
   removeClipFromRoll: (rollId: string, clipId: string) => void;
+  reorderRollClips: (rollId: string, orderedClipIds: string[]) => void;
   setRollStatus: (rollId: string, status: RollStatus) => void;
   setRollReel: (rollId: string, reel: Reel) => void;
   setHasHydrated: (value: boolean) => void;
@@ -61,6 +62,26 @@ function appendClipRef(clipRefs: ClipRef[], clipId: string): ClipRef[] {
   return [...clipRefs, { clipId, order: nextOrder }];
 }
 
+/**
+ * Rewrites each reference's `order` to follow `orderedClipIds` (first id →
+ * order 0). References not listed keep their relative order after the listed
+ * ones, and unknown or duplicate ids are ignored — so a stale caller snapshot
+ * can only renumber, never drop or duplicate membership.
+ */
+function reorderClipRefs(clipRefs: ClipRef[], orderedClipIds: string[]): ClipRef[] {
+  const known = new Set(clipRefs.map((ref) => ref.clipId));
+  const listed: string[] = [];
+  for (const clipId of orderedClipIds) {
+    if (known.has(clipId) && !listed.includes(clipId)) listed.push(clipId);
+  }
+  const position = new Map(listed.map((clipId, index) => [clipId, index]));
+  [...clipRefs]
+    .filter((ref) => !position.has(ref.clipId))
+    .sort((left, right) => left.order - right.order)
+    .forEach((ref, index) => position.set(ref.clipId, listed.length + index));
+  return clipRefs.map((ref) => ({ ...ref, order: position.get(ref.clipId) ?? ref.order }));
+}
+
 export const useRollStore = create<RollState>()(
   persist(
     (set) => ({
@@ -78,6 +99,14 @@ export const useRollStore = create<RollState>()(
           rolls: state.rolls.map((roll) =>
             roll.id === rollId
               ? { ...roll, clipRefs: roll.clipRefs.filter((ref) => ref.clipId !== clipId) }
+              : roll,
+          ),
+        })),
+      reorderRollClips: (rollId, orderedClipIds) =>
+        set((state) => ({
+          rolls: state.rolls.map((roll) =>
+            roll.id === rollId
+              ? { ...roll, clipRefs: reorderClipRefs(roll.clipRefs, orderedClipIds) }
               : roll,
           ),
         })),
@@ -160,6 +189,10 @@ export function useAddClipToRoll(): (rollId: string, clipId: string) => void {
 
 export function useRemoveClipFromRoll(): (rollId: string, clipId: string) => void {
   return useRollStore((state) => state.removeClipFromRoll);
+}
+
+export function useReorderRollClips(): (rollId: string, orderedClipIds: string[]) => void {
+  return useRollStore((state) => state.reorderRollClips);
 }
 
 export function useSetRollStatus(): (rollId: string, status: RollStatus) => void {

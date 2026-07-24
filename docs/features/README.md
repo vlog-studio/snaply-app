@@ -59,7 +59,7 @@ Tap the center safelight button in the tab bar
 | [Authentication](authentication.md) | Supabase Google/Apple OAuth sign-in, Supabase-owned session persistence, route guard, sign-out | `Functional` |
 | [Home and moment overview](home.md) | Today's-roll edge print, real clip counter and contact-sheet preview, delayed-develop notice, real developed-roll shelf preview, roll-detail entry | `Partial` |
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, 담기 into today's roll, develop ceremony, sequential reel playback | `Partial` |
-| [Roll detail](roll-detail.md) | Roll contact-sheet grid of undeveloped clips, clip counter, develop / view-reel CTA | `Functional` |
+| [Roll detail](roll-detail.md) | Roll contact-sheet grid, single-cut playback, cut add/remove/reorder on undeveloped rolls, clip counter, develop / view-reel CTA | `Functional` |
 | [Recording archive](recording-archive.md) | Local clip persistence, listing, playback, deletion; developed-roll shelf backed by the roll store | `Partial` |
 | [Settings](settings.md) | Reminder, frequency, social connection, and account controls | `Prototype` |
 | [Location alerts and push notifications](location-and-push-notifications.md) | FCM token registration, geofence monitoring, arrival reporting, foreground notification presentation | `Partial` |

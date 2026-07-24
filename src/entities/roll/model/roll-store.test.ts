@@ -4,6 +4,7 @@ import {
   ensureDailyRoll,
   useAddClipToRoll,
   useRemoveClipFromRoll,
+  useReorderRollClips,
   useRollById,
   useRolls,
   useRollStore,
@@ -101,6 +102,64 @@ describe('roll store', () => {
       await act(async () => result.current.removeClipFromRoll(rollId, 'clip-1'));
 
       expect(result.current.roll?.clipRefs.map((ref) => ref.clipId)).toEqual(['clip-2']);
+    });
+  });
+
+  describe('reorderRollClips', () => {
+    async function setUpRollWithClips(clipIds: string[]) {
+      ensureDailyRoll(JULY_23);
+      const rollId = 'daily-2026-07-23';
+
+      const { result } = await renderHook(() => ({
+        addClipToRoll: useAddClipToRoll(),
+        reorderRollClips: useReorderRollClips(),
+        roll: useRollById(rollId),
+      }));
+
+      for (const clipId of clipIds) {
+        await act(async () => result.current.addClipToRoll(rollId, clipId));
+      }
+      return { rollId, result };
+    }
+
+    function orderedClipIds(refs: { clipId: string; order: number }[] | undefined): string[] {
+      return [...(refs ?? [])].sort((a, b) => a.order - b.order).map((ref) => ref.clipId);
+    }
+
+    it('rewrites orders to follow the given id sequence', async () => {
+      const { rollId, result } = await setUpRollWithClips(['clip-1', 'clip-2', 'clip-3']);
+
+      await act(async () => result.current.reorderRollClips(rollId, ['clip-3', 'clip-1', 'clip-2']));
+
+      expect(orderedClipIds(result.current.roll?.clipRefs)).toEqual([
+        'clip-3',
+        'clip-1',
+        'clip-2',
+      ]);
+    });
+
+    it('keeps unlisted clips after the listed ones in their previous relative order', async () => {
+      const { rollId, result } = await setUpRollWithClips(['clip-1', 'clip-2', 'clip-3', 'clip-4']);
+
+      await act(async () => result.current.reorderRollClips(rollId, ['clip-3']));
+
+      expect(orderedClipIds(result.current.roll?.clipRefs)).toEqual([
+        'clip-3',
+        'clip-1',
+        'clip-2',
+        'clip-4',
+      ]);
+    });
+
+    it('ignores unknown and duplicate ids without changing membership', async () => {
+      const { rollId, result } = await setUpRollWithClips(['clip-1', 'clip-2']);
+
+      await act(async () =>
+        result.current.reorderRollClips(rollId, ['ghost', 'clip-2', 'clip-2', 'clip-1']),
+      );
+
+      expect(orderedClipIds(result.current.roll?.clipRefs)).toEqual(['clip-2', 'clip-1']);
+      expect(result.current.roll?.clipRefs).toHaveLength(2);
     });
   });
 

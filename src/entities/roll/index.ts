@@ -4,6 +4,7 @@ export {
   getRollById,
   useAddClipToRoll,
   useRemoveClipFromRoll,
+  useReorderRollClips,
   useRollById,
   useRolls,
   useRollsHydrated,

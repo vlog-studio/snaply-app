@@ -15,6 +15,10 @@ jest.mock('@/shared/lib/recording-files', () => ({
   deleteLocalRecording: jest.fn(),
 }));
 
+jest.mock('@/shared/lib/recording-thumbnails', () => ({
+  deleteRecordingThumbnail: jest.fn(),
+}));
+
 const listLocalRecordingsMock = jest.mocked(listLocalRecordings);
 const persistLocalRecordingMock = jest.mocked(persistLocalRecording);
 const deleteLocalRecordingMock = jest.mocked(deleteLocalRecording);
@@ -134,6 +138,66 @@ describe('useLocalRecordings', () => {
     expect(result.current.errorMessage).toBe('영상을 삭제하지 못했어요.');
     expect(result.current.recordings).toEqual([target]);
     expect(result.current.deletingId).toBeUndefined();
+  });
+
+  it('removes several recordings in one batch and reports success', async () => {
+    const kept = createRecording({ id: 'snaply-1.mp4' });
+    const first = createRecording({ id: 'snaply-2.mp4', uri: 'file:///r/2.mp4' });
+    const second = createRecording({ id: 'snaply-3.mp4', uri: 'file:///r/3.mp4' });
+    listLocalRecordingsMock.mockResolvedValue([kept, first, second]);
+    deleteLocalRecordingMock.mockResolvedValue();
+
+    const { result } = await renderHook(() => useLocalRecordings());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let succeeded: boolean | undefined;
+    await act(async () => {
+      succeeded = await result.current.removeRecordings([first, second]);
+    });
+
+    expect(deleteLocalRecordingMock).toHaveBeenCalledTimes(2);
+    expect(succeeded).toBe(true);
+    expect(result.current.recordings).toEqual([kept]);
+    expect(result.current.deletingIds.size).toBe(0);
+  });
+
+  it('keeps the clips that succeeded when part of a batch fails', async () => {
+    const good = createRecording({ id: 'snaply-1.mp4', uri: 'file:///r/1.mp4' });
+    const bad = createRecording({ id: 'snaply-2.mp4', uri: 'file:///r/2.mp4' });
+    listLocalRecordingsMock.mockResolvedValue([good, bad]);
+    deleteLocalRecordingMock.mockImplementation(async (uri: string) => {
+      if (uri === bad.uri) throw new Error('locked');
+    });
+
+    const { result } = await renderHook(() => useLocalRecordings());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let succeeded: boolean | undefined;
+    await act(async () => {
+      succeeded = await result.current.removeRecordings([good, bad]);
+    });
+
+    expect(succeeded).toBe(false);
+    expect(result.current.errorMessage).toBe('일부 컷을 삭제하지 못했어요.');
+    expect(result.current.recordings).toEqual([bad]);
+    expect(result.current.deletingIds.size).toBe(0);
+  });
+
+  it('does nothing when asked to remove an empty batch', async () => {
+    const only = createRecording();
+    listLocalRecordingsMock.mockResolvedValue([only]);
+
+    const { result } = await renderHook(() => useLocalRecordings());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    let succeeded: boolean | undefined;
+    await act(async () => {
+      succeeded = await result.current.removeRecordings([]);
+    });
+
+    expect(succeeded).toBe(true);
+    expect(deleteLocalRecordingMock).not.toHaveBeenCalled();
+    expect(result.current.recordings).toEqual([only]);
   });
 
   it('clears an existing error message on demand', async () => {

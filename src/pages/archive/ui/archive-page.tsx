@@ -1,14 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatRecordingDate, useLocalRecordings } from '@/features/manage-recordings';
+import {
+  formatRecordingDate,
+  formatRecordingDay,
+  recordingDayKey,
+  useLocalRecordings,
+} from '@/features/manage-recordings';
 import { formatFileSize } from '@/shared/lib/format-file-size';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
+import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
   Radius,
@@ -21,9 +27,17 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 import { formatReelLength, useDevelopedRolls } from '@/widgets/developed-rolls-shelf';
 
+import { CutCell } from './cut-cell';
+import { CutSelectionBar, CutSelectionBarContentHeight } from './cut-selection-bar';
+
 // "롤" = developed rolls (the shelf), "컷" = the raw clip archive (local
 // recordings). Both are now live.
 type ArchiveView = 'clips' | 'rolls';
+// "최신순" = one flat newest-first grid, "일자별" = the same grid split into
+// per-day sections.
+type ClipSort = 'recent' | 'day';
+
+type ClipDayGroup = { key: string; label: string; items: LocalRecording[] };
 
 // Cover tints cycled by shelf position — rolls carry no color of their own yet.
 const COVER_TINTS = ['#7A3F2A', '#1F5F5B', '#5A4718', '#3E2C5A', '#245A3E'];
@@ -34,24 +48,115 @@ export function ArchivePage() {
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
   const [archiveView, setArchiveView] = useState<ArchiveView>('clips');
+  const [clipSort, setClipSort] = useState<ClipSort>('recent');
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
-  const { recordings, isLoading, deletingId, errorMessage, reloadRecordings, removeRecording } =
+  const { recordings, isLoading, deletingIds, errorMessage, reloadRecordings, removeRecordings } =
     useLocalRecordings();
   const developedRolls = useDevelopedRolls();
+  const setTabBarHidden = useSetTabBarHidden();
+
+  // Global newest-first clip number (컷 01 is the oldest), independent of the
+  // day grouping so a clip keeps the same number across both views.
+  const clipNumbers = useMemo(() => {
+    const map = new Map<string, string>();
+    recordings.forEach((recording, index) => {
+      map.set(recording.id, String(recordings.length - index).padStart(2, '0'));
+    });
+    return map;
+  }, [recordings]);
+
+  const dayGroups = useMemo<ClipDayGroup[]>(() => {
+    const groups: ClipDayGroup[] = [];
+    const byKey = new Map<string, ClipDayGroup>();
+    for (const recording of recordings) {
+      const key = recordingDayKey(recording.createdAt);
+      let group = byKey.get(key);
+      if (!group) {
+        group = { key, label: formatRecordingDay(recording.createdAt), items: [] };
+        byKey.set(key, group);
+        groups.push(group);
+      }
+      group.items.push(recording);
+    }
+    return groups;
+  }, [recordings]);
+
+  // Selection mode swaps the bottom chrome: tab bar + safelight out, the
+  // CutSelectionBar in. Enter/exit must always flip both together.
+  const exitSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+    setTabBarHidden(false);
+  }, [setTabBarHidden]);
+
+  const enterSelection = useCallback(
+    (recording: LocalRecording) => {
+      setSelectionMode(true);
+      setSelectedIds(new Set([recording.id]));
+      setTabBarHidden(true);
+    },
+    [setTabBarHidden],
+  );
 
   useFocusEffect(
     useCallback(() => {
       void reloadRecordings();
-    }, [reloadRecordings]),
+      // Leaving the screen with selection active would strand the app with no
+      // bottom chrome at all — always restore the tab bar on blur.
+      return () => exitSelection();
+    }, [reloadRecordings, exitSelection]),
   );
 
-  const confirmDelete = (recording: LocalRecording) => {
-    Alert.alert('이 컷을 보관함에서 삭제할까요?', '삭제한 원본은 복구할 수 없어요.', [
+  // Android hardware back exits selection mode instead of leaving the screen.
+  useEffect(() => {
+    if (!selectionMode) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      exitSelection();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [selectionMode, exitSelection]);
+
+  const toggleSelected = useCallback((recording: LocalRecording) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(recording.id)) next.delete(recording.id);
+      else next.add(recording.id);
+      return next;
+    });
+  }, []);
+
+  const allSelected = recordings.length > 0 && selectedIds.size === recordings.length;
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((current) =>
+      current.size === recordings.length ? new Set() : new Set(recordings.map((item) => item.id)),
+    );
+  }, [recordings]);
+
+  const handleCellPress = useCallback(
+    (recording: LocalRecording) => {
+      if (selectionMode) toggleSelected(recording);
+      else setSelectedRecording(recording);
+    },
+    [selectionMode, toggleSelected],
+  );
+
+  const confirmBatchDelete = () => {
+    const targets = recordings.filter((recording) => selectedIds.has(recording.id));
+    if (targets.length === 0) return;
+
+    Alert.alert(`${targets.length}개 컷을 삭제할까요?`, '삭제한 원본은 복구할 수 없어요.', [
       { text: '취소', style: 'cancel' },
       {
         text: '삭제',
         style: 'destructive',
-        onPress: () => void removeRecording(recording),
+        onPress: () => {
+          void removeRecordings(targets);
+          exitSelection();
+        },
       },
     ]);
   };
@@ -65,7 +170,11 @@ export function ArchivePage() {
           styles.content,
           {
             paddingTop: Spacing.six + topInset,
-            paddingBottom: Spacing.six + tabBarHeight,
+            // The selection bar is taller than the tab bar it replaces — keep
+            // the last grid row scrollable above whichever chrome is active.
+            paddingBottom:
+              Spacing.six +
+              (selectionMode ? insets.bottom + CutSelectionBarContentHeight : tabBarHeight),
           },
         ]}
       >
@@ -105,7 +214,10 @@ export function ArchivePage() {
                 key={value}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isSelected }}
-                onPress={() => setArchiveView(value)}
+                onPress={() => {
+                  exitSelection();
+                  setArchiveView(value);
+                }}
                 style={[styles.segment, isSelected && { backgroundColor: theme.primary }]}
               >
                 <ThemedText
@@ -158,69 +270,84 @@ export function ArchivePage() {
               </View>
             ) : null}
 
-            {recordings.map((recording, index) => {
-              const isDeleting = deletingId === recording.id;
-              const clipNo = String(recordings.length - index).padStart(2, '0');
-
-              return (
-                <View
-                  key={recording.id}
-                  style={[
-                    styles.clipCard,
-                    { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-                  ]}
-                >
-                  <Pressable
-                    accessibilityHint="담긴 원본 컷을 재생해요"
-                    accessibilityLabel={`${formatRecordingDate(recording.createdAt)} 컷`}
-                    accessibilityRole="button"
-                    disabled={isDeleting}
-                    onPress={() => setSelectedRecording(recording)}
-                    style={styles.clipMain}
-                  >
-                    <View style={[styles.clipThumb, { backgroundColor: theme.film }]}>
-                      <ThemedText
-                        selectable={false}
-                        style={[styles.clipThumbNum, { color: theme.amber }]}
+            {recordings.length > 0 ? (
+              <View style={styles.clipToolbar}>
+                <View style={[styles.sortToggle, { borderColor: theme.border }]}>
+                  {(
+                    [
+                      ['recent', '최신순'],
+                      ['day', '일자별'],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const isActive = clipSort === value;
+                    return (
+                      <Pressable
+                        key={value}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isActive }}
+                        onPress={() => setClipSort(value)}
+                        style={[
+                          styles.sortChip,
+                          isActive && { backgroundColor: theme.backgroundElement },
+                        ]}
                       >
-                        {clipNo}
-                      </ThemedText>
-                      <ThemedText
-                        selectable={false}
-                        style={[styles.clipPlay, { color: theme.text }]}
-                      >
-                        ▶
-                      </ThemedText>
-                    </View>
-                    <View style={styles.clipCopy}>
-                      <ThemedText type="smallBold">
-                        {formatRecordingDate(recording.createdAt)}
-                      </ThemedText>
-                      <ThemedText type="edge" themeColor="textSecondary">
-                        원본 · {formatFileSize(recording.size)}
-                      </ThemedText>
-                    </View>
-                    <ThemedText
-                      selectable={false}
-                      style={[styles.chevron, { color: theme.textSecondary }]}
-                    >
-                      ›
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    accessibilityLabel={`${formatRecordingDate(recording.createdAt)} 컷 삭제`}
-                    accessibilityRole="button"
-                    disabled={isDeleting}
-                    onPress={() => confirmDelete(recording)}
-                    style={styles.deleteButton}
-                  >
-                    <ThemedText type="smallBold" themeColor="danger">
-                      {isDeleting ? '삭제 중' : '삭제'}
-                    </ThemedText>
-                  </Pressable>
+                        <ThemedText
+                          selectable={false}
+                          type="edge"
+                          style={{ color: isActive ? theme.text : theme.textSecondary }}
+                        >
+                          {label}
+                        </ThemedText>
+                      </Pressable>
+                    );
+                  })}
                 </View>
-              );
-            })}
+                <ThemedText type="edge" themeColor="textSecondary">
+                  {selectionMode ? '탭해서 선택' : '길게 눌러 선택'}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            {recordings.length > 0 && clipSort === 'recent' ? (
+              <View style={styles.clipGrid}>
+                {recordings.map((recording) => (
+                  <CutCell
+                    key={recording.id}
+                    recording={recording}
+                    clipNo={clipNumbers.get(recording.id) ?? ''}
+                    selectionMode={selectionMode}
+                    selected={selectedIds.has(recording.id)}
+                    isDeleting={deletingIds.has(recording.id)}
+                    onPress={() => handleCellPress(recording)}
+                    onLongPress={() => enterSelection(recording)}
+                  />
+                ))}
+              </View>
+            ) : null}
+
+            {recordings.length > 0 && clipSort === 'day'
+              ? dayGroups.map((group) => (
+                  <View key={group.key} style={styles.clipDayGroup}>
+                    <ThemedText type="edge" themeColor="textSecondary">
+                      {group.label} · {group.items.length}컷
+                    </ThemedText>
+                    <View style={styles.clipGrid}>
+                      {group.items.map((recording) => (
+                        <CutCell
+                          key={recording.id}
+                          recording={recording}
+                          clipNo={clipNumbers.get(recording.id) ?? ''}
+                          selectionMode={selectionMode}
+                          selected={selectedIds.has(recording.id)}
+                          isDeleting={deletingIds.has(recording.id)}
+                          onPress={() => handleCellPress(recording)}
+                          onLongPress={() => enterSelection(recording)}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))
+              : null}
 
             {recordings.length > 0 ? (
               <ThemedText type="small" style={styles.storageNote} themeColor="textSecondary">
@@ -265,7 +392,8 @@ export function ArchivePage() {
                     >
                       <View style={styles.coverTop}>
                         <ThemedText selectable={false} style={styles.coverEdge}>
-                          {roll.dayKey ?? '롤'} · {roll.clipCount}컷 · {formatReelLength(roll.totalSec)}
+                          {roll.dayKey ?? '롤'} · {roll.clipCount}컷 ·{' '}
+                          {formatReelLength(roll.totalSec)}
                         </ThemedText>
                         <View style={styles.developedBadge}>
                           <ThemedText
@@ -293,6 +421,18 @@ export function ArchivePage() {
           </FadeInView>
         )}
       </ScrollView>
+
+      {/* Slides up over the tab bar's spot — the navigator hides the tab bar
+          and safelight while selection mode is active (tab-bar-chrome). */}
+      {selectionMode ? (
+        <CutSelectionBar
+          selectedCount={selectedIds.size}
+          allSelected={allSelected}
+          onCancel={exitSelection}
+          onToggleSelectAll={toggleSelectAll}
+          onDelete={confirmBatchDelete}
+        />
+      ) : null}
 
       <Modal
         animationType="fade"
@@ -383,42 +523,30 @@ const styles = StyleSheet.create({
   emptyIconText: { fontSize: 22 },
   emptyCopy: { flex: 1, gap: Spacing.one, alignItems: 'center' },
   centerText: { textAlign: 'center' },
-  clipCard: {
-    minHeight: 86,
+  clipToolbar: {
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-  },
-  clipMain: {
-    flex: 1,
-    minHeight: 86,
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.three,
+    justifyContent: 'space-between',
     gap: Spacing.three,
   },
-  clipThumb: {
-    width: 52,
-    height: 66,
-    borderRadius: 4,
+  sortToggle: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    padding: Spacing.one,
+    borderRadius: Radius.pill,
+    borderCurve: 'continuous',
+    gap: Spacing.one,
+  },
+  sortChip: {
+    minHeight: 32,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clipThumbNum: {
-    position: 'absolute',
-    top: 4,
-    right: 5,
-    fontSize: 8,
-    letterSpacing: 0.5,
-    fontWeight: '700',
-  },
-  clipPlay: { fontSize: 16 },
-  clipCopy: { flex: 1, gap: Spacing.one },
-  chevron: { fontSize: 28, lineHeight: 30 },
-  deleteButton: { minWidth: 64, minHeight: 64, alignItems: 'center', justifyContent: 'center' },
+  clipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
+  clipDayGroup: { gap: Spacing.two },
   storageNote: { textAlign: 'center', paddingTop: Spacing.two },
   rollList: { gap: Spacing.four },
   shelfGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },

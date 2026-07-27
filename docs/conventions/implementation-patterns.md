@@ -478,6 +478,12 @@ export function useLocalX() {
   `clearError`, and the mutating actions.
 - Update the list optimistically on success; set a Korean `errorMessage` on failure.
   Keep the file-system/native calls in a shared adapter (§12), not in the hook.
+- Keep only the mutations that stay inside this resource. The canonical hook lists and
+  saves recording files but no longer deletes them: deleting an original also has to
+  reach clip metadata and every roll referencing it, so it became its own feature
+  ([`use-delete-clips.ts`](../../src/features/delete-clip/model/use-delete-clips.ts)) that
+  composes both entities. When a mutation spans entities, it outgrew this pattern — the
+  caller then reloads the list from the ids that action reports.
 
 ---
 

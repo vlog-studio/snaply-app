@@ -16,7 +16,7 @@ import {
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { formatReelLength } from '@/widgets/developed-rolls-shelf';
+import { formatReelLength } from '@/widgets/roll-shelf';
 
 // A daily roll shows its captures against a soft target of empty frames so the
 // gaps invite more collecting (concept §4, "빈칸을 보여준다"). This is a display

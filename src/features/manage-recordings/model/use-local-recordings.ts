@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
-  deleteLocalRecording,
   listLocalRecordings,
   persistLocalRecording,
   type LocalRecording,
 } from '@/shared/lib/recording-files';
-import { deleteRecordingThumbnail } from '@/shared/lib/recording-thumbnails';
 
+/**
+ * Lists and saves the recording files on this device.
+ *
+ * Deletion deliberately does not live here. An original is more than its file —
+ * it also has clip metadata and references held by rolls — so removing one is a
+ * cross-entity action owned by `features/delete-clip`. Callers of this hook
+ * reload the list after that action reports what it deleted.
+ */
 export function useLocalRecordings() {
   const isMounted = useRef(true);
   const [recordings, setRecordings] = useState<LocalRecording[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<string>();
-  const [deletingIds, setDeletingIds] = useState<ReadonlySet<string>>(() => new Set());
   const [errorMessage, setErrorMessage] = useState<string>();
 
   const reloadRecordings = useCallback(async () => {
@@ -67,67 +71,12 @@ export function useLocalRecordings() {
     }
   };
 
-  const removeRecording = async (recording: LocalRecording) => {
-    setDeletingId(recording.id);
-
-    try {
-      await deleteLocalRecording(recording.uri);
-      deleteRecordingThumbnail(recording);
-      if (isMounted.current) {
-        setRecordings((current) => current.filter((item) => item.id !== recording.id));
-        setErrorMessage(undefined);
-      }
-      return true;
-    } catch {
-      if (isMounted.current) setErrorMessage('영상을 삭제하지 못했어요.');
-      return false;
-    } finally {
-      if (isMounted.current) setDeletingId(undefined);
-    }
-  };
-
-  const removeRecordings = async (targets: readonly LocalRecording[]) => {
-    if (targets.length === 0) return true;
-
-    setDeletingIds(new Set(targets.map((item) => item.id)));
-
-    const deletedIds: string[] = [];
-    let hadFailure = false;
-
-    // Delete sequentially so a mid-batch failure still commits the clips that
-    // did succeed, then update state once to avoid N re-renders.
-    for (const target of targets) {
-      try {
-        await deleteLocalRecording(target.uri);
-        deleteRecordingThumbnail(target);
-        deletedIds.push(target.id);
-      } catch {
-        hadFailure = true;
-      }
-    }
-
-    if (isMounted.current) {
-      if (deletedIds.length > 0) {
-        const deletedIdSet = new Set(deletedIds);
-        setRecordings((current) => current.filter((item) => !deletedIdSet.has(item.id)));
-      }
-      setErrorMessage(hadFailure ? '일부 컷을 삭제하지 못했어요.' : undefined);
-      setDeletingIds(new Set());
-    }
-
-    return !hadFailure;
-  };
-
   return {
     recordings,
     isLoading,
-    deletingId,
-    deletingIds,
     errorMessage,
     clearError: () => setErrorMessage(undefined),
     reloadRecordings,
     saveRecording,
-    removeRecording,
-    removeRecordings,
   };
 }

@@ -11,12 +11,21 @@ This file is an index of task-specific documentation, not the full body of the p
 | Integrating a backend that publishes an OpenAPI/Swagger spec | [`docs/workflows/openapi-api-integration.md`](docs/workflows/openapi-api-integration.md) | Type-only codegen approach, tooling, layered data flow, and setup procedure for the API layer |
 | New features, refactoring, and code review | [`docs/workflows/feature-development.md`](docs/workflows/feature-development.md) | Classification order, implementation workflow, and completion checklist |
 | Running, testing, or verifying changes on a device or simulator | [`docs/workflows/local-development-and-testing.md`](docs/workflows/local-development-and-testing.md) | macOS environment constraints and the iOS Simulator + Android emulator (Expo Go / EAS Build) procedure |
+| Verifying a change on the physical Android device (the default verification surface) | [`docs/workflows/android-device-verification.md`](docs/workflows/android-device-verification.md) | Wireless-adb toolkit: screenshots, UI hierarchy, input injection, app-private state, logs, permissions, and the limits of each |
 | Writing or updating Jest unit tests | [`docs/workflows/writing-unit-tests.md`](docs/workflows/writing-unit-tests.md) | What to test, where a test file lives, and the per-module-kind patterns for functions, components, hooks, stores, and mocks |
 | App icon, display name, splash screen, adaptive-icon colors, or other native-baked branding | [`docs/workflows/app-branding-and-native-config.md`](docs/workflows/app-branding-and-native-config.md) | CNG source-of-truth model, prebuild + rebuild procedure, per-platform verification, and known pitfalls |
 | Any user-visible feature addition, behavior change, removal, or implementation-status change | [`docs/features/README.md`](docs/features/README.md) and the affected feature document(s) | Current product behavior, routes, ownership, platform support, limitations, and documentation maintenance rules |
 | Designing or reviewing components, hooks, modules, services, and dependency boundaries | [`docs/conventions/solid-react-native.md`](docs/conventions/solid-react-native.md) | Practical SOLID principles for React Native, evidence-based abstractions, and implementation safeguards |
 | Implementing a route, data fetch/mutation, store, hook, native adapter, or test — before writing a new slice | [`docs/conventions/implementation-patterns.md`](docs/conventions/implementation-patterns.md) | Cookbook of the canonical, copy-followable implementation patterns already in the codebase, each pointing to the reference file to imitate |
 | Cleanup of existing `components`, `hooks`, and `constants` | [`docs/migration/fsd-adoption.md`](docs/migration/fsd-adoption.md) | Incremental migration order and transitional-state rules |
+
+## Planned documentation
+
+Documents that a task category needs but that do not exist yet. Do not link them from the table above until they are written, and do not improvise their content in the meantime — follow the stated fallback and say so when reporting results.
+
+| Missing document | Blocked on | Fallback until then |
+| --- | --- | --- |
+| `docs/workflows/ios-device-verification.md` — verifying a change on a physical iOS device | The owner has no iOS device (as of 2026-07-27) | Use the iOS Simulator procedures in [`docs/workflows/local-development-and-testing.md`](docs/workflows/local-development-and-testing.md), and state explicitly that a change was not verified on iOS hardware |
 
 ## Documentation language
 

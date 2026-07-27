@@ -42,6 +42,13 @@ export type Reel = {
  * clips are never mutated; the roll owns membership, ordering, and development
  * state.
  */
+/**
+ * The soft target a daily roll shows against — "3/12컷". Not a limit: capture
+ * never stops at it. It exists so the roll always shows empty frames left to
+ * fill (concept §4, "빈칸을 보여준다").
+ */
+export const DailyRollTarget = 12;
+
 export type Roll = {
   id: string;
   type: RollType;

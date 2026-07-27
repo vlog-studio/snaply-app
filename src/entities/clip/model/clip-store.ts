@@ -27,6 +27,7 @@ type ClipState = {
   hasHydrated: boolean;
   addClip: (clip: Clip) => void;
   removeClip: (id: string) => void;
+  removeClips: (ids: readonly string[]) => void;
   setClipTags: (id: string, tags: string[]) => void;
   setHasHydrated: (value: boolean) => void;
 };
@@ -42,8 +43,13 @@ export const useClipStore = create<ClipState>()(
             ? state
             : { clips: [clip, ...state.clips] },
         ),
-      removeClip: (id) =>
-        set((state) => ({ clips: state.clips.filter((clip) => clip.id !== id) })),
+      removeClip: (id) => set((state) => ({ clips: state.clips.filter((clip) => clip.id !== id) })),
+      removeClips: (ids) =>
+        set((state) => {
+          const removed = new Set(ids);
+          if (removed.size === 0) return state;
+          return { clips: state.clips.filter((clip) => !removed.has(clip.id)) };
+        }),
       setClipTags: (id, tags) =>
         set((state) => ({
           clips: state.clips.map((clip) => (clip.id === id ? { ...clip, tags } : clip)),
@@ -79,6 +85,15 @@ export function useRemoveClip(): (id: string) => void {
   return useClipStore((state) => state.removeClip);
 }
 
+/**
+ * Drops several clips in one write. Batch deletion goes through this rather
+ * than looping `removeClip`, so a batch persists the clip file once instead of
+ * once per clip.
+ */
+export function useRemoveClips(): (ids: readonly string[]) => void {
+  return useClipStore((state) => state.removeClips);
+}
+
 export function useSetClipTags(): (id: string, tags: string[]) => void {
   return useClipStore((state) => state.setClipTags);
 }
@@ -90,7 +105,5 @@ export function useSetClipTags(): (id: string, tags: string[]) => void {
  */
 export function getClipsByIds(ids: string[]): Clip[] {
   const byId = new Map(useClipStore.getState().clips.map((clip) => [clip.id, clip]));
-  return ids
-    .map((id) => byId.get(id))
-    .filter((clip): clip is Clip => clip !== undefined);
+  return ids.map((id) => byId.get(id)).filter((clip): clip is Clip => clip !== undefined);
 }

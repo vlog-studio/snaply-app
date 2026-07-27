@@ -4,6 +4,7 @@ import {
   ensureDailyRoll,
   useAddClipToRoll,
   useRemoveClipFromRoll,
+  useRemoveClipsEverywhere,
   useReorderRollClips,
   useRollById,
   useRolls,
@@ -105,6 +106,122 @@ describe('roll store', () => {
     });
   });
 
+  describe('removeClipsEverywhere', () => {
+    function seedRolls() {
+      useRollStore.setState({
+        rolls: [
+          {
+            id: 'daily-2026-07-23',
+            type: 'daily',
+            collectionRule: 'all-day',
+            targetOrientation: 'portrait',
+            status: 'developed',
+            createdAt: JULY_23,
+            dayKey: '2026-07-23',
+            title: '2026-07-23 롤', // 롤
+            clipRefs: [
+              { clipId: 'clip-1', order: 0 },
+              { clipId: 'clip-2', order: 1 },
+            ],
+            reel: {
+              clipRefs: [
+                { clipId: 'clip-1', order: 0 },
+                { clipId: 'clip-2', order: 1 },
+              ],
+              developedAt: JULY_23_LATER,
+            },
+          },
+          {
+            id: 'daily-2026-07-24',
+            type: 'daily',
+            collectionRule: 'all-day',
+            targetOrientation: 'portrait',
+            status: 'undeveloped',
+            createdAt: JULY_24,
+            dayKey: '2026-07-24',
+            title: '2026-07-24 롤', // 롤
+            clipRefs: [
+              { clipId: 'clip-1', order: 0 },
+              { clipId: 'clip-3', order: 1 },
+            ],
+          },
+        ],
+      });
+    }
+
+    it('drops the clip from every roll that references it', async () => {
+      seedRolls();
+
+      const { result } = await renderHook(() => ({
+        removeClipsEverywhere: useRemoveClipsEverywhere(),
+        rolls: useRolls(),
+      }));
+
+      await act(async () => result.current.removeClipsEverywhere(['clip-1']));
+
+      expect(result.current.rolls.map((roll) => roll.clipRefs.map((ref) => ref.clipId))).toEqual([
+        ['clip-2'],
+        ['clip-3'],
+      ]);
+    });
+
+    it('rewrites a developed reel so it cannot play a deleted original', async () => {
+      seedRolls();
+
+      const { result } = await renderHook(() => ({
+        removeClipsEverywhere: useRemoveClipsEverywhere(),
+        roll: useRollById('daily-2026-07-23'),
+      }));
+
+      await act(async () => result.current.removeClipsEverywhere(['clip-1']));
+
+      expect(result.current.roll?.reel?.clipRefs.map((ref) => ref.clipId)).toEqual(['clip-2']);
+      expect(result.current.roll?.reel?.developedAt).toBe(JULY_23_LATER);
+    });
+
+    it('removes several clips in one write', async () => {
+      seedRolls();
+
+      const { result } = await renderHook(() => ({
+        removeClipsEverywhere: useRemoveClipsEverywhere(),
+        rolls: useRolls(),
+      }));
+
+      await act(async () => result.current.removeClipsEverywhere(['clip-1', 'clip-3']));
+
+      expect(result.current.rolls.map((roll) => roll.clipRefs.map((ref) => ref.clipId))).toEqual([
+        ['clip-2'],
+        [],
+      ]);
+    });
+
+    it('keeps the order values of the references that remain', async () => {
+      seedRolls();
+
+      const { result } = await renderHook(() => ({
+        removeClipsEverywhere: useRemoveClipsEverywhere(),
+        roll: useRollById('daily-2026-07-23'),
+      }));
+
+      await act(async () => result.current.removeClipsEverywhere(['clip-1']));
+
+      expect(result.current.roll?.clipRefs).toEqual([{ clipId: 'clip-2', order: 1 }]);
+    });
+
+    // Identity, not just equality: an untouched roll must keep its object so
+    // subscribed screens do not re-render over a delete that missed them.
+    it.each([[[]], [['clip-unknown']]])('leaves every roll untouched for %j', async (clipIds) => {
+      seedRolls();
+      const before = useRollStore.getState().rolls;
+
+      const { result } = await renderHook(() => useRemoveClipsEverywhere());
+      await act(async () => result.current(clipIds));
+
+      const after = useRollStore.getState().rolls;
+      expect(after.map((roll, index) => roll === before[index])).toEqual([true, true]);
+    });
+  });
+
   describe('reorderRollClips', () => {
     async function setUpRollWithClips(clipIds: string[]) {
       ensureDailyRoll(JULY_23);
@@ -129,13 +246,11 @@ describe('roll store', () => {
     it('rewrites orders to follow the given id sequence', async () => {
       const { rollId, result } = await setUpRollWithClips(['clip-1', 'clip-2', 'clip-3']);
 
-      await act(async () => result.current.reorderRollClips(rollId, ['clip-3', 'clip-1', 'clip-2']));
+      await act(async () =>
+        result.current.reorderRollClips(rollId, ['clip-3', 'clip-1', 'clip-2']),
+      );
 
-      expect(orderedClipIds(result.current.roll?.clipRefs)).toEqual([
-        'clip-3',
-        'clip-1',
-        'clip-2',
-      ]);
+      expect(orderedClipIds(result.current.roll?.clipRefs)).toEqual(['clip-3', 'clip-1', 'clip-2']);
     });
 
     it('keeps unlisted clips after the listed ones in their previous relative order', async () => {

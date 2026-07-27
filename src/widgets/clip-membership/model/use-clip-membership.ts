@@ -29,7 +29,21 @@ export type ClipRollBadge = {
   canEditMembership: boolean;
 };
 
+/**
+ * A roll a deletion is about to change, with the cut count it holds now and the
+ * one it will hold afterwards. Deleting an original strips it from every roll,
+ * so this is what a confirmation needs in order to name the damage instead of
+ * counting it.
+ */
+export type RollDeleteImpact = ClipRollBadge & {
+  /** Cuts the roll holds now — a developed roll is counted by its reel. */
+  cutCount: number;
+  /** What it will hold once the deletion lands. */
+  nextCutCount: number;
+};
+
 const NoRolls: ClipRollBadge[] = [];
+const NoImpact: RollDeleteImpact[] = [];
 
 /** Today's roll first, then the most recently created roll. */
 function byTodayThenNewest(todayRollId: string | undefined) {
@@ -90,18 +104,36 @@ export function useRollsForClip(clipId: string | undefined): ClipRollBadge[] {
 }
 
 /**
- * The rolls a set of clips belongs to, deduplicated — what a batch action needs
- * in order to name the rolls it is about to affect.
+ * What deleting these clips would do to every roll referencing them, ordered
+ * today-first then newest-first.
+ *
+ * This reads rolls forward rather than through the membership map, because the
+ * count a roll loses is only legible against the count it has. A developed roll
+ * is measured by its reel: the reel is what the user would go on to watch, and
+ * the delete cascade rewrites it too — a roll is included when either its
+ * membership or its reel refers to one of the clips.
  */
-export function selectRollsForClips(
-  membership: ReadonlyMap<string, ClipRollBadge[]>,
-  clipIds: readonly string[],
-): ClipRollBadge[] {
-  const byRollId = new Map<string, ClipRollBadge>();
-  for (const clipId of clipIds) {
-    for (const badge of membership.get(clipId) ?? NoRolls) {
-      if (!byRollId.has(badge.rollId)) byRollId.set(badge.rollId, badge);
+export function useRollDeleteImpact(clipIds: readonly string[]): RollDeleteImpact[] {
+  const rolls = useRolls();
+  const todayRollId = useTodayRoll()?.id;
+
+  return useMemo(() => {
+    const removed = new Set(clipIds);
+    if (removed.size === 0) return NoImpact;
+
+    const impacts: RollDeleteImpact[] = [];
+    for (const roll of [...rolls].sort(byTodayThenNewest(todayRollId))) {
+      const refs = roll.reel?.clipRefs ?? roll.clipRefs;
+      const holdsInMembership = roll.clipRefs.some((ref) => removed.has(ref.clipId));
+      const holdsInReel = roll.reel?.clipRefs.some((ref) => removed.has(ref.clipId)) ?? false;
+      if (!holdsInMembership && !holdsInReel) continue;
+
+      impacts.push({
+        ...toBadge(roll, todayRollId),
+        cutCount: refs.length,
+        nextCutCount: refs.filter((ref) => !removed.has(ref.clipId)).length,
+      });
     }
-  }
-  return [...byRollId.values()];
+    return impacts;
+  }, [rolls, todayRollId, clipIds]);
 }

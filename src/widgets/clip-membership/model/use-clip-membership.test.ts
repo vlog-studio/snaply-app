@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react-native';
 
 import type { Roll } from '@/entities/roll';
 
-import { selectRollsForClips, useClipMembership, useRollsForClip } from './use-clip-membership';
+import { useClipMembership, useRollDeleteImpact, useRollsForClip } from './use-clip-membership';
 
 let mockRolls: Roll[];
 let mockTodayRoll: Roll | undefined;
@@ -153,27 +153,87 @@ describe('useRollsForClip', () => {
   });
 });
 
-describe('selectRollsForClips', () => {
-  it('deduplicates the rolls affected by a set of clips', async () => {
+describe('useRollDeleteImpact', () => {
+  it('names each affected roll once, with the cuts it loses', async () => {
     mockRolls = [
-      makeRoll('roll-a', { clipRefs: refs('clip-1', 'clip-2') }),
+      makeRoll('roll-a', { clipRefs: refs('clip-1', 'clip-2', 'clip-3') }),
       makeRoll('roll-b', { clipRefs: refs('clip-2') }),
       makeRoll('roll-c', { clipRefs: refs('clip-9') }),
     ];
 
-    const { result } = await renderHook(() => useClipMembership());
+    const { result } = await renderHook(() => useRollDeleteImpact(['clip-1', 'clip-2']));
 
-    expect(selectRollsForClips(result.current, ['clip-1', 'clip-2']).map((b) => b.rollId)).toEqual([
-      'roll-a',
-      'roll-b',
+    expect(
+      result.current.map(({ rollId, cutCount, nextCutCount }) => ({
+        rollId,
+        cutCount,
+        nextCutCount,
+      })),
+    ).toEqual([
+      { rollId: 'roll-a', cutCount: 3, nextCutCount: 1 },
+      { rollId: 'roll-b', cutCount: 1, nextCutCount: 0 },
     ]);
   });
 
-  it('returns nothing when none of the clips belong to a roll', async () => {
+  it('counts a developed roll by its reel, which the delete rewrites too', async () => {
+    mockRolls = [
+      makeRoll('roll-done', {
+        status: 'developed',
+        clipRefs: refs('clip-1', 'clip-2', 'clip-3', 'clip-4'),
+        reel: { clipRefs: refs('clip-1', 'clip-2', 'clip-3', 'clip-4'), developedAt: 1 },
+      }),
+    ];
+
+    const { result } = await renderHook(() => useRollDeleteImpact(['clip-2']));
+
+    expect(result.current[0]).toMatchObject({
+      rollId: 'roll-done',
+      canEditMembership: false,
+      cutCount: 4,
+      nextCutCount: 3,
+    });
+  });
+
+  it('includes a developed roll whose reel still refers to the cut', async () => {
+    mockRolls = [
+      makeRoll('roll-done', {
+        status: 'developed',
+        clipRefs: [],
+        reel: { clipRefs: refs('clip-1'), developedAt: 1 },
+      }),
+    ];
+
+    const { result } = await renderHook(() => useRollDeleteImpact(['clip-1']));
+
+    expect(result.current.map((impact) => impact.rollId)).toEqual(['roll-done']);
+  });
+
+  it('orders the affected rolls today-first then newest-first', async () => {
+    const today = makeRoll('roll-today', { createdAt: 10, clipRefs: refs('clip-1') });
+    mockRolls = [
+      makeRoll('roll-old', { createdAt: 20, clipRefs: refs('clip-1') }),
+      today,
+      makeRoll('roll-new', { createdAt: 30, clipRefs: refs('clip-1') }),
+    ];
+    mockTodayRoll = today;
+
+    const { result } = await renderHook(() => useRollDeleteImpact(['clip-1']));
+
+    expect(result.current.map((impact) => impact.rollId)).toEqual([
+      'roll-today',
+      'roll-new',
+      'roll-old',
+    ]);
+  });
+
+  it.each([
+    ['no roll holds the clips', ['clip-9']],
+    ['nothing is being deleted', [] as string[]],
+  ])('reports no impact when %s', async (_case, clipIds) => {
     mockRolls = [makeRoll('roll-a', { clipRefs: refs('clip-1') })];
 
-    const { result } = await renderHook(() => useClipMembership());
+    const { result } = await renderHook(() => useRollDeleteImpact(clipIds));
 
-    expect(selectRollsForClips(result.current, ['clip-9'])).toEqual([]);
+    expect(result.current).toEqual([]);
   });
 });

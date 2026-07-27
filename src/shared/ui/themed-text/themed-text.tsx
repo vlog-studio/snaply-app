@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   button: { fontSize: 16, lineHeight: 21, fontWeight: 800 },
   link: { lineHeight: 30, fontSize: 14 },
-  linkPrimary: { lineHeight: 30, fontSize: 14, color: '#FF6B35', fontWeight: 700 },
+  linkPrimary: { lineHeight: 30, fontSize: 14, fontWeight: 700 },
   code: {
     fontFamily: Fonts.mono,
     fontWeight: Platform.select({ android: 700 }) ?? 500,

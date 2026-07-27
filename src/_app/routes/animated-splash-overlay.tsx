@@ -5,6 +5,8 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
+import { Colors } from '@/shared/ui/theme';
+
 const DURATION = 600;
 
 export function AnimatedSplashOverlay() {
@@ -25,13 +27,11 @@ export function AnimatedSplashOverlay() {
   });
 
   const mark = (
-    <View style={styles.mark}>
-      <Image
-        contentFit="contain"
-        source={require('@/assets/images/brand-glyph-orange.png')}
-        style={styles.glyph}
-      />
-    </View>
+    <Image
+      contentFit="contain"
+      source={require('@/assets/images/brand-glyph-ember.png')}
+      style={styles.glyph}
+    />
   );
 
   return animate ? (
@@ -57,19 +57,12 @@ export function AnimatedSplashOverlay() {
 }
 
 const styles = StyleSheet.create({
-  mark: {
-    width: 82,
-    height: 82,
-    borderRadius: 26,
-    borderCurve: 'continuous',
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glyph: { width: 46, height: 46 },
+  // Must mirror the native splash exactly (expo-splash-screen in app.json):
+  // theme background + brand-glyph-ember at imageWidth 150, centered.
+  glyph: { width: 150, height: 150 },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: '#FF6B35',
+    backgroundColor: Colors.dark.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,

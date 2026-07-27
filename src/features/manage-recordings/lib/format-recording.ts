@@ -20,26 +20,35 @@ function startOfDay(date: Date) {
 }
 
 /**
- * Stable per-day key used to group clips in the day-grouped archive view.
- * Same calendar day → same key regardless of time of day.
+ * "오늘" or "어제" for the two days that have a name, `undefined` for every
+ * other day. Separated from the full date because a heading that shows both a
+ * name and a date wants only the name from here — printing "2026년 7월 24일"
+ * beside "07-24" says the same thing twice.
  */
-export function recordingDayKey(timestamp: number) {
-  const date = new Date(timestamp);
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-}
-
-/** Human day heading for a group, relative to today ("오늘"/"어제"). */
-export function formatRecordingDay(timestamp: number) {
+export function relativeDayLabel(timestamp: number): string | undefined {
   const today = startOfDay(new Date());
   const target = startOfDay(new Date(timestamp));
   const dayMs = 24 * 60 * 60 * 1000;
 
   if (target === today) return '오늘';
   if (target === today - dayMs) return '어제';
+  return undefined;
+}
 
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(timestamp));
+/**
+ * Human day heading for a group, relative to today where that reads naturally.
+ *
+ * Grouping itself is keyed by `toDayKey` (`entities/roll`), the same key a daily
+ * roll is identified by, so a day of cuts and the roll that collected it always
+ * line up. This function only labels the group a caller already formed.
+ */
+export function formatRecordingDay(timestamp: number) {
+  return (
+    relativeDayLabel(timestamp) ??
+    new Intl.DateTimeFormat('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date(timestamp))
+  );
 }

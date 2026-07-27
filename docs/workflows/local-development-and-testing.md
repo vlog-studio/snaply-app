@@ -8,6 +8,10 @@ These rules were set by the project owner (2026-07-23) and override the procedur
 2. **Ask the owner to connect the wireless device before testing.** The device is not always attached. When a change needs on-device verification, explicitly request the connection ("무선 디버깅 기기 연결해 주세요") and wait; confirm with `adb devices` (the device appears as `adb-…-_adb-tls-connect._tcp`). Target it explicitly with `-s <serial>` (or `ANDROID_SERIAL`) — never assume it is the only device.
 3. **Never start the Metro server in the background.** A backgrounded Metro dies with its parent shell/timeout and silently takes down whatever device session the owner had open, and `expo run:android` piggybacks on an existing port-8081 server, chaining its lifetime to that hidden process. Ask the owner to run `npx expo start --dev-client` in their own terminal (or confirm the one they already run), and never kill port 8081 without asking.
 
+For **what to actually do once the device is connected** — screenshots, UI hierarchy dumps, input injection, reading the app's persisted stores, logs, and permission state — see [`android-device-verification.md`](android-device-verification.md). That document is the agent's verification toolkit; this one covers the machine constraints and the simulator/emulator procedures.
+
+The iOS counterpart does not exist yet: the owner has no iOS device as of 2026-07-27, so iOS verification uses the simulator procedures below.
+
 The sections below describe the machine constraints and the simulator/emulator commands. Treat the emulator/Expo Go procedures as background reference for the human developer, not as the agent's verification path.
 
 You can run **one iOS simulator and one Android emulator side by side** against a single Metro server.

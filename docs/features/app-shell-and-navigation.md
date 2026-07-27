@@ -42,7 +42,7 @@ Snaply opens into a two-tab application with Home (오늘) and Archive (보관�
 - `src/_app/routes/app-tabs.tsx` is the single cross-platform tab navigator (`Tabs` from `expo-router`) with the Home and Archive screens, plus the `SafelightButton` capture overlay; there is no platform-specific tab variant.
 - `src/shared/ui/theme` owns the darkroom palette (including the `amber`, `lumen`, and `film` tokens), spacing, radii, content width, dark-fixed theme access, the (now unconsumed) persisted theme-mode store, the Android top content inset helper, the tab bar height helper (`useTabBarHeight`) used to offset scrollable screens beneath the translucent bar, and the `useReducedMotion` accessibility helper that lets animated screens (develop ceremony, mount fade-ins) present their final state immediately.
 - `src/shared/ui/fade-in-view` owns the mount fade-in used instead of Reanimated `entering` presets, which never start on iOS in Expo Go and left content invisible.
-- `src/app/cuts.tsx` exposes `pages/cut-strip` at `/cuts`, registered in the authenticated stack group next to `settings`. Cuts are a sibling of the tabs rather than a segment inside the Archive, so the grid gets the full screen and its selection bar owns the bottom edge (see [Recording archive](recording-archive.md)).
+- `src/app/cuts.tsx` exposes `pages/cut-strip` at `/cuts`, registered in the authenticated stack group next to `settings`. Cuts are a sibling of the tabs rather than a segment inside the Archive, so the contact strip gets the full screen and its selection bar owns the bottom edge (see [Recording archive](recording-archive.md)).
 
 ## Known limitations
 

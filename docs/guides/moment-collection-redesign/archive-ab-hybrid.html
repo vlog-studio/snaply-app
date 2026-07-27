@@ -962,9 +962,9 @@
               <td>유닛: <code>createManualRoll</code> 기본 이름·20자 상한, 컷 0개 자유 롤 자동 제거, 데일리 롤은 0개여도 유지, <code>rollDate</code> 월 배치.<br>실기기: 롤 없는 컷 3개 → 자유 롤 생성 → 현상 대기 레인·스트립 점·선반에 즉시 반영 → <b>그 자유 롤을 현상</b>해 릴 재생까지, 컷을 다 빼면 롤이 조용히 사라짐</td>
             </tr>
             <tr>
-              <td><b>M8-6</b></td><td>문서</td>
-              <td><code>docs/features/recording-archive.md</code> 전면 개정(수동 롤 생성이 <b>범위 밖이라는 서술 삭제</b>) + <code>app-shell-and-navigation.md</code>(<code>/cuts</code> 라우트) + <code>roll-detail.md</code>(자유 롤 · 엣지 프린트) + <code>home.md</code>(커버 변화) + <code>mvp-implementation-plan.md</code>(M8 추가 · MVP 범위 확장 기록)</td>
-              <td>라우트·소유 계층·상태·제약이 코드와 일치하는지 대조</td>
+              <td><b>M8-6</b> <span class="keep">구현 완료</span></td><td>문서</td>
+              <td><code>docs/features/recording-archive.md</code> 전면 개정(수동 롤 생성이 <b>범위 밖이라는 서술 삭제</b> — 두 종류의 롤 표 신설) + <code>roll-detail.md</code>(자유 롤 · 엣지 프린트) — <b>둘은 M8-5 커밋에 동반</b> + <code>app-shell-and-navigation.md</code>(<code>/cuts</code> 라우트 대조, 격자→스트립 표현 정정) + <code>home.md</code>(자유 롤은 홈에 미노출·롤 순번은 데일리만 셈 — <b>커버 변화는 해당 없음</b>: 홈 선반 미리보기가 M8-2에서 제거되어 전제가 사라짐) + <code>mvp-implementation-plan.md</code>(M8 마일스톤·상세·완료 기록)</td>
+              <td>라우트·소유 계층·상태·제약이 코드와 일치하는지 대조 — 확인: <code>/cuts</code> 등록 위치·서랍 진입·선택 바 3액션·멤버십 고정·홈 순번 필터가 문서와 코드에서 일치</td>
             </tr>
           </tbody>
         </table>

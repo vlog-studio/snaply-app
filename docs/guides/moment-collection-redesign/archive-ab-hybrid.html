@@ -1,0 +1,1009 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snaply — 보관함 A+B 하이브리드 확정 설계 v0.1</title>
+<style>
+  :root {
+    --ground: #E7ECEC; --surface: #F4F7F6; --line: #CBD4D3;
+    --ink: #1A1611; --ink-dim: #635A50; --ember: #C2452A; --amber: #A9711F; --lumen: #1F847E;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif;
+    --maxw: 1120px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --ground:#16110D; --surface:#201811; --line:#3A2C20; --ink:#F1E6DA; --ink-dim:#A8927E; --ember:#EA5E38; --amber:#E7A24A; --lumen:#82D6CE; }
+  }
+  :root[data-theme="light"] { --ground:#E7ECEC; --surface:#F4F7F6; --line:#CBD4D3; --ink:#1A1611; --ink-dim:#635A50; --ember:#C2452A; --amber:#A9711F; --lumen:#1F847E; }
+  :root[data-theme="dark"] { --ground:#16110D; --surface:#201811; --line:#3A2C20; --ink:#F1E6DA; --ink-dim:#A8927E; --ember:#EA5E38; --amber:#E7A24A; --lumen:#82D6CE; }
+
+  /* darkroom palette used INSIDE every device screen (앱 고정 팔레트) */
+  :root {
+    --d-ground:#16110D; --d-surface:#221910; --d-surface2:#2C2118; --d-line:#3A2C20;
+    --d-ink:#F1E6DA; --d-dim:#A8927E; --d-ember:#EA5E38; --d-amber:#E7A24A; --d-lumen:#82D6CE; --d-film:#0E0B08;
+    --d-danger:#F26D6D;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .page { background: var(--ground); color: var(--ink); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; position: relative; overflow-x: hidden; }
+  .page::after { content:""; position:fixed; inset:0; z-index:60; pointer-events:none; opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  .edge { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ember); }
+  h1.display { font-weight: 800; letter-spacing: -0.03em; line-height: 1.03; font-size: clamp(2.2rem, 5.5vw, 3.6rem); margin: 0.4em 0 0.3em; }
+  .lead { font-size: 1.1rem; color: var(--ink-dim); max-width: 62ch; }
+  .dim { color: var(--ink-dim); }
+  code { font-family: var(--mono); font-size: 0.88em; }
+
+  header.hero { padding: clamp(56px,9vw,104px) 0 clamp(32px,5vw,56px); }
+  section { padding: clamp(48px,7vw,84px) 0; border-top: 1px solid var(--line); }
+  .sec-head { display:flex; align-items:baseline; gap:16px; margin-bottom:0.5rem; flex-wrap:wrap; }
+  .sec-head .num { font-family:var(--mono); font-size:0.72rem; letter-spacing:0.2em; color:var(--ink-dim); }
+  .sec-head h2 { font-weight:800; letter-spacing:-0.02em; font-size:clamp(1.4rem,3vw,2rem); margin:0; }
+  .sec-head .tag { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.14em; text-transform:uppercase; border:1px solid var(--line); border-radius:999px; padding:3px 9px; color:var(--ink-dim); }
+  .sec-sub { color: var(--ink-dim); max-width: 68ch; margin: 0 0 2rem; }
+  h3.sub { font-size:1.02rem; letter-spacing:-0.01em; margin:2.4rem 0 0.9rem; }
+
+  .decision { display:flex; gap:14px; flex-wrap:wrap; margin:0 0 2.4rem; }
+  .dcard { flex:1; min-width:250px; border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:16px 18px 18px; }
+  .dcard.a { border-color:var(--ember); }
+  .dcard.b { border-color:var(--lumen); }
+  .dcard .dk { font-family:var(--mono); font-size:0.6rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-dim); }
+  .dcard .dh { font-weight:800; font-size:1.1rem; letter-spacing:-0.01em; margin:5px 0 6px; }
+  .dcard.a .dh { color:var(--ember); }
+  .dcard.b .dh { color:var(--lumen); }
+  .dcard p { margin:0; font-size:0.9rem; color:var(--ink-dim); }
+
+  .row { display:flex; gap:34px; align-items:flex-start; flex-wrap:wrap; }
+  .devices { display:flex; gap:22px; overflow-x:auto; padding:4px 2px 18px; }
+  figure { margin:0; flex:none; width:264px; }
+  figure figcaption { margin-top:12px; }
+  figcaption .cap-e { font-family:var(--mono); font-size:0.62rem; letter-spacing:0.12em; color:var(--ember); text-transform:uppercase; }
+  figcaption .cap-d { font-size:0.84rem; color:var(--ink-dim); margin-top:4px; }
+  .notes { flex:1; min-width:300px; }
+  .notes h4 { font-size:0.72rem; font-family:var(--mono); letter-spacing:0.16em; text-transform:uppercase; color:var(--ink-dim); margin:0 0 10px; font-weight:600; }
+  .notes ul { margin:0 0 22px; padding-left:1.1em; }
+  .notes li { margin-bottom:8px; font-size:0.93rem; }
+  .warn { border-left:2px solid var(--ember); padding:2px 0 2px 16px; margin:0 0 22px; }
+  .warn b { font-weight:800; }
+  .warn p { margin:0.25rem 0 0; font-size:0.9rem; color:var(--ink-dim); }
+
+  /* route map */
+  .routes { font-family:var(--mono); font-size:0.78rem; line-height:1.9; background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 20px; overflow-x:auto; white-space:pre; color:var(--ink-dim); }
+  .routes b { color:var(--ink); font-weight:700; }
+  .routes i { color:var(--ember); font-style:normal; }
+  .routes u { color:var(--lumen); text-decoration:none; }
+
+  table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-family:var(--mono); font-size:0.58rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--ink-dim); font-weight:600; }
+  .tw { overflow-x:auto; }
+  td code { color:var(--ink); }
+  .new { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ember); border:1px solid color-mix(in srgb, var(--ember) 45%, transparent); border-radius:999px; padding:2px 7px; white-space:nowrap; }
+  .keep { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--lumen); border:1px solid color-mix(in srgb, var(--lumen) 45%, transparent); border-radius:999px; padding:2px 7px; white-space:nowrap; }
+
+  /* device shell */
+  .device { width:264px; border-radius:36px; background:#0a0806; border:1px solid var(--d-line); padding:10px; box-shadow:0 26px 50px rgba(0,0,0,0.28); }
+  .screen { border-radius:28px; background:var(--d-ground); color:var(--d-ink); overflow:hidden; position:relative; height:544px; display:flex; flex-direction:column;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"); }
+  .screen::before { content:""; position:absolute; inset:0; background:var(--d-ground); opacity:0.94; z-index:0; }
+  .screen > * { position:relative; z-index:1; }
+  .sbar { display:flex; justify-content:space-between; padding:11px 18px 2px; font-family:var(--mono); font-size:0.56rem; letter-spacing:0.1em; color:var(--d-dim); flex:none; }
+
+  .e-print { font-family:var(--mono); letter-spacing:0.14em; text-transform:uppercase; color:var(--d-amber); font-size:0.58rem; }
+  .badge { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.12em; text-transform:uppercase; padding:3px 8px; border-radius:999px; border:1px solid var(--d-line); color:var(--d-dim); white-space:nowrap; }
+  .badge.warm { color:var(--d-ember); border-color:rgba(234,94,56,0.5); }
+  .badge.cool { color:var(--d-lumen); border-color:rgba(130,214,206,0.5); }
+
+  /* in-screen headers */
+  .ah { display:flex; justify-content:space-between; align-items:flex-start; padding:4px 16px 10px; flex:none; }
+  .ah .h-t { font-weight:800; font-size:1.12rem; letter-spacing:-0.01em; }
+  .ah .gear { color:var(--d-dim); font-size:0.95rem; }
+  /* pushed route header (no tab bar): back + title + trailing action */
+  .ph { display:flex; align-items:center; gap:10px; padding:4px 14px 8px; flex:none; }
+  .ph .back { color:var(--d-ink); font-size:1.1rem; width:22px; }
+  .ph .pt { flex:1; }
+  .ph .pt .t { font-weight:800; font-size:1.02rem; letter-spacing:-0.01em; }
+  .ph .act { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--d-lumen); }
+  .ph .act.dim { color:var(--d-dim); }
+
+  .body { flex:1; overflow:hidden; padding:0 16px; }
+  .lane-h { display:flex; align-items:center; justify-content:space-between; margin:13px 0 8px; }
+  .lane-h:first-child { margin-top:2px; }
+  .lane-h .lt { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--d-dim); }
+  .lane-h .lt.warm { color:var(--d-ember); }
+  .lane-h .lt.cool { color:var(--d-lumen); }
+  .lane-h .more { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; color:var(--d-dim); }
+
+  .chips { display:flex; gap:6px; overflow:hidden; margin-bottom:10px; }
+  .chips span { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; text-transform:uppercase; border:1px solid var(--d-line); border-radius:999px; padding:5px 9px; color:var(--d-dim); white-space:nowrap; }
+  .chips span.on { background:rgba(255,255,255,0.1); color:var(--d-ink); border-color:rgba(255,255,255,0.28); }
+  .chips span.orphan { color:var(--d-amber); border-color:rgba(232,162,74,0.5); }
+  .chips span.orphan.on { background:rgba(232,162,74,0.16); color:var(--d-amber); border-color:rgba(232,162,74,0.75); }
+
+  /* frame fills */
+  .f1 { background:linear-gradient(135deg,#6b4a2e,#e7c07f); }
+  .f2 { background:linear-gradient(135deg,#1f5f5b,#82d6ce); }
+  .f3 { background:linear-gradient(135deg,#5a4718,#e7a24a); }
+  .f4 { background:linear-gradient(135deg,#5a2e3a,#d98aa0); }
+  .f5 { background:linear-gradient(135deg,#2e4a5a,#7fb2d9); }
+  .f6 { background:linear-gradient(135deg,#3e2c5a,#9a86c9); }
+  .f7 { background:linear-gradient(135deg,#245a3e,#7fc9a0); }
+  .f8 { background:linear-gradient(135deg,#7a3f2a,#ea9b6e); }
+
+  /* A — 현상 대기 카드 */
+  .pend { border:1px solid rgba(234,94,56,0.45); border-radius:12px; background:linear-gradient(180deg,rgba(234,94,56,0.09),transparent); padding:11px 12px; margin-bottom:8px; }
+  .pend.ready { border-color:rgba(130,214,206,0.5); background:linear-gradient(180deg,rgba(130,214,206,0.12),transparent); position:relative; overflow:hidden; }
+  .pend.ready::after { content:""; position:absolute; left:0; right:0; height:36%; top:-36%; background:linear-gradient(180deg,transparent,rgba(130,214,206,0.3),transparent); animation:sweep 2.8s ease-in-out infinite; }
+  @keyframes sweep { 0%{top:-36%} 100%{top:100%} }
+  .pend > * { position:relative; z-index:1; }
+  .pend .pr { display:flex; justify-content:space-between; align-items:baseline; }
+  .pend .pt { font-weight:800; font-size:0.94rem; letter-spacing:-0.01em; }
+  .strip-mini { display:flex; gap:3px; margin:9px 0 8px; }
+  .strip-mini i { flex:1; aspect-ratio:3/4; border-radius:3px; display:block; }
+  .strip-mini i.blank { border:1px dashed var(--d-line); }
+  .meter { height:3px; border-radius:2px; background:rgba(255,255,255,0.12); overflow:hidden; }
+  .meter > i { display:block; height:100%; background:var(--d-ember); }
+  .pend .pa { display:flex; justify-content:space-between; align-items:center; margin-top:9px; }
+  .btn-s { font-family:var(--sans); font-weight:800; font-size:0.72rem; border-radius:8px; padding:7px 13px; background:var(--d-ember); color:#1a0f0a; }
+  .btn-s.cool { background:var(--d-lumen); color:#0e2422; }
+  .btn-s.ghost { background:transparent; border:1px solid var(--d-line); color:var(--d-ink); font-weight:700; }
+
+  /* A — 선반 커버 */
+  .covers2 { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .cover { border-radius:10px; height:112px; padding:11px 10px 11px 12px; display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; }
+  .cover .mosaic { position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; }
+  .cover .mosaic i { display:block; }
+  .cover .scrim { position:absolute; inset:0; background:linear-gradient(180deg,rgba(10,7,5,0.5),rgba(10,7,5,0.12) 45%,rgba(10,7,5,0.82)); }
+  .cover .top-row, .cover .cv-t { position:relative; z-index:2; }
+  .cover .top-row { display:flex; justify-content:space-between; align-items:flex-start; gap:5px; }
+  .cover .top-row .badge { padding:2px 6px; font-size:0.48rem; letter-spacing:0.08em; }
+  .cover .cv-e { font-family:var(--mono); font-size:0.46rem; letter-spacing:0.06em; color:rgba(255,255,255,0.88); white-space:nowrap; }
+  .cover .cv-t { font-weight:800; font-size:0.88rem; color:#fff; letter-spacing:-0.01em; }
+  /* 롤 틴트 = roll id 해시로 고정 (§4). 커버 왼쪽 각인 띠로만 드러난다 */
+  .cover .spine { position:absolute; left:0; top:0; bottom:0; width:4px; z-index:3; box-shadow:0 0 8px rgba(0,0,0,0.5); }
+  .cover.dashed { background:transparent; border:1.5px dashed var(--d-line); align-items:center; justify-content:center; gap:3px; }
+  .cover.dashed em { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; color:var(--d-dim); font-style:normal; text-align:center; }
+
+  /* A — 컷 서랍 */
+  .drawer { margin-top:11px; border-top:1px solid var(--d-line); padding:9px 0 0; display:flex; justify-content:space-between; align-items:center; }
+  .drawer .dt { font-weight:700; font-size:0.86rem; }
+  .drawer .dd { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.1em; color:var(--d-dim); margin-top:2px; }
+  .drawer .dd b { color:var(--d-amber); font-weight:700; }
+  .drawer.off .dt, .drawer.off .dd { color:var(--d-dim); }
+
+  /* 빈 상태 카드 */
+  .emptycard { border:1.5px dashed var(--d-line); border-radius:14px; padding:16px 14px; text-align:center; }
+  .emptycard .eh { font-weight:800; font-size:0.95rem; margin-bottom:4px; }
+  .emptycard p { margin:0; font-size:0.76rem; color:var(--d-dim); line-height:1.55; }
+
+  /* B — 스트립 */
+  .strip-row { margin:0 0 14px; }
+  .strip-lab { display:flex; justify-content:space-between; align-items:baseline; padding:0 2px 5px; }
+  .strip { position:relative; background:var(--d-film); border-radius:3px; padding:11px 6px; display:flex; gap:4px; overflow:hidden; }
+  .perf { position:absolute; left:0; right:0; height:6px; display:flex; gap:6px; padding:0 4px; }
+  .perf.top { top:2px; } .perf.bot { bottom:2px; }
+  .perf i { flex:none; width:7px; height:6px; border-radius:1.5px; background:#2b2018; }
+  .strip .fr { flex:none; width:44px; aspect-ratio:3/4; border-radius:2px; position:relative; overflow:hidden; }
+  .strip .fr.undev { background:#241a12; display:flex; align-items:center; justify-content:center; }
+  .strip .fr.undev::after { content:"?"; font-family:var(--mono); font-size:0.7rem; color:#4d3d2c; }
+  .fr.orphan { outline:1px dashed rgba(232,162,74,0.85); outline-offset:-3px; }
+  .tagdots { position:absolute; bottom:3px; left:3px; display:flex; gap:2px; z-index:3; }
+  .tagdots i { width:6px; height:6px; border-radius:50%; box-shadow:0 0 0 1px rgba(0,0,0,0.55); }
+  .fr.picked { outline:2px solid var(--d-ember); outline-offset:-2px; }
+  .fr .tick { position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--d-ember); color:#1a0f0a; font-size:0.5rem; display:flex; align-items:center; justify-content:center; font-weight:800; z-index:4; }
+  .screen.neg .body { padding-right:26px; }
+  .monthrail { position:absolute; right:4px; top:112px; display:flex; flex-direction:column; gap:9px; align-items:center; z-index:5; }
+  .monthrail span { font-family:var(--mono); font-size:0.48rem; letter-spacing:0.06em; color:var(--d-dim); }
+  .monthrail span.on { color:var(--d-ember); }
+
+  /* B — 선택 바 (컨텍스트별 3액션) */
+  .selbar { position:absolute; bottom:0; left:0; right:0; background:rgba(20,15,11,0.96); border-top:1px solid var(--d-line); padding:11px 14px 20px; z-index:8; }
+  .selbar .sr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .selbar .sc { font-family:var(--mono); font-size:0.56rem; letter-spacing:0.12em; color:var(--d-lumen); text-transform:uppercase; }
+  .selbar .acts { display:flex; gap:6px; }
+  .selbar .acts b { flex:1; text-align:center; font-size:0.68rem; font-weight:700; border-radius:8px; padding:9px 0; border:1px solid var(--d-line); color:var(--d-ink); }
+  .selbar .acts b.primary { background:var(--d-ember); color:#1a0f0a; border-color:transparent; font-weight:800; }
+  .selbar .acts b.danger { color:var(--d-danger); border-color:rgba(242,109,109,0.4); }
+
+  /* 시트 / 다이얼로그 */
+  .dimmer { position:absolute; inset:0; background:rgba(6,4,3,0.66); z-index:6; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:var(--d-surface); border-top:1px solid var(--d-line); border-radius:18px 18px 0 0; padding:12px 16px 20px; z-index:7; }
+  .sheet .grab { width:32px; height:3px; border-radius:2px; background:var(--d-line); margin:0 auto 12px; }
+  .sheet .sh-t { font-weight:800; font-size:0.98rem; letter-spacing:-0.01em; }
+  .cutpreview { display:flex; gap:10px; align-items:flex-start; margin-bottom:12px; }
+  .cutpreview .pv { width:58px; aspect-ratio:3/4; border-radius:5px; flex:none; position:relative; overflow:hidden; }
+  .cutpreview .pv .play { position:absolute; inset:0; margin:auto; width:20px; height:20px; border-radius:50%; background:rgba(14,11,8,0.55); border:1px solid rgba(255,255,255,0.5); display:flex; align-items:center; justify-content:center; }
+  .cutpreview .pv .play::after { content:""; border-left:6px solid #fff; border-top:4px solid transparent; border-bottom:4px solid transparent; margin-left:2px; }
+  .cutpreview .meta { flex:1; }
+  .cutpreview .meta .m1 { font-weight:800; font-size:0.9rem; }
+  .cutpreview .meta .m2 { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.08em; color:var(--d-dim); margin-top:4px; line-height:1.7; }
+  .rolllist { border-top:1px solid var(--d-line); }
+  .rolllist .rl { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--d-line); }
+  .rolllist .rl .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .rolllist .rl .rn { flex:1; font-size:0.8rem; font-weight:700; }
+  .rolllist .rl .rn small { display:block; font-family:var(--mono); font-size:0.48rem; letter-spacing:0.1em; color:var(--d-dim); font-weight:600; margin-top:2px; }
+  .rolllist .rl .pull { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--d-ink); border:1px solid var(--d-line); border-radius:999px; padding:4px 9px; }
+  .rolllist .rl .pull.off { color:#5b4a39; border-color:#2b2018; }
+  .sheet .sacts { display:flex; gap:7px; margin-top:13px; }
+  .sheet .sacts b { flex:1; text-align:center; font-size:0.74rem; font-weight:800; border-radius:9px; padding:11px 0; }
+  .sheet .sacts b.primary { background:var(--d-ember); color:#1a0f0a; }
+  .sheet .sacts b.ghost { background:transparent; border:1px solid var(--d-line); color:var(--d-ink); font-weight:700; }
+  .sheet .destroy { text-align:center; margin-top:11px; font-size:0.72rem; font-weight:700; color:var(--d-danger); }
+
+  .dialog { position:absolute; left:18px; right:18px; top:50%; transform:translateY(-50%); background:var(--d-surface2); border:1px solid var(--d-line); border-radius:16px; padding:16px 16px 12px; z-index:9; }
+  .dialog .dg-t { font-weight:800; font-size:0.94rem; letter-spacing:-0.01em; margin-bottom:7px; }
+  .dialog p { margin:0 0 9px; font-size:0.76rem; color:var(--d-dim); line-height:1.6; }
+  .dialog .affected { border:1px solid var(--d-line); border-radius:9px; padding:8px 9px; margin-bottom:10px; }
+  .dialog .affected .ar { display:flex; align-items:center; gap:7px; font-size:0.72rem; padding:3px 0; }
+  .dialog .affected .ar .dot { width:7px; height:7px; border-radius:50%; flex:none; }
+  .dialog .affected .ar small { font-family:var(--mono); font-size:0.46rem; letter-spacing:0.08em; color:var(--d-dim); margin-left:auto; }
+  .dialog .dg-acts { display:flex; gap:8px; }
+  .dialog .dg-acts b { flex:1; text-align:center; font-size:0.78rem; font-weight:800; padding:10px 0; border-radius:9px; }
+  .dialog .dg-acts b.cancel { border:1px solid var(--d-line); color:var(--d-ink); font-weight:700; }
+  .dialog .dg-acts b.del { background:var(--d-danger); color:#2a0e0e; }
+
+  /* 새 롤 시트 */
+  .field { border:1px solid var(--d-line); border-radius:9px; padding:10px 11px; margin-bottom:9px; background:rgba(255,255,255,0.03); }
+  .field .fl { font-family:var(--mono); font-size:0.46rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--d-dim); }
+  .field .fv { font-size:0.86rem; font-weight:700; margin-top:4px; }
+  .field .fv .caret { display:inline-block; width:1px; height:0.9em; background:var(--d-ember); vertical-align:-2px; margin-left:1px; }
+  .field .fhint { font-family:var(--mono); font-size:0.46rem; letter-spacing:0.06em; color:var(--d-dim); margin-top:5px; }
+  .field .fhint b { color:var(--d-amber); font-weight:700; }
+  /* 성격·수집·지향은 고정값이라 컨트롤이 아니라 각인으로만 보여준다 (§3 하위 결정 ①) */
+  .specline { display:flex; gap:6px; margin-bottom:10px; }
+  .specline .sl { flex:1; border:1px solid var(--d-line); border-radius:7px; padding:6px 7px; font-size:0.68rem; font-weight:700; }
+  .specline .sl i { display:block; font-family:var(--mono); font-size:0.42rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--d-dim); font-style:normal; font-weight:600; margin-bottom:2px; }
+  .picked-row { display:flex; gap:3px; margin-bottom:11px; }
+  .picked-row i { width:26px; aspect-ratio:3/4; border-radius:3px; }
+
+  /* tab bar */
+  .tabbar { display:flex; align-items:center; justify-content:space-around; padding:10px 22px 16px; border-top:1px solid var(--d-line); background:rgba(14,11,8,0.6); flex:none; }
+  .tabbar .tb { font-family:var(--mono); font-size:0.52rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--d-dim); text-align:center; }
+  .tabbar .tb.on { color:var(--d-ink); }
+  .tabbar .capbtn { width:48px; height:48px; border-radius:50%; background:var(--d-ember); box-shadow:0 0 0 4px var(--d-ground),0 0 18px rgba(234,94,56,0.4); margin-top:-24px; }
+
+  /* tint legend */
+  .tints { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 1.4rem; }
+  .tint { border:1px solid var(--line); border-radius:11px; padding:10px 12px; background:var(--surface); min-width:118px; }
+  .tint .sw { height:22px; border-radius:5px; margin-bottom:7px; }
+  .tint .tn { font-family:var(--mono); font-size:0.54rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ink-dim); }
+  .tint .tv { font-family:var(--mono); font-size:0.66rem; margin-top:2px; }
+
+  .rec { margin-top:26px; padding:18px 20px; border-left:2px solid var(--lumen); background:var(--surface); border-radius:0 12px 12px 0; }
+  .rec.warn2 { border-left-color:var(--ember); }
+  .rec h3 { margin:0 0 7px; font-size:1rem; letter-spacing:-0.01em; }
+  .rec p { margin:0.3rem 0 0; color:var(--ink-dim); font-size:0.9rem; }
+
+  .toggle { position:fixed; top:14px; right:16px; z-index:70; font-family:var(--mono); font-size:0.58rem; letter-spacing:0.1em; text-transform:uppercase; border:1px solid var(--line); background:var(--surface); color:var(--ink-dim); border-radius:999px; padding:7px 13px; cursor:pointer; }
+  footer { border-top:1px solid var(--line); padding:32px 0 56px; }
+  footer .edge { color:var(--ink-dim); }
+  @media (prefers-reduced-motion: reduce) { .pend.ready::after { animation:none; top:32%; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <button class="toggle" id="tg">테마 전환</button>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="edge">archive · A+B hybrid · spec v0.1 · 2026-07-27</div>
+      <h1 class="display">캐비닛 위에<br>네거티브 스트립.</h1>
+      <p class="lead">
+        <a href="archive-redesign.html" style="color:var(--ember)">4안 비교</a>에서 <b>A + B 하이브리드</b>로 확정했습니다.
+        보관함 최상위는 <b>필름 캐비닛</b>(현상 대기 → 월별 선반 → 컷 서랍), 서랍 안은 <b>컨택트 스트립</b>(퍼포레이션 스트립 · 롤 색 점 · 컨텍스트 3액션)입니다.
+        이 문서는 그 결정을 화면·상태·모션·슬라이스까지 내린 <b>구현 설계</b>입니다.
+      </p>
+      <div class="decision">
+        <div class="dcard a">
+          <div class="dk">최상위 · <code>/archive</code></div>
+          <div class="dh">필름 캐비닛 (A)</div>
+          <p>세그먼트 제거. 한 줄 스크롤로 <b>현상 대기 → 월별 현상 완료 선반 → 컷 서랍</b>. 커버는 첫 프레임 4-업 모자이크. 리텐션 훅이 수집 공간 안으로 들어옵니다.</p>
+        </div>
+        <div class="dcard b">
+          <div class="dk">컷 레이어 · <code>/cuts</code></div>
+          <div class="dh">컨택트 스트립 (B)</div>
+          <p>하루 = 가로 35mm 퍼포레이션 스트립. 롤 소속은 프레임의 <b>색 점</b>(N:M), 액션은 <b>필터 컨텍스트에 따라 달라지는 3액션</b>. 삭제가 유일한 액션이 아니게 됩니다.</p>
+          <p style="margin-top:8px; color:var(--ink)"><b>새 롤로 묶기 포함</b> — 수동 롤 생성을 MVP 범위로 확장하기로 확정(§3·§7).</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 1. 구조 · 라우트 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">01</span><h2>구조와 라우트</h2><span class="tag">expo-router</span></div>
+      <p class="sec-sub">
+        컷 서랍은 탭 안의 세그먼트가 아니라 <b>루트 스택 푸시 라우트</b>입니다. 선례는 이미 있습니다 —
+        설정도 탭에서 빠져 <code>settings</code>로 루트 스택에 등록돼 있습니다(<code>_app/routes/root-layout.tsx</code>).
+      </p>
+
+      <div class="routes">(tabs)
+├── /               <b>오늘</b> (홈)
+└── /archive        <b>보관함 = 필름 캐비닛 (A)</b>
+                    ├─ 현상 대기 카드 ──── <i>/roll/[id]</i>          컨택트시트 (기존)
+                    │                  └ 현상하기 → <i>/capture/editing?rollId=</i>
+                    ├─ 월별 선반 커버 ──── <i>/capture/result?rollId=</i>  릴 재생 (기존)
+                    ├─ 컷 서랍 ─────────── <u>/cuts</u>                <b>컷 = 컨택트 스트립 (B)</b> ★신설
+                    └─ ⚙ ──────────────── <i>/settings</i>            (기존, 유지)
+
+루트 스택 (인증 그룹)
+└── <u>/cuts</u>          ★신설 · 탭바 없음 · 헤더 ‹ 컷
+     ├─ 필터: 전체 · 미현상 · 롤 없음 N · 롤별 ▾
+     ├─ 길게 눌러(또는 헤더 <b>선택</b>) → 선택 모드 → <b>컨텍스트 3액션</b>
+     ├─ 컷 탭 → 컷 시트 (재생 · <b>이 컷이 든 롤</b> · 빼기 · 삭제)
+     └─ 삭제 → 2단 분리 확인 다이얼로그</div>
+
+      <div class="rec">
+        <h3><code>/cuts</code>를 <code>/archive/cuts</code>로 두지 않은 이유</h3>
+        <p><code>(tabs)/archive.tsx</code>가 이미 <code>/archive</code>를 소유합니다. 같은 경로 아래 디렉터리 라우트를 겹치면 그룹과 디렉터리가 한 경로를 나눠 갖는 모호한 구조가 됩니다. <code>settings</code>와 같은 방식(루트 스택 형제 라우트)이 이 프로젝트의 확립된 패턴이므로 그대로 따릅니다.</p>
+        <p><b>부수 효과 하나</b>: 선택 모드가 탭바 없는 라우트로 옮겨가면서 <code>shared/ui/tab-bar-chrome</code>(탭바 숨김 스위치)의 유일한 소비자가 사라집니다. 확인 결과 소비자는 <code>pages/archive</code>와 그것을 읽는 <code>_app/routes/app-tabs</code>뿐이므로, 이 작업에서 <b>같이 제거</b>합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 2. 캐비닛 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">02</span><h2>필름 캐비닛</h2><span class="tag">/archive</span></div>
+      <p class="sec-sub">위에서 아래로 <b>기대 → 소유 → 원본</b> 순서입니다. 현상 대기(오늘 포함) → 월별 현상 완료 선반 → 컷 서랍.</p>
+
+      <div class="row">
+        <div class="devices">
+          <figure>
+            <div class="device"><div class="screen">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ah">
+                <div>
+                  <div class="e-print">cabinet · 롤 12 · 컷 148</div>
+                  <div class="h-t" style="margin-top:3px">보관함</div>
+                </div>
+                <div class="gear">⚙</div>
+              </div>
+              <div class="body">
+                <div class="lane-h"><span class="lt warm">● 현상 대기 2</span></div>
+
+                <div class="pend ready">
+                  <div class="pr"><span class="pt">7월 26일</span><span class="badge cool">현상 준비됨</span></div>
+                  <div class="strip-mini"><i class="f1"></i><i class="f2"></i><i class="f3"></i><i class="f4"></i><i class="f5"></i></div>
+                  <div class="pa"><span class="e-print" style="color:var(--d-dim)">5컷 · 하루 종료</span><span class="btn-s cool">현상하기</span></div>
+                </div>
+
+                <div class="pend">
+                  <div class="pr"><span class="pt">오늘</span><span class="badge warm">담는 중 3/12</span></div>
+                  <div class="strip-mini"><i class="f6"></i><i class="f7"></i><i class="f8"></i><i class="blank"></i><i class="blank"></i></div>
+                  <div class="meter"><i style="width:25%"></i></div>
+                  <div class="pa"><span class="e-print" style="color:var(--d-dim)">자정 이후 현상 열림</span><span class="btn-s ghost">담기</span></div>
+                </div>
+
+                <div class="lane-h"><span class="lt cool">◐ 현상 완료 · 2026.07</span><span class="more">6롤</span></div>
+                <div class="covers2">
+                  <div class="cover">
+                    <span class="mosaic"><i class="f2"></i><i class="f4"></i><i class="f8"></i><i class="f3"></i></span>
+                    <span class="scrim"></span><span class="spine" style="background:#82D6CE"></span>
+                    <div class="top-row"><span class="cv-e">07-24 · 4컷</span><span class="badge cool" style="background:rgba(14,11,8,0.5)">0:17</span></div>
+                    <div class="cv-t">7월 24일</div>
+                  </div>
+                  <div class="cover">
+                    <span class="mosaic"><i class="f5"></i><i class="f1"></i><i class="f7"></i><i class="f6"></i></span>
+                    <span class="scrim"></span><span class="spine" style="background:#E7A24A"></span>
+                    <div class="top-row"><span class="cv-e">07-21 · 6컷</span><span class="badge cool" style="background:rgba(14,11,8,0.5)">0:26</span></div>
+                    <div class="cv-t">7월 21일</div>
+                  </div>
+                </div>
+              </div>
+              <div class="tabbar"><span class="tb">오늘</span><span class="capbtn"></span><span class="tb on">보관함</span></div>
+            </div></div>
+            <figcaption><span class="cap-e">A-1 · 캐비닛 기본</span><div class="cap-d">현상 준비됨 카드에만 냉광 스윕이 돕니다. 커버 왼쪽 3px 각인 띠가 롤 틴트(§4).</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ah">
+                <div>
+                  <div class="e-print">cabinet · 스크롤 · 06월</div>
+                  <div class="h-t" style="margin-top:3px">보관함</div>
+                </div>
+                <div class="gear">⚙</div>
+              </div>
+              <div class="body">
+                <div class="lane-h"><span class="lt cool">◐ 현상 완료 · 2026.06</span><span class="more">3롤</span></div>
+                <div class="covers2">
+                  <div class="cover"><span class="mosaic"><i class="f3"></i><i class="f6"></i><i class="f2"></i><i class="f5"></i></span><span class="scrim"></span><span class="spine" style="background:#9A86C9"></span><div class="top-row"><span class="cv-e">06-30 · 7컷</span><span class="badge cool" style="background:rgba(14,11,8,0.5)">0:31</span></div><div class="cv-t">6월 30일</div></div>
+                  <div class="cover"><span class="mosaic"><i class="f8"></i><i class="f7"></i><i class="f1"></i><i class="f4"></i></span><span class="scrim"></span><span class="spine" style="background:#7FC9A0"></span><div class="top-row"><span class="cv-e">06-27 · 5컷</span><span class="badge cool" style="background:rgba(14,11,8,0.5)">0:22</span></div><div class="cv-t">6월 27일</div></div>
+                  <div class="cover"><span class="mosaic"><i class="f2"></i><i class="f3"></i><i class="f5"></i><i class="f8"></i></span><span class="scrim"></span><span class="spine" style="background:#D98AA0"></span><div class="top-row"><span class="cv-e">06-22 · 3컷</span><span class="badge cool" style="background:rgba(14,11,8,0.5)">0:13</span></div><div class="cv-t">6월 22일</div></div>
+                  <div class="cover dashed"><em>6월 · 27일 중<br>4일 비었음</em></div>
+                </div>
+
+                <div class="drawer">
+                  <div>
+                    <div class="dt">모든 컷</div>
+                    <div class="dd">148컷 · 롤 없는 컷 <b>9</b></div>
+                  </div>
+                  <span class="e-print" style="color:var(--d-dim)">열기 ›</span>
+                </div>
+                <div class="strip" style="margin-top:5px">
+                  <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="fr f1"></span><span class="fr f4"></span><span class="fr f6"></span>
+                  <span class="fr f2 orphan"></span><span class="fr f7"></span>
+                </div>
+              </div>
+              <div class="tabbar"><span class="tb">오늘</span><span class="capbtn"></span><span class="tb on">보관함</span></div>
+            </div></div>
+            <figcaption><span class="cap-e">A-2 · 월 경계 + 컷 서랍</span><div class="cap-d">"4일 비었음"은 장식이 아니라 계산된 사실. 서랍 미리보기 스트립이 B로 가는 시각적 예고.</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ah">
+                <div>
+                  <div class="e-print">cabinet · 롤 0 · 컷 0</div>
+                  <div class="h-t" style="margin-top:3px">보관함</div>
+                </div>
+                <div class="gear">⚙</div>
+              </div>
+              <div class="body">
+                <div class="lane-h"><span class="lt warm">● 현상 대기 1</span></div>
+                <div class="pend">
+                  <div class="pr"><span class="pt">오늘</span><span class="badge warm">담는 중 0/12</span></div>
+                  <div class="strip-mini"><i class="blank"></i><i class="blank"></i><i class="blank"></i><i class="blank"></i><i class="blank"></i></div>
+                  <div class="meter"><i style="width:0%"></i></div>
+                  <div class="pa"><span class="e-print" style="color:var(--d-dim)">첫 컷을 기다리는 롤</span><span class="btn-s">첫 순간 담기</span></div>
+                </div>
+
+                <div class="lane-h"><span class="lt cool">◐ 현상 완료</span></div>
+                <div class="emptycard">
+                  <div class="eh">선반이 비어 있어요</div>
+                  <p>오늘의 롤을 현상하면 이 선반에<br>릴로 꽂힙니다.</p>
+                </div>
+
+                <div class="drawer off">
+                  <div>
+                    <div class="dt">모든 컷</div>
+                    <div class="dd">0컷 · 담은 원본이 없어요</div>
+                  </div>
+                  <span class="e-print" style="color:#5b4a39">열기 ›</span>
+                </div>
+              </div>
+              <div class="tabbar"><span class="tb">오늘</span><span class="capbtn"></span><span class="tb on">보관함</span></div>
+            </div></div>
+            <figcaption><span class="cap-e">A-3 · 첫 사용</span><div class="cap-d">빈칸 5개가 그대로 보이는 오늘의 롤이 유일한 CTA. 서랍은 비활성.</div></figcaption>
+          </figure>
+        </div>
+
+        <div class="notes">
+          <h4>확정 규칙</h4>
+          <ul>
+            <li><b>현상 대기 레인은 항상 존재합니다.</b> 오늘의 롤은 컷 0개여도 카드로 남습니다(<code>DailyRollGate</code>가 보장). "대기 0"인 상태는 있을 수 없으므로 이 레인에 빈 상태가 필요 없습니다.</li>
+            <li><b>현상 준비됨 = <code>status: 'undeveloped'</code> + <code>dayKey &lt; 오늘</code> + <code>clipRefs.length &gt; 0</code>.</b> 컷 0개인 지난 롤은 현상할 게 없으므로 레인에서 제외하고 조용히 넘깁니다.</li>
+            <li><b>냉광 스윕은 "현상 준비됨" 카드에만.</b> 오늘 카드는 앰버 계열 정지 상태입니다. 냉광은 컨셉 §5대로 "현상하는 순간"의 색이므로, 아직 담는 중인 롤에 쓰면 의미가 흐려집니다.</li>
+            <li><b>선반은 월별 섹션.</b> 헤더는 <code>현상 완료 · YYYY.MM</code> + 그 달 롤 수. 월이 끝날 때마다 <code>N일 비었음</code> 슬롯 하나 — 값은 <code>그 달의 경과일 − 컷이 있는 날</code>로 계산하며, 미래 날짜는 세지 않습니다.</li>
+            <li><b>커버 = 첫 프레임 4-업 모자이크 + 3px 각인 띠.</b> 썸네일은 이미 캐시돼 있어 새 I/O가 없습니다(<code>shared/lib/video-thumbnails</code>, base name 키). 컷이 4개 미만이면 있는 만큼 반복해 채웁니다.</li>
+            <li><b>장식용 <code>빈 롤</code> 점선 슬롯은 삭제.</b> 눌러지지 않는 거짓 어포던스였고, 그 자리를 <code>N일 비었음</code>(실제 값, 그 달로 스크롤)이 대신합니다.</li>
+          </ul>
+
+          <div class="warn">
+            <b>홈 화면에 번지는 변경</b>
+            <p><code>pages/home</code>이 <code>widgets/developed-rolls-shelf</code>의 <code>formatReelLength</code>를 직접 임포트합니다. 이 위젯을 상태별로 쪼갤 때 홈의 임포트도 같이 옮겨야 합니다. 홈의 선반 미리보기도 같은 read model을 쓰므로 커버 모자이크가 홈에 자동으로 따라옵니다 — 의도된 이득이지만 홈 목업과 대조해 확인이 필요합니다.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="sub">자유 롤은 캐비닛에서 어디에 앉나</h3>
+      <p class="sec-sub" style="margin-bottom:1.2rem">
+        캐비닛은 <b>날짜</b>로 조직됩니다(현상 대기 → 월별 선반). 그런데 수동으로 묶은 자유 롤에는 <code>dayKey</code>가 없습니다 —
+        <code>dayKey</code>는 데일리 롤 전용 필드입니다. 그래서 자리와 표기를 명시적으로 정해둡니다.
+      </p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>질문</th><th>결정</th><th>이유 · 확인</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>미현상 자유 롤은 어느 자리?</td>
+              <td><b>현상 대기 레인</b>에 데일리와 나란히. 조건에서 <code>dayKey</code>를 빼고 <code>status === 'undeveloped' &amp;&amp; clipRefs.length &gt; 0</code>로 통일</td>
+              <td>현상할 수 있는 롤이 전부 한 자리에 모여야 "대기"라는 말이 성립합니다</td>
+            </tr>
+            <tr>
+              <td>레인이 길어지면?</td>
+              <td>오늘의 롤 + 최근 <b>2개</b>까지 펼치고 나머지는 <code>+N개 더</code>로 접기</td>
+              <td>자유 롤은 수동 생성이라 개수 상한이 없습니다. 접지 않으면 선반이 화면에서 밀려납니다</td>
+            </tr>
+            <tr>
+              <td>현상 완료 자유 롤은 어느 달 선반?</td>
+              <td><code>rollDate = dayKey ?? createdAt</code>의 달. 데일리는 그날, 묶음은 <b>묶은 날</b></td>
+              <td>컷 조인 없이 계산되고, 컷이 여러 달에 걸쳐도 자리가 하나로 정해집니다</td>
+            </tr>
+            <tr>
+              <td>커버 제목 · 엣지 프린트</td>
+              <td>제목은 사용자가 준 이름, 엣지는 <b>컷 날짜 범위</b> — <code>07-18~07-24 · 3컷</code></td>
+              <td>데일리는 날짜가 제목이라 엣지에 컷 수만 오지만, 자유 롤은 제목이 이름이므로 엣지가 날짜를 맡아야 합니다</td>
+            </tr>
+            <tr>
+              <td>오늘의 롤과 충돌하나?</td>
+              <td><b>없음.</b> 그대로 둡니다</td>
+              <td>확인 완료 — <code>ensureDailyRoll</code>은 <code>type === 'daily' &amp;&amp; dayKey</code>로 찾고 <code>useTodayRoll</code>은 <code>todayRollId</code>를 봅니다. <code>dayKey</code> 없는 롤은 어느 쪽에도 걸리지 않습니다</td>
+            </tr>
+            <tr>
+              <td>자유 롤도 현상되나?</td>
+              <td><b>됨.</b> 현상 경로는 손대지 않습니다</td>
+              <td>확인 완료 — <code>composeReel</code>은 <code>roll.type</code>을 보지 않습니다(순서 정렬 + 지배 무드 BGM + 컷 수 기준 전환뿐)</td>
+            </tr>
+            <tr>
+              <td>롤 상세는?</td>
+              <td>기존 <code>/roll/[id]</code>가 그대로 처리. <b>엣지 프린트만 손봄</b></td>
+              <td>현재 <code>ROLL · {dayKey ?? '—'}</code>를 찍어 자유 롤이 <code>—</code>로 나옵니다. <code>dayKey</code>가 없으면 날짜 범위를 찍도록 바꿉니다</td>
+            </tr>
+            <tr>
+              <td>잘못 만든 롤은?</td>
+              <td>미현상 자유 롤의 컷이 <b>0개가 되면 자동 제거</b>. 데일리 롤은 유지</td>
+              <td>롤 삭제 UI를 새로 만들지 않고 막다른 상태를 막는 최소 규칙(§3 하위 결정 ③)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3. 컷 스트립 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">03</span><h2>컨택트 스트립</h2><span class="tag">/cuts</span></div>
+      <p class="sec-sub">
+        하루가 스트립 한 줄입니다. 프레임의 <b>색 점</b>이 롤 소속, 앰버 점선은 <b>어느 롤에도 없는 컷</b>, <code>?</code>는 아직 채워지지 않은 오늘의 빈 슬롯입니다.
+      </p>
+
+      <div class="row">
+        <div class="devices">
+          <figure>
+            <div class="device"><div class="screen neg">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ph">
+                <span class="back">‹</span>
+                <span class="pt"><span class="t">컷</span></span>
+                <span class="act">선택</span>
+              </div>
+              <div class="body">
+                <div class="e-print" style="margin-bottom:9px">negative · 148 frames</div>
+                <div class="chips"><span class="on">전체</span><span>미현상</span><span class="orphan">롤 없음 9</span><span>롤별 ▾</span></div>
+
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">오늘 · 07-27 · 3컷</span><span class="badge warm">담는 중</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f6"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr f7"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr f8"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr undev"></span>
+                  </div>
+                </div>
+
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">어제 · 07-26 · 5컷</span><span class="badge cool">현상 준비됨</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f1"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr f2"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr f3"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                    <span class="fr f4"><span class="tagdots"><i style="background:#EA5E38"></i></span></span>
+                  </div>
+                </div>
+
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-24 · 4컷</span><span class="badge cool">0:17</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f5"><span class="tagdots"><i style="background:#82D6CE"></i></span></span>
+                    <span class="fr f8"><span class="tagdots"><i style="background:#82D6CE"></i><i style="background:#9A86C9"></i></span></span>
+                    <span class="fr f3 orphan"></span>
+                    <span class="fr f7"><span class="tagdots"><i style="background:#82D6CE"></i></span></span>
+                  </div>
+                </div>
+              </div>
+              <div class="monthrail"><span class="on">07</span><span>06</span><span>05</span><span>04</span></div>
+            </div></div>
+            <figcaption><span class="cap-e">B-1 · 스트립 기본</span><div class="cap-d">점 2개 = 두 롤에 든 컷. 탭바가 없는 푸시 라우트라 화면 전체를 스트립이 씁니다.</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen neg">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ph">
+                <span class="back">✕</span>
+                <span class="pt"><span class="t">3컷 선택</span></span>
+                <span class="act">전체선택</span>
+              </div>
+              <div class="body">
+                <div class="e-print" style="margin-bottom:9px; color:var(--d-amber)">filter · 롤 없음 9 frames</div>
+                <div class="chips"><span>전체</span><span>미현상</span><span class="orphan on">롤 없음 9</span><span>롤별 ▾</span></div>
+
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-24 · 1컷</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f3 orphan picked"><span class="tick">✓</span></span>
+                  </div>
+                </div>
+
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-18 · 3컷</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f5 orphan picked"><span class="tick">✓</span></span>
+                    <span class="fr f1 orphan picked"><span class="tick">✓</span></span>
+                    <span class="fr f6 orphan"></span>
+                  </div>
+                </div>
+
+                <p style="font-family:var(--mono); font-size:0.58rem; letter-spacing:0.04em; line-height:1.75; color:var(--d-dim); margin-top:14px">
+                  어느 롤에도 없는 컷들입니다.<br>묶으면 하나의 롤이 되고, 현상할 수 있게 됩니다.
+                </p>
+              </div>
+              <div class="selbar">
+                <div class="sr"><span class="sc">3컷 선택</span><span class="e-print" style="color:var(--d-dim)">롤 없음 필터</span></div>
+                <div class="acts"><b class="primary">새 롤로 묶기</b><b>롤에 담기</b><b class="danger">삭제</b></div>
+              </div>
+            </div></div>
+            <figcaption><span class="cap-e">B-2 · 선택 모드 · 롤 없음</span><div class="cap-d">삭제는 셋 중 하나로 밀리고 기본이 수집 액션이 됩니다.</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen neg">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ph">
+                <span class="back">‹</span>
+                <span class="pt"><span class="t">컷</span></span>
+                <span class="act dim">선택</span>
+              </div>
+              <div class="body">
+                <div class="e-print" style="margin-bottom:9px">negative · 148 frames</div>
+                <div class="chips"><span class="on">전체</span><span>미현상</span><span class="orphan">롤 없음 9</span><span>롤별 ▾</span></div>
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-24 · 4컷</span><span class="badge cool">0:17</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f5"></span><span class="fr f8"></span><span class="fr f3"></span><span class="fr f7"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="dimmer"></div>
+              <div class="sheet">
+                <div class="grab"></div>
+                <div class="cutpreview">
+                  <span class="pv f8"><span class="play"></span></span>
+                  <span class="meta">
+                    <span class="m1">7월 24일 19:02</span>
+                    <span class="m2">cut 118 · 4.2초<br>2.1MB · 세로 원본</span>
+                  </span>
+                </div>
+                <div class="e-print" style="color:var(--d-dim); margin-bottom:2px">이 컷이 든 롤 2</div>
+                <div class="rolllist">
+                  <div class="rl">
+                    <span class="dot" style="background:#82D6CE"></span>
+                    <span class="rn">7월 24일<span><small>daily · 현상 완료 — 멤버십 고정</small></span></span>
+                    <span class="pull off">빼기</span>
+                  </div>
+                  <div class="rl">
+                    <span class="dot" style="background:#9A86C9"></span>
+                    <span class="rn">노을 모음<span><small>free · 미현상</small></span></span>
+                    <span class="pull">빼기</span>
+                  </div>
+                </div>
+                <div class="sacts"><b class="primary">재생</b><b class="ghost">롤에 담기</b></div>
+                <div class="destroy">보관함에서 삭제</div>
+              </div>
+            </div></div>
+            <figcaption><span class="cap-e">B-3 · 컷 시트 (N:M)</span><div class="cap-d">한 컷이 든 롤이 전부 보입니다. 현상 완료 롤은 <b>빼기 비활성</b> — 릴이 고정이기 때문(코드 규칙).</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen neg">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ph">
+                <span class="back">‹</span>
+                <span class="pt"><span class="t">컷</span></span>
+                <span class="act dim">선택</span>
+              </div>
+              <div class="body">
+                <div class="e-print" style="margin-bottom:9px">negative · 148 frames</div>
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-24 · 4컷</span><span class="badge cool">0:17</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f5"></span><span class="fr f8"></span><span class="fr f3"></span><span class="fr f7"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="dimmer"></div>
+              <div class="dialog">
+                <div class="dg-t">컷 1개를 보관함에서 삭제할까요?</div>
+                <p>원본 파일이 지워지고, 이 컷이 든 롤에서도 함께 사라집니다.</p>
+                <div class="affected">
+                  <div class="ar"><span class="dot" style="background:#82D6CE"></span>7월 24일<small>현상 완료 · 릴 4→3컷</small></div>
+                  <div class="ar"><span class="dot" style="background:#9A86C9"></span>노을 모음<small>미현상 · 3→2컷</small></div>
+                </div>
+                <p style="color:var(--d-danger)">복구할 수 없어요. 롤에서만 빼려면 <b>빼기</b>를 쓰세요.</p>
+                <div class="dg-acts"><b class="cancel">취소</b><b class="del">삭제</b></div>
+              </div>
+            </div></div>
+            <figcaption><span class="cap-e">B-4 · 삭제 확인 (2단 분리)</span><div class="cap-d">"어느 롤이 영향을 받는지"를 이름과 컷 수 변화로 먼저 보여주고, 대안(빼기)을 문장으로 제시합니다.</div></figcaption>
+          </figure>
+
+          <figure>
+            <div class="device"><div class="screen neg">
+              <div class="sbar"><span>9:41</span><span>▮▮▮</span></div>
+              <div class="ph">
+                <span class="back">✕</span>
+                <span class="pt"><span class="t">3컷 선택</span></span>
+                <span class="act dim">전체선택</span>
+              </div>
+              <div class="body">
+                <div class="e-print" style="margin-bottom:9px; color:var(--d-amber)">filter · 롤 없음 9 frames</div>
+                <div class="strip-row">
+                  <div class="strip-lab"><span class="e-print">07-18 · 3컷</span></div>
+                  <div class="strip">
+                    <span class="perf top"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="perf bot"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                    <span class="fr f5 orphan picked"><span class="tick">✓</span></span>
+                    <span class="fr f1 orphan picked"><span class="tick">✓</span></span>
+                    <span class="fr f6 orphan"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="dimmer"></div>
+              <div class="sheet">
+                <div class="grab"></div>
+                <div class="sh-t" style="margin-bottom:11px">새 롤로 묶기</div>
+                <div class="picked-row"><i class="f3"></i><i class="f5"></i><i class="f1"></i></div>
+                <div class="field">
+                  <div class="fl">롤 이름 · 비워도 됨</div>
+                  <div class="fv">노을 모음<span class="caret"></span></div>
+                  <div class="fhint">비우면 <b>묶음 07-27</b>로 저장돼요</div>
+                </div>
+                <div class="specline">
+                  <span class="sl"><i>성격</i>자유 롤</span>
+                  <span class="sl"><i>수집</i>수동</span>
+                  <span class="sl"><i>지향</i>세로</span>
+                </div>
+                <p style="font-family:var(--mono); font-size:0.52rem; letter-spacing:0.06em; line-height:1.7; color:var(--d-dim); margin:0 0 4px">
+                  미현상으로 시작해 바로 현상할 수 있어요<br>원본은 그대로 남고 롤이 참조만 합니다
+                </p>
+                <div class="sacts"><b class="ghost">취소</b><b class="primary">3컷으로 만들기</b></div>
+              </div>
+            </div></div>
+            <figcaption><span class="cap-e">B-5 · 새 롤 시트</span><div class="cap-d">묻는 건 <b>이름 하나</b>. 성격·수집·지향은 고정값이라 컨트롤이 아니라 각인으로만 보여줍니다(§3 하위 결정 ①).</div></figcaption>
+          </figure>
+        </div>
+
+        <div class="notes">
+          <h4>확정 규칙</h4>
+          <ul>
+            <li><b>선택 바 3액션은 필터 컨텍스트에 따라 달라집니다.</b> <code>롤에서 빼기</code>는 "어느 롤에서"가 있어야 성립하므로, 롤 컨텍스트가 있는 <code>롤별</code> 필터에서만 나타납니다.
+              <div style="font-family:var(--mono); font-size:0.72rem; line-height:1.9; color:var(--ink-dim); margin-top:6px">
+                전체 / 미현상 / 롤 없음 → [새 롤로 묶기] [롤에 담기] [삭제]<br>
+                롤별(롤 R 선택) &nbsp;&nbsp;&nbsp;&nbsp;→ [롤에서 빼기] [롤에 담기] [삭제]
+              </div>
+            </li>
+            <li><b>현상 완료 롤은 멤버십이 고정입니다.</b> <code>roll-detail</code>이 이미 <code>canEdit = status === 'undeveloped'</code>로 강제하고 있습니다. 컷 시트의 <code>빼기</code>도 같은 규칙을 따라 비활성이고, <code>롤에 담기</code>의 대상 목록에도 미현상 롤만 올라옵니다.</li>
+            <li><b>프레임 점은 최대 3개까지</b> 표시하고 그 이상은 <code>+N</code>으로 접습니다. 44px 프레임에 점 4개 이상은 읽히지 않습니다.</li>
+            <li><b><code>?</code> 빈 슬롯은 오늘 스트립에만.</b> 지난 날의 스트립에 빈 슬롯을 남기면 "채우지 못한 과거"가 되어 톤이 어긋납니다. 소프트 타깃(12컷)은 오늘에만 유효합니다.</li>
+            <li><b>선택 모드 진입은 두 경로</b> — 프레임 롱프레스(260ms, 기존 값 유지)와 헤더의 <code>선택</code>. 안드로이드 하드웨어 백은 선택 모드를 먼저 해제합니다(기존 동작 유지).</li>
+            <li><b>스트립은 각각 가로 스크롤</b>합니다. 하루에 컷이 많으면 그 줄만 밀리고 세로 리듬은 유지됩니다.</li>
+          </ul>
+
+          <div class="warn" style="border-left-color:var(--lumen)">
+            <b>결정 — "새 롤로 묶기"는 MVP 범위로 확장 (2026-07-27)</b>
+            <p>기존 문서(<code>recording-archive.md</code>)가 수동 롤 생성을 범위 밖으로 두고 있었지만, 이번에 <b>범위에 넣기로 확정</b>했습니다. 근거는 단순합니다 — 컷과 롤을 N:M으로 나눈 이유가 "한 컷이 여러 롤에 산다"인데, 롤을 만들 수 없으면 데일리 롤 하나뿐이라 N:M이 실제로 발생하지 않습니다. 스트립의 색 점도 항상 1개짜리가 됩니다.</p>
+            <p><b>따라오는 하위 결정 셋</b> — 확장을 최소 표면으로 유지하기 위한 것들입니다.</p>
+            <p><b>① 성격(<code>RollType</code>) 칩은 노출하지 않고 <code>free</code> 고정.</b> 성격은 BGM 톤·기본 길이·커버 스타일을 바꾸는 값인데 그 동작이 아직 구현되지 않았습니다. 칩 4개를 두면 눌러도 아무 일이 없는 <b>가짜 컨트롤</b>이 됩니다. 프리셋 카드는 v1.1 테마 롤과 함께 엽니다(컨셉 §3 "화면엔 프리셋 카드만, 풀 커스텀은 한 겹 뒤").</p>
+            <p><b>② 이름은 필수가 아님.</b> 비우면 <code>묶음 07-27</code>이 들어갑니다. 20자 상한, 중복 허용. 이름 강제는 담기 마찰입니다.</p>
+            <p><b>③ 잘못 만든 롤은 자동 정리.</b> 롤 삭제 UI를 새로 만들지 않습니다. <b>미현상 자유 롤의 컷이 0개가 되면 그 롤을 제거</b>합니다(데일리 롤은 컷 0개여도 유지 — 오늘의 롤이 사라지면 안 됨). 막다른 상태를 UI 추가 없이 막는 최소 규칙입니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4. 롤 틴트 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">04</span><h2>롤 틴트 규칙</h2><span class="tag">신설 · entities/roll</span></div>
+      <p class="sec-sub">
+        B의 색 점과 A의 각인 띠는 <b>같은 색</b>이어야 합니다. 그런데 <code>Roll</code>에는 색 필드가 없고, 현재 선반은
+        <b>배열 위치로 틴트를 순환</b>시킵니다 — 롤이 하나 추가되면 모든 커버 색이 밀립니다. 색이 정체성이 되려면 이걸 먼저 고쳐야 합니다.
+      </p>
+
+      <h3 class="sub">결정: <code>rollTint(roll.id)</code> — 저장하지 않고 id에서 파생</h3>
+      <div class="tints">
+        <div class="tint"><div class="sw" style="background:#EA5E38"></div><div class="tn">ember</div><div class="tv">#EA5E38</div></div>
+        <div class="tint"><div class="sw" style="background:#82D6CE"></div><div class="tn">lumen</div><div class="tv">#82D6CE</div></div>
+        <div class="tint"><div class="sw" style="background:#E7A24A"></div><div class="tn">amber</div><div class="tv">#E7A24A</div></div>
+        <div class="tint"><div class="sw" style="background:#9A86C9"></div><div class="tn">iris</div><div class="tv">#9A86C9</div></div>
+        <div class="tint"><div class="sw" style="background:#7FC9A0"></div><div class="tn">moss</div><div class="tv">#7FC9A0</div></div>
+        <div class="tint"><div class="sw" style="background:#D98AA0"></div><div class="tn">rose</div><div class="tv">#D98AA0</div></div>
+      </div>
+      <div class="tw">
+        <table>
+          <thead><tr><th>항목</th><th>결정</th><th>이유</th></tr></thead>
+          <tbody>
+            <tr><td>색 저장</td><td><b>안 함.</b> <code>rollTint(id)</code> 순수 함수로 매번 계산</td><td>스토어 스키마 마이그레이션이 없고, 기존 롤도 즉시 색을 얻습니다</td></tr>
+            <tr><td>해시</td><td>id 문자 코드 합 → 6색 팔레트 인덱스</td><td>결정적이라 같은 롤은 어디서나 같은 색. 목록 순서와 무관</td></tr>
+            <tr><td>소유 위치</td><td><code>entities/roll/lib/roll-tint.ts</code>, 엔티티 Public API로 노출</td><td>롤 도메인 지식이므로 <code>shared</code>가 아닙니다</td></tr>
+            <tr><td>오늘의 롤</td><td>해시 무시, 항상 <b>ember</b></td><td>담기 중인 롤은 세이프라이트색으로 고정해야 스트립에서 "오늘"이 즉시 읽힙니다</td></tr>
+            <tr><td>쓰이는 곳</td><td>스트립 점 · 커버 각인 띠 · 컷 시트 롤 행 · 삭제 다이얼로그 영향 목록</td><td>같은 색이 네 곳에서 같은 롤을 가리켜야 색이 의미를 갖습니다</td></tr>
+            <tr><td>충돌</td><td>허용(6색이라 7번째 롤부터 반복)</td><td>점은 <b>보조</b> 신호이고 이름이 항상 함께 나옵니다. 6색을 넘기면 저채도 변형을 더하는 것보다 반복이 낫습니다</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5. 상태 · 모션 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">05</span><h2>상태와 모션</h2></div>
+
+      <h3 class="sub">화면별 상태</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>화면</th><th>로딩</th><th>빈 상태</th><th>에러</th></tr></thead>
+          <tbody>
+            <tr><td><b>/archive</b> 캐비닛</td><td>스토어 hydrate 전에는 현상 대기 카드 자리를 스켈레톤으로. 썸네일은 개별 필름셀 플레이스홀더(기존 방식)</td><td>롤 0 → 선반 자리에 점선 카드 하나(A-3). 현상 대기는 오늘의 롤이 항상 있어 빈 상태 없음</td><td>썸네일 실패는 셀 단위로 조용히 플레이스홀더 유지. 스토어 읽기 실패는 상단 위험 카드(기존 <code>messageCard</code> 재사용)</td></tr>
+            <tr><td><b>/cuts</b> 스트립</td><td>첫 진입 시 <code>담긴 컷을 불러오는 중</code> 한 줄(기존 문구 유지)</td><td>컷 0 → 캐비닛 서랍이 비활성이라 도달 자체가 드묾. 필터 결과 0 → <code>이 필터에 해당하는 컷이 없어요</code> + 필터 해제 링크</td><td>삭제 일부 실패 시 성공한 것만 반영하고 실패 수를 배너로(기존 <code>removeRecordings</code> 동작 유지)</td></tr>
+            <tr><td><b>컷 시트</b></td><td>—</td><td>롤 0개인 컷 → <code>아직 어느 롤에도 없어요</code> + <code>롤에 담기</code> 강조</td><td>파일 없음(원본 유실) → 재생 비활성 + <code>원본을 찾을 수 없어요</code></td></tr>
+            <tr><td><b>새 롤 시트</b></td><td>—</td><td>이름 빈값이 정상 상태 — <code>묶음 07-27</code> 힌트를 자리표시로 보여줌</td><td>생성 실패(영속화 오류) → 시트 유지 + <code>롤을 만들지 못했어요</code>. 선택은 풀지 않아 재시도 가능</td></tr>
+            <tr><td><b>롤에 담기 시트</b></td><td>—</td><td>담을 수 있는 미현상 롤이 오늘의 롤뿐 → 목록에 오늘의 롤 하나 + <code>새 롤로 묶기</code> 링크</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">모션 (컨셉 §7 준수)</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th>동작</th><th>타이밍 · 이징</th><th>비고</th></tr></thead>
+          <tbody>
+            <tr><td>현상 준비됨 카드 냉광 스윕</td><td>루프 <code>2800ms · ease-in-out</code></td><td>§7 현상 스캔(2000ms)의 저강도 예고편. 카드 하나에만</td></tr>
+            <tr><td>서랍 → 스트립 진입</td><td>기본 스택 푸시</td><td>서랍의 미리보기 스트립이 그대로 이어지는 느낌이 목표. 공유 요소 전환은 <b>미도입</b>(비용 대비 이득 낮음)</td></tr>
+            <tr><td>선택 바 등장</td><td><code>220ms · ease-out</code> 아래에서 슬라이드</td><td>기존 <code>CutSelectionBar</code> 등장과 동일 값 유지</td></tr>
+            <tr><td>프레임 선택 체크</td><td><code>120ms</code> 스케일 + light 햅틱</td><td>롱프레스 진입 시에만 medium 햅틱</td></tr>
+            <tr><td>컷 시트</td><td><code>260ms · ease-out</code></td><td>배경 dim 동시 페이드</td></tr>
+            <tr><td>새 롤 생성 완료</td><td>프레임들이 새 커버로 <code>250ms · ease-out-back</code> fly + medium 햅틱</td><td>§7 릴리즈 스냅의 재사용 — "묶였다"를 몸으로 알리는 지점</td></tr>
+            <tr><td>저감 모션</td><td>스윕·fly 생략, 최종 상태 즉시</td><td><code>useReducedMotion</code> 기존 훅 사용</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6. 슬라이스 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">06</span><h2>FSD 소유 계층</h2><span class="tag">구현 배치</span></div>
+      <p class="sec-sub">착수 시 <code>docs/architecture/feature-sliced-design.md</code>·<code>docs/conventions/module-boundaries.md</code>·<code>implementation-patterns.md</code>로 최종 확인합니다.</p>
+
+      <div class="tw">
+        <table>
+          <thead><tr><th>레이어 · 슬라이스</th><th>역할</th><th>상태</th></tr></thead>
+          <tbody>
+            <tr><td><code>app/cuts.tsx</code></td><td><code>/cuts</code> 라우트 → <code>pages/cut-strip</code> 노출. 루트 스택에 <code>settings</code>와 동일하게 등록</td><td><span class="new">신설</span></td></tr>
+            <tr><td><code>pages/archive</code></td><td>캐비닛 조립(현상 대기 레인 · 월별 선반 · 서랍). 세그먼트·컷 격자·선택 모드·재생 모달을 <b>넘겨주고 축소</b></td><td><span class="new">개편</span></td></tr>
+            <tr><td><code>pages/cut-strip</code></td><td>스트립 화면: 필터·일자 스트립·선택 모드·컷 시트·삭제 확인</td><td><span class="new">신설</span></td></tr>
+            <tr><td><code>widgets/roll-shelf</code></td><td>상태별 롤 read model: <code>useRollsAwaitingDevelop()</code> · <code>useDevelopedRollsByMonth()</code> · <code>formatReelLength</code>. 현재 <code>developed-rolls-shelf</code>를 확장·개명</td><td><span class="new">개편</span></td></tr>
+            <tr><td><code>widgets/clip-membership</code></td><td><code>clipId → Roll[]</code> 역인덱스(<code>useClipMembership</code>·<code>useRollsForClip</code>·<code>selectRollsForClips</code>). <code>roll.clipRefs</code>를 뒤집어 스트립 점·컷 시트·삭제 영향 목록에 공급. 크로스 엔티티라 위젯 — <b>M8-1 구현 완료</b></td><td><span class="new">신설</span></td></tr>
+            <tr><td><code>features/collect-clips</code></td><td>수집 액션 3종: <code>새 롤로 묶기</code>(생성 + 선택 컷 담기) · <code>롤에 담기</code>(기존 미현상 롤) · <code>롤에서 빼기</code>. 빼기 후 <b>빈 자유 롤 자동 정리</b>까지 이 액션이 책임집니다</td><td><span class="new">신설</span></td></tr>
+            <tr><td><code>features/delete-clip</code></td><td><b>연쇄 삭제</b>: 원본 파일 → 썸네일 캐시 → <code>entities/clip</code> 메타 → 모든 <code>roll.clipRefs</code>·<code>reel.clipRefs</code>. 부분 실패 시 성공분만 커밋 — <b>M8-1 구현 완료</b>(보관함·촬영 라이브러리 양쪽에 연결)</td><td><span class="new">신설</span></td></tr>
+            <tr><td><code>entities/roll</code></td><td><code>rollTint(id)</code>·<code>TodayRollTint</code> <b>(M8-1 완료)</b> · <code>removeClipsEverywhere(clipIds)</code> <b>(M8-1 완료)</b> · <code>createManualRoll({ title, createdAt })</code>(id <code>manual-&lt;createdAt&gt;</code>, <code>type: 'free'</code>, <code>rule: 'manual'</code>, 세로, 미현상) · <code>removeRoll(id)</code>(빈 자유 롤 정리용) · <code>rollDate(roll)</code> 파생값</td><td><span class="new">확장</span></td></tr>
+            <tr><td><code>entities/clip</code></td><td>배치 삭제용 <code>removeClips(ids)</code> 추가(M8-1). 스트립이 <b>파일 목록 대신 이 엔티티를</b> 읽게 되는 것이 핵심 전환</td><td><span class="keep">유지</span></td></tr>
+            <tr><td><code>features/manage-recordings</code></td><td>날짜·시간·일자 포맷과 <code>useRecordingThumbnail</code>은 계속 사용. <b>단건/일괄 삭제 경로는 <code>features/delete-clip</code>으로 이관 — M8-1에서 제거 완료</b>(파일만 지우는 경로가 남아 있으면 연쇄를 우회할 수 있어 삭제)</td><td><span class="new">축소</span></td></tr>
+            <tr><td><code>pages/roll-detail</code></td><td><code>dayKey</code> 없는 롤의 엣지 프린트를 날짜 범위로. 그 외 컨택트시트·현상 CTA는 자유 롤에 그대로 동작</td><td><span class="new">미세 수정</span></td></tr>
+            <tr><td><code>features/develop-roll</code></td><td>변경 없음 — <code>composeReel</code>이 <code>roll.type</code>을 보지 않아 자유 롤이 그대로 현상됩니다</td><td><span class="keep">유지</span></td></tr>
+            <tr><td><code>shared/ui/tab-bar-chrome</code></td><td>선택 모드가 탭바 없는 라우트로 옮겨가 소비자가 사라짐 → <b>제거</b></td><td><span class="new">삭제</span></td></tr>
+            <tr><td><code>shared/lib/video-thumbnails</code> · <code>recording-files</code> · <code>shared/ui/video-preview</code></td><td>그대로 재사용. 커버 모자이크도 같은 캐시를 씀</td><td><span class="keep">유지</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rec warn2">
+        <h3>먼저 고쳐야 하는 기존 결함 — 삭제가 연쇄하지 않습니다</h3>
+        <p>지금 보관함의 일괄 삭제는 <code>features/manage-recordings</code>의 <code>removeRecordings</code>만 호출합니다(<code>pages/archive/ui/archive-page.tsx:157</code>). 즉 <b>파일만 지우고</b> <code>entities/clip</code> 메타와 <code>roll.clipRefs</code>·<code>reel.clipRefs</code>는 그대로 남습니다. 이미 현상된 릴이 <b>존재하지 않는 파일을 참조</b>하게 되고, 롤 상세·릴 재생에서 깨진 컷으로 남습니다.</p>
+        <p>A+B는 삭제 영향 범위를 화면에 명시(B-4)하므로, 이 연쇄가 없으면 <b>UI가 거짓말을 하게 됩니다</b>. 따라서 <code>features/delete-clip</code>은 이 설계의 선택 사항이 아니라 <b>1단계 선행 작업</b>입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7. 마일스톤 ============ -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head"><span class="num">07</span><h2>구현 순서</h2><span class="tag">M8 — mvp-implementation-plan 이어서</span></div>
+      <p class="sec-sub">M7(네비게이션 셸)에 이어지는 M8입니다. 각 단계는 그 자체로 기기에서 확인 가능한 상태로 끝납니다.</p>
+
+      <div class="tw">
+        <table>
+          <thead><tr><th>#</th><th>목표</th><th>산출물</th><th>검증</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><b>M8-1</b> <span class="keep">구현 완료</span></td><td>데이터 기반 · 결함 수리</td>
+              <td><code>features/delete-clip</code>(연쇄 삭제) · <code>entities/roll</code>의 <code>rollTint</code>·<code>removeClipsEverywhere</code> · <code>entities/clip</code>의 <code>removeClips</code> · <code>widgets/clip-membership</code> · 보관함/촬영 라이브러리 양쪽 삭제 경로 연결 · <code>manage-recordings</code>의 파일 전용 삭제 제거</td>
+              <td>유닛 테스트: 연쇄 삭제가 파일·메타·모든 롤 참조·릴 참조를 지우는지, 역인덱스가 N:M을 정확히 뒤집는지</td>
+            </tr>
+            <tr>
+              <td><b>M8-2</b> <span class="keep">구현 완료</span></td><td>캐비닛 (A)</td>
+              <td><code>widgets/roll-shelf</code>(<code>developed-rolls-shelf</code> 개명·확장) · <code>pages/archive</code> 개편(현상 대기 레인 · 월별 선반 · 4-업 모자이크 커버 · <code>N일 비었음</code> · 서랍) · 거짓 <code>빈 롤</code> 슬롯 제거 · <b>M8-3에서 당겨온 것</b>: 서랍이 갈 곳이 필요해 <code>app/cuts.tsx</code> + <code>pages/cut-strip</code>(격자 상태로 이동)과 <code>tab-bar-chrome</code> 제거를 함께 처리</td>
+              <td>실기기: 지난 미현상 롤이 최상단에 뜨고 <code>현상하기</code>가 세리머니로 진입, 커버가 실제 첫 프레임, 홈 선반 미리보기 정상</td>
+            </tr>
+            <tr>
+              <td><b>M8-3</b></td><td>스트립 (B) 읽기</td>
+              <td><code>pages/cut-strip</code> 내부를 격자 → 스트립으로: 필터 · 일자 스트립 · 퍼포레이션 · 롤 점 · 컷 시트(재생·롤 목록). 라우트와 <code>tab-bar-chrome</code> 제거는 M8-2에서 완료 · <b>컷 목록을 파일에서 <code>entities/clip</code>으로 전환</b>(P6)</td>
+              <td>실기기: 서랍→스트립 진입, 두 롤에 든 컷의 점 2개, 현상 완료 롤의 <code>빼기</code> 비활성</td>
+            </tr>
+            <tr>
+              <td><b>M8-4</b></td><td>스트립 (B) 쓰기 · 안전한 쪽</td>
+              <td><code>features/collect-clips</code>의 <code>롤에 담기</code>·<code>롤에서 빼기</code> · 컨텍스트 선택 바 · 2단 분리 삭제 다이얼로그</td>
+              <td>실기기: 롤별 필터에서 빼기, 삭제 다이얼로그의 영향 롤 목록이 실제와 일치, 삭제 후 롤 상세에 깨진 컷 없음. <b>이 단계의 선택 바는 비-롤 컨텍스트에서 2액션</b>(담기·삭제) — 다음 단계에서 <code>새 롤로 묶기</code>가 주 버튼 자리에 들어옵니다</td>
+            </tr>
+            <tr>
+              <td><b>M8-5</b></td><td>새 롤 생성 <span class="new">범위 확장 확정</span></td>
+              <td><code>entities/roll</code>의 <code>createManualRoll</code>·<code>removeRoll</code>·<code>rollDate</code> · 새 롤 시트(이름만) · 선택 바 3액션 완성 · 빈 자유 롤 자동 정리 · 캐비닛의 자유 롤 배치(레인 포함·접기·<code>rollDate</code> 월 배치·날짜 범위 엣지) · <code>roll-detail</code> 엣지 프린트 · fly-to-cover 모션</td>
+              <td>유닛: <code>createManualRoll</code> 기본 이름·20자 상한, 컷 0개 자유 롤 자동 제거, 데일리 롤은 0개여도 유지, <code>rollDate</code> 월 배치.<br>실기기: 롤 없는 컷 3개 → 자유 롤 생성 → 현상 대기 레인·스트립 점·선반에 즉시 반영 → <b>그 자유 롤을 현상</b>해 릴 재생까지, 컷을 다 빼면 롤이 조용히 사라짐</td>
+            </tr>
+            <tr>
+              <td><b>M8-6</b></td><td>문서</td>
+              <td><code>docs/features/recording-archive.md</code> 전면 개정(수동 롤 생성이 <b>범위 밖이라는 서술 삭제</b>) + <code>app-shell-and-navigation.md</code>(<code>/cuts</code> 라우트) + <code>roll-detail.md</code>(자유 롤 · 엣지 프린트) + <code>home.md</code>(커버 변화) + <code>mvp-implementation-plan.md</code>(M8 추가 · MVP 범위 확장 기록)</td>
+              <td>라우트·소유 계층·상태·제약이 코드와 일치하는지 대조</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="rec">
+        <h3>정직하게 남겨두는 것</h3>
+        <p><b>롤 생성은 들어오지만 롤 <em>성격</em>은 아직입니다.</b> 만들 수 있는 건 <code>free</code> 자유 롤 하나이고, 성격 칩·수집 규칙(기간·위치·태그)·지향 화면비는 노출하지 않습니다. 동작이 없는 값을 컨트롤로 세우지 않는다는 원칙(§3 하위 결정 ①)이고, 프리셋 카드는 v1.1 테마 롤과 함께 엽니다. 캐비닛이 월별 선반이라 나중에 날짜 범위 롤이 들어와도 구조는 버팁니다.</p>
+        <p><b>롤 이름 수정·롤 직접 삭제 UI는 없습니다.</b> 이름은 생성 시 한 번, 삭제는 "컷을 다 빼면 사라진다"는 규칙으로만 도달합니다. 롤 관리 화면은 테마 롤이 생겨 롤이 많아진 뒤에 필요해집니다.</p>
+        <p><b>공유·내보내기</b>는 여전히 없습니다. 컷 시트의 액션은 재생·담기·삭제뿐입니다.</p>
+        <p><b>웹</b>은 그대로 프로토타입입니다. 웹 어댑터가 컷을 0개로 반환하므로 스트립은 빈 상태만 보입니다.</p>
+        <p><b>iOS 실기기 검증은 불가</b>합니다(기기 없음). 시뮬레이터 + Android 실기기로 확인하고, 그 사실을 결과에 명시합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="edge">snaply · archive A+B hybrid spec v0.1 · 2026-07-27</div>
+      <p class="dim" style="font-size:0.9rem; margin:8px 0 0">
+        선행 문서: <a href="archive-redesign.html" style="color:var(--ember)">archive-redesign.html</a> (4안 비교 · A+B 선택) ·
+        <code>concept.md</code> §3 N:M · §4 수집욕 · §5 시각 언어 · §7 모션 ·
+        <code>mvp-implementation-plan.md</code> M5~M7 · <code>docs/features/recording-archive.md</code>
+      </p>
+    </div>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var btn = document.getElementById('tg');
+    var root = document.documentElement;
+    btn.addEventListener('click', function () {
+      var now = root.getAttribute('data-theme');
+      if (!now) {
+        now = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      root.setAttribute('data-theme', now === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
+</body>
+</html>

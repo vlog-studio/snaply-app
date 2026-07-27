@@ -1,9 +1,10 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
+import { useCollectClips, useCollectTargets, type CollectOutcome } from '@/features/collect-clips';
 import { useDeleteClips } from '@/features/delete-clip';
 import { formatRecordingDate } from '@/features/manage-recordings';
 import { localRecordingExists } from '@/shared/lib/recording-files';
@@ -12,7 +13,7 @@ import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
-import { selectRollsForClips, useClipMembership } from '@/widgets/clip-membership';
+import { useRollDeleteImpact, useRollsForClip } from '@/widgets/clip-membership';
 
 import {
   useCutRollFilters,
@@ -20,6 +21,8 @@ import {
   type CutFilter,
   type StripCut,
 } from '../model/use-cut-strip';
+import { CutAddToRollSheet } from './cut-add-to-roll-sheet';
+import { CutDeleteDialog } from './cut-delete-dialog';
 import { CutFilmStrip } from './cut-film-strip';
 import { CutFilterBar } from './cut-filter-bar';
 import { CutRollPickerSheet } from './cut-roll-picker-sheet';
@@ -27,9 +30,24 @@ import { CutSelectionBar, CutSelectionBarContentHeight } from './cut-selection-b
 import { CutSheet } from './cut-sheet';
 
 const AllCuts: CutFilter = { kind: 'all' };
+const NoCuts: Clip[] = [];
 
 /** The cut the sheet is open on, with whether its original is still on disk. */
 type OpenCut = { cut: StripCut; hasFile: boolean };
+
+/** What the selection bar prints next to the count, so a batch names its scope. */
+function filterLabel(filter: CutFilter, activeRollTitle: string | undefined): string {
+  switch (filter.kind) {
+    case 'all':
+      return '전체';
+    case 'undeveloped':
+      return '미현상';
+    case 'loose':
+      return '롤 없음';
+    case 'roll':
+      return activeRollTitle ?? '롤별';
+  }
+}
 
 /**
  * Every original cut, reached from the cabinet's drawer.
@@ -44,9 +62,10 @@ type OpenCut = { cut: StripCut; hasFile: boolean };
  * The clip store is what rolls reference and what carries duration, mood, and
  * orientation; the file list could only ever answer "what is on disk".
  *
- * This screen reads. Collecting actions — 새 롤로 묶기, 롤에 담기, 롤에서 빼기 —
- * arrive with the write step, along with the delete dialog that names the rolls
- * a deletion changes.
+ * The screen writes as well as reads: cuts can be put into a roll and taken back
+ * out from both the selection bar and the cut sheet, and deleting an original
+ * goes through a dialog that names every roll the deletion rewrites. 새 롤로
+ * 묶기 arrives with manual roll creation.
  */
 export function CutStripPage() {
   const theme = useTheme();
@@ -58,6 +77,12 @@ export function CutStripPage() {
   const [rollPickerVisible, setRollPickerVisible] = useState(false);
   const [openCut, setOpenCut] = useState<OpenCut>();
   const [playingClip, setPlayingClip] = useState<Clip>();
+  /** Cuts the add sheet is collecting for; its presence opens the sheet. */
+  const [collecting, setCollecting] = useState<Clip[]>();
+  /** Cuts waiting on the delete confirmation; its presence opens the dialog. */
+  const [pendingDelete, setPendingDelete] = useState<Clip[]>();
+  /** A refusal worth saying out loud (a roll finished developing under us). */
+  const [notice, setNotice] = useState<string>();
 
   const strip = useCutStrip(filter);
   const rollFilters = useCutRollFilters();
@@ -65,11 +90,25 @@ export function CutStripPage() {
   // metadata + every roll's references), so it lives in its own feature rather
   // than in the recording-file hook that only knows about files.
   const { deleteClips, deletingIds, errorMessage } = useDeleteClips();
-  const clipMembership = useClipMembership();
+  const { addClipsToRoll, removeClipsFromRoll } = useCollectClips();
+
+  const collectingIds = useMemo(() => (collecting ?? NoCuts).map((clip) => clip.id), [collecting]);
+  const pendingDeleteIds = useMemo(
+    () => (pendingDelete ?? NoCuts).map((clip) => clip.id),
+    [pendingDelete],
+  );
+  const collectTargets = useCollectTargets(collectingIds);
+  const deleteImpacts = useRollDeleteImpact(pendingDeleteIds);
+  // Read live: 빼기 inside the sheet changes the cut's rolls while it is open.
+  const openCutRolls = useRollsForClip(openCut?.cut.clip.id);
 
   const visibleCuts = useMemo(
     () => strip.days.flatMap((day) => day.cuts.map((cut) => cut.clip)),
     [strip.days],
+  );
+  const selectedCuts = useMemo(
+    () => visibleCuts.filter((clip) => selectedIds.has(clip.id)),
+    [visibleCuts, selectedIds],
   );
   const activeRoll =
     filter.kind === 'roll' ? rollFilters.find((roll) => roll.rollId === filter.rollId) : undefined;
@@ -79,12 +118,22 @@ export function CutStripPage() {
     setSelectedIds(new Set());
   }, []);
 
+  /**
+   * Says out loud when a collect action could not do what it was asked to. A
+   * roll can finish developing between the render that offered the action and
+   * the press, and a refusal that looks like a success is worse than either.
+   */
+  const reportOutcome = useCallback((outcome: CollectOutcome, frozenMessage: string) => {
+    setNotice(outcome.frozen ? frozenMessage : undefined);
+  }, []);
+
   // Narrowing the strip takes frames off screen, and a selection the user can
   // no longer see is one they cannot check before deleting. Leave selection
   // mode on, drop what it held.
   const applyFilter = useCallback((next: CutFilter) => {
     setFilter(next);
     setSelectedIds(new Set());
+    setNotice(undefined);
   }, []);
 
   useFocusEffect(
@@ -136,46 +185,55 @@ export function CutStripPage() {
 
   const toggleSelectAll = useCallback(() => {
     setSelectedIds((current) =>
-      current.size === visibleCuts.length
-        ? new Set()
-        : new Set(visibleCuts.map((clip) => clip.id)),
+      current.size === visibleCuts.length ? new Set() : new Set(visibleCuts.map((clip) => clip.id)),
     );
   }, [visibleCuts]);
 
-  const confirmDelete = useCallback(
-    (targets: Clip[]) => {
-      if (targets.length === 0) return;
+  // Deleting an original takes it out of every roll that references it, so the
+  // dialog names those rolls and their cut counts before asking. Taking a cut
+  // out of one roll while keeping the original is 빼기, a different action.
+  const requestDelete = useCallback((targets: Clip[]) => {
+    if (targets.length === 0) return;
+    setNotice(undefined);
+    setPendingDelete(targets);
+  }, []);
 
-      // Deleting an original takes it out of every roll that references it, so
-      // name how many rolls change before asking. Removing a cut from one roll
-      // while keeping the original is a separate action (roll detail).
-      const affectedRolls = selectRollsForClips(
-        clipMembership,
-        targets.map((target) => target.id),
+  const confirmDelete = useCallback(() => {
+    if (!pendingDelete) return;
+    void deleteClips(pendingDelete);
+    setPendingDelete(undefined);
+    setOpenCut(undefined);
+    exitSelection();
+  }, [pendingDelete, deleteClips, exitSelection]);
+
+  const collectInto = useCallback(
+    (rollId: string) => {
+      if (!collecting) return;
+      reportOutcome(
+        addClipsToRoll(
+          rollId,
+          collecting.map((clip) => clip.id),
+        ),
+        '현상을 마친 롤이라 담을 수 없어요.',
       );
-      const rollNotice =
-        affectedRolls.length > 0
-          ? ` 이 컷이 든 롤 ${affectedRolls.length}개에서도 함께 사라져요.`
-          : '';
+      setCollecting(undefined);
+      exitSelection();
+    },
+    [collecting, addClipsToRoll, reportOutcome, exitSelection],
+  );
 
-      Alert.alert(
-        `${targets.length}개 컷을 삭제할까요?`,
-        `삭제한 원본은 복구할 수 없어요.${rollNotice}`,
-        [
-          { text: '취소', style: 'cancel' },
-          {
-            text: '삭제',
-            style: 'destructive',
-            onPress: () => {
-              void deleteClips(targets);
-              setOpenCut(undefined);
-              exitSelection();
-            },
-          },
-        ],
+  const pullFromRoll = useCallback(
+    (rollId: string, targets: Clip[]) => {
+      if (targets.length === 0) return;
+      reportOutcome(
+        removeClipsFromRoll(
+          rollId,
+          targets.map((clip) => clip.id),
+        ),
+        '현상을 마친 롤이라 뺄 수 없어요.',
       );
     },
-    [clipMembership, deleteClips, exitSelection],
+    [removeClipsFromRoll, reportOutcome],
   );
 
   const isEmptyArchive = strip.isHydrated && strip.totalCount === 0;
@@ -213,6 +271,14 @@ export function CutStripPage() {
             <View style={[styles.messageCard, { borderColor: theme.danger }]}>
               <ThemedText type="smallBold" themeColor="danger">
                 {errorMessage}
+              </ThemedText>
+            </View>
+          ) : null}
+
+          {notice ? (
+            <View style={[styles.messageCard, { borderColor: theme.amber }]}>
+              <ThemedText type="smallBold" themeColor="amber">
+                {notice}
               </ThemedText>
             </View>
           ) : null}
@@ -316,14 +382,30 @@ export function CutStripPage() {
         <CutSelectionBar
           selectedCount={selectedIds.size}
           allSelected={allSelected}
+          contextLabel={
+            activeRoll && !activeRoll.canEditMembership
+              ? `${activeRoll.title} · 멤버십 고정`
+              : `${filterLabel(filter, activeRoll?.title)} 필터`
+          }
+          // 빼기 needs a roll to be taken out of, so it exists only here — and
+          // not for a developed roll, whose membership no longer moves. A button
+          // that could only refuse is not a button.
+          pullRollTitle={activeRoll?.canEditMembership ? activeRoll.title : undefined}
           onCancel={exitSelection}
           onToggleSelectAll={toggleSelectAll}
-          onDelete={() => confirmDelete(visibleCuts.filter((clip) => selectedIds.has(clip.id)))}
+          onAddToRoll={() => setCollecting(selectedCuts)}
+          onPullFromRoll={() => {
+            if (filter.kind !== 'roll') return;
+            pullFromRoll(filter.rollId, selectedCuts);
+            exitSelection();
+          }}
+          onDelete={() => requestDelete(selectedCuts)}
         />
       ) : null}
 
       <CutSheet
         cut={openCut?.cut}
+        rolls={openCutRolls}
         hasFile={openCut?.hasFile ?? false}
         isDeleting={openCut ? deletingIds.has(openCut.cut.clip.id) : false}
         // The player opens over the sheet rather than replacing it: dismissing
@@ -331,8 +413,29 @@ export function CutStripPage() {
         // case on iOS, and coming back to the cut you were reading is the
         // behavior you want anyway.
         onPlay={() => setPlayingClip(openCut?.cut.clip)}
-        onDelete={() => openCut && confirmDelete([openCut.cut.clip])}
+        onAddToRoll={() => openCut && setCollecting([openCut.cut.clip])}
+        onPullFromRoll={(rollId) => openCut && pullFromRoll(rollId, [openCut.cut.clip])}
+        onDelete={() => openCut && requestDelete([openCut.cut.clip])}
         onClose={() => setOpenCut(undefined)}
+      />
+
+      {/* Stacked over the cut sheet for the same reason the player is: the sheet
+          is where the cut's rolls are, and it is where you come back to. */}
+      <CutAddToRollSheet
+        visible={collecting !== undefined}
+        cutCount={collecting?.length ?? 0}
+        targets={collectTargets}
+        onSelect={collectInto}
+        onClose={() => setCollecting(undefined)}
+      />
+
+      <CutDeleteDialog
+        visible={pendingDelete !== undefined}
+        cutCount={pendingDelete?.length ?? 0}
+        impacts={deleteImpacts}
+        isDeleting={deletingIds.size > 0}
+        onCancel={() => setPendingDelete(undefined)}
+        onConfirm={confirmDelete}
       />
 
       <CutRollPickerSheet

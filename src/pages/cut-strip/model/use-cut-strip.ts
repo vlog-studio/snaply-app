@@ -11,10 +11,7 @@ import { useClipMembership, type ClipRollBadge } from '@/widgets/clip-membership
  * mean anything (that action lands with the write step).
  */
 export type CutFilter =
-  | { kind: 'all' }
-  | { kind: 'undeveloped' }
-  | { kind: 'loose' }
-  | { kind: 'roll'; rollId: string };
+  { kind: 'all' } | { kind: 'undeveloped' } | { kind: 'loose' } | { kind: 'roll'; rollId: string };
 
 /** A cut as the strip draws it: the frame, its edge number, and its rolls. */
 export type StripCut = {
@@ -69,6 +66,11 @@ export type CutRollFilterOption = {
   tint: RollTint;
   isToday: boolean;
   cutCount: number;
+  /**
+   * False once the roll is developed. Filtering by such a roll is fine — you
+   * can still look at it — but 롤에서 빼기 must not be offered for it.
+   */
+  canEditMembership: boolean;
 };
 
 const NoRolls: ClipRollBadge[] = [];
@@ -199,6 +201,7 @@ export function useCutRollFilters(): CutRollFilterOption[] {
             tint: roll.tint,
             isToday: roll.isToday,
             cutCount: 1,
+            canEditMembership: roll.canEditMembership,
           });
       }
     }

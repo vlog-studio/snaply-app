@@ -144,10 +144,7 @@ describe('useCutStrip', () => {
   });
 
   it('drops the days a filter empties entirely', async () => {
-    mockClips = [
-      makeClip('clip-1', at('2026-07-20', 9)),
-      makeClip('clip-2', at('2026-07-24', 9)),
-    ];
+    mockClips = [makeClip('clip-1', at('2026-07-20', 9)), makeClip('clip-2', at('2026-07-24', 9))];
     mockRolls = [makeRoll('roll-a', { clipRefs: refs('clip-2') })];
 
     const { result } = await renderHook(() => useCutStrip(Loose));
@@ -175,10 +172,7 @@ describe('useCutStrip', () => {
   });
 
   it('keeps only one roll’s cuts under a roll filter', async () => {
-    mockClips = [
-      makeClip('clip-1', at('2026-07-24', 9)),
-      makeClip('clip-2', at('2026-07-24', 10)),
-    ];
+    mockClips = [makeClip('clip-1', at('2026-07-24', 9)), makeClip('clip-2', at('2026-07-24', 10))];
     mockRolls = [makeRoll('roll-a', { clipRefs: refs('clip-1') })];
 
     const { result } = await renderHook(() =>
@@ -216,10 +210,7 @@ describe('useCutStrip', () => {
   it('pads today’s strip up to the daily soft target and no other day', async () => {
     const todayKey = toDayKey(Date.now());
     mockTodayRoll = makeRoll('daily-today', { dayKey: todayKey });
-    mockClips = [
-      makeClip('clip-today', Date.now()),
-      makeClip('clip-past', at('2026-07-20', 9)),
-    ];
+    mockClips = [makeClip('clip-today', Date.now()), makeClip('clip-past', at('2026-07-20', 9))];
 
     const { result } = await renderHook(() => useCutStrip(All));
 
@@ -254,10 +245,7 @@ describe('useCutStrip', () => {
 
 describe('useCutRollFilters', () => {
   it('offers only the rolls that hold a cut, with their cut counts', async () => {
-    mockClips = [
-      makeClip('clip-1', at('2026-07-24', 9)),
-      makeClip('clip-2', at('2026-07-24', 10)),
-    ];
+    mockClips = [makeClip('clip-1', at('2026-07-24', 9)), makeClip('clip-2', at('2026-07-24', 10))];
     mockRolls = [
       makeRoll('roll-a', { clipRefs: refs('clip-1', 'clip-2') }),
       makeRoll('roll-empty'),
@@ -271,15 +259,32 @@ describe('useCutRollFilters', () => {
   it('puts today’s roll first, then the most recently collected', async () => {
     const todayKey = toDayKey(Date.now());
     mockTodayRoll = makeRoll('daily-today', { dayKey: todayKey, clipRefs: refs('clip-today') });
-    mockClips = [
-      makeClip('clip-old', at('2026-07-20', 9)),
-      makeClip('clip-today', Date.now()),
-    ];
+    mockClips = [makeClip('clip-old', at('2026-07-20', 9)), makeClip('clip-today', Date.now())];
     mockRolls = [makeRoll('roll-old', { clipRefs: refs('clip-old') }), mockTodayRoll];
 
     const { result } = await renderHook(() => useCutRollFilters());
 
     expect(result.current.map((roll) => roll.rollId)).toEqual(['daily-today', 'roll-old']);
     expect(result.current[0].isToday).toBe(true);
+  });
+
+  // A developed roll can still be looked at, but the selection bar reads this
+  // to decide whether 롤에서 빼기 may be offered at all.
+  it('marks a developed roll as membership-frozen', async () => {
+    mockClips = [makeClip('clip-1', at('2026-07-24', 9))];
+    mockRolls = [
+      makeRoll('roll-done', {
+        status: 'developed',
+        clipRefs: refs('clip-1'),
+        reel: { clipRefs: refs('clip-1'), developedAt: 1 },
+      }),
+    ];
+
+    const { result } = await renderHook(() => useCutRollFilters());
+
+    expect(result.current[0]).toMatchObject({
+      rollId: 'roll-done',
+      canEditMembership: false,
+    });
   });
 });

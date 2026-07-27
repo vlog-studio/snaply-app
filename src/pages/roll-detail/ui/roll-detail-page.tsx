@@ -4,7 +4,8 @@ import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
-import { useAddClipToRoll, useRemoveClipFromRoll, useReorderRollClips } from '@/entities/roll';
+import { useReorderRollClips } from '@/entities/roll';
+import { useCollectClips } from '@/features/collect-clips';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -30,8 +31,10 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
   const topInset = useTopContentInset();
   const { roll, clips, canDevelop } = useRollDetail(rollId);
   const addableClips = useAddableClips(roll);
-  const addClipToRoll = useAddClipToRoll();
-  const removeClipFromRoll = useRemoveClipFromRoll();
+  // Membership goes through the collect feature on both surfaces that change it
+  // (here and the contact strip), so the "a developed roll is frozen" rule lives
+  // in one place instead of in each screen's disabled props.
+  const { addClipsToRoll, removeClipsFromRoll } = useCollectClips();
   const reorderRollClips = useReorderRollClips();
 
   const [mode, setMode] = useState<RollGridMode>('view');
@@ -110,7 +113,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
   const removeSelected = () => {
     // Removing only drops the roll's reference — the original cut stays in the
     // archive, so no confirmation gate is needed.
-    for (const clipId of selectedIds) removeClipFromRoll(roll.id, clipId);
+    removeClipsFromRoll(roll.id, [...selectedIds]);
     exitEditing();
   };
 
@@ -122,7 +125,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
   };
 
   const addPicked = (clipIds: string[]) => {
-    for (const clipId of clipIds) addClipToRoll(roll.id, clipId);
+    addClipsToRoll(roll.id, clipIds);
     setAddSheetVisible(false);
   };
 

@@ -30,6 +30,7 @@ type RollState = {
   hasHydrated: boolean;
   addClipToRoll: (rollId: string, clipId: string) => void;
   removeClipFromRoll: (rollId: string, clipId: string) => void;
+  removeClipsEverywhere: (clipIds: readonly string[]) => void;
   reorderRollClips: (rollId: string, orderedClipIds: string[]) => void;
   setRollStatus: (rollId: string, status: RollStatus) => void;
   setRollReel: (rollId: string, reel: Reel) => void;
@@ -82,6 +83,29 @@ function reorderClipRefs(clipRefs: ClipRef[], orderedClipIds: string[]): ClipRef
   return clipRefs.map((ref) => ({ ...ref, order: position.get(ref.clipId) ?? ref.order }));
 }
 
+/**
+ * Strips every reference to the given clips from a roll — both its membership
+ * and, when the roll is already developed, its composed reel. A developed reel
+ * must be rewritten too: leaving the reference behind would make the reel play
+ * a clip whose original no longer exists.
+ *
+ * Remaining references keep their `order` values (gaps are fine, order is only
+ * ever read as a sort key), matching `removeClipFromRoll`. Rolls that reference
+ * none of the clips are returned unchanged so their identity survives.
+ */
+function withoutClips(roll: Roll, removedClipIds: ReadonlySet<string>): Roll {
+  const clipRefs = roll.clipRefs.filter((ref) => !removedClipIds.has(ref.clipId));
+  const reelClipRefs = roll.reel?.clipRefs.filter((ref) => !removedClipIds.has(ref.clipId));
+  const membershipChanged = clipRefs.length !== roll.clipRefs.length;
+  const reelChanged =
+    reelClipRefs !== undefined && reelClipRefs.length !== roll.reel?.clipRefs.length;
+  if (!membershipChanged && !reelChanged) return roll;
+  if (roll.reel && reelClipRefs) {
+    return { ...roll, clipRefs, reel: { ...roll.reel, clipRefs: reelClipRefs } };
+  }
+  return { ...roll, clipRefs };
+}
+
 export const useRollStore = create<RollState>()(
   persist(
     (set) => ({
@@ -102,6 +126,12 @@ export const useRollStore = create<RollState>()(
               : roll,
           ),
         })),
+      removeClipsEverywhere: (clipIds) =>
+        set((state) => {
+          const removed = new Set(clipIds);
+          if (removed.size === 0) return state;
+          return { rolls: state.rolls.map((roll) => withoutClips(roll, removed)) };
+        }),
       reorderRollClips: (rollId, orderedClipIds) =>
         set((state) => ({
           rolls: state.rolls.map((roll) =>
@@ -189,6 +219,17 @@ export function useAddClipToRoll(): (rollId: string, clipId: string) => void {
 
 export function useRemoveClipFromRoll(): (rollId: string, clipId: string) => void {
   return useRollStore((state) => state.removeClipFromRoll);
+}
+
+/**
+ * Drops the given clips from every roll that references them, membership and
+ * developed reels alike. This is the roll half of deleting an original from the
+ * archive: the clip no longer exists, so no roll may keep pointing at it.
+ * Removing a clip from one roll while keeping the original is
+ * `removeClipFromRoll`.
+ */
+export function useRemoveClipsEverywhere(): (clipIds: readonly string[]) => void {
+  return useRollStore((state) => state.removeClipsEverywhere);
 }
 
 export function useReorderRollClips(): (rollId: string, orderedClipIds: string[]) => void {

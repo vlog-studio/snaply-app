@@ -8,6 +8,7 @@ import {
   useClips,
   useClipStore,
   useRemoveClip,
+  useRemoveClips,
   useSetClipTags,
 } from './clip-store';
 
@@ -105,6 +106,34 @@ describe('clip store', () => {
     await act(async () => result.current.setClipTags('clip-1', ['b', 'c']));
 
     expect(result.current.clips[0].tags).toEqual(['b', 'c']);
+  });
+
+  it('removes several clips in one write', async () => {
+    act(() => {
+      useClipStore.setState({
+        clips: [makeClip({ id: 'clip-1' }), makeClip({ id: 'clip-2' }), makeClip({ id: 'clip-3' })],
+      });
+    });
+
+    const { result } = await renderHook(() => ({
+      clips: useClips(),
+      removeClips: useRemoveClips(),
+    }));
+
+    await act(async () => result.current.removeClips(['clip-1', 'clip-3']));
+
+    expect(result.current.clips.map((clip) => clip.id)).toEqual(['clip-2']);
+  });
+
+  it.each([[[]], [['clip-unknown']]])('leaves the clips untouched for %j', async (ids) => {
+    act(() => {
+      useClipStore.setState({ clips: [makeClip({ id: 'clip-1' })] });
+    });
+
+    const { result } = await renderHook(() => useRemoveClips());
+    await act(async () => result.current(ids));
+
+    expect(useClipStore.getState().clips.map((clip) => clip.id)).toEqual(['clip-1']);
   });
 
   it('resolves ids to clips in id order, skipping unknown ids', async () => {

@@ -1,8 +1,7 @@
 import { Image } from 'expo-image';
-import { useEffect, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { getVideoThumbnail } from '@/shared/lib/video-thumbnails';
+import { useVideoThumbnail } from '@/shared/lib/video-thumbnails';
 
 import { useTheme } from '../theme';
 
@@ -38,17 +37,7 @@ export type NegativeFrameProps = {
  */
 export function NegativeFrame({ uri, blurRadius = DEFAULT_BLUR, style }: NegativeFrameProps) {
   const theme = useTheme();
-  const [thumbnailUri, setThumbnailUri] = useState<string>();
-
-  useEffect(() => {
-    let cancelled = false;
-    void getVideoThumbnail(uri).then((resolved) => {
-      if (!cancelled) setThumbnailUri(resolved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [uri]);
+  const thumbnailUri = useVideoThumbnail(uri);
 
   return (
     <View style={[styles.fill, { backgroundColor: theme.film }, style]}>

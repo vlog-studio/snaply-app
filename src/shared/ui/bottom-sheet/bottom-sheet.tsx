@@ -1,5 +1,5 @@
-import { type ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Keyboard, KeyboardAvoidingView, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -17,9 +17,29 @@ export type BottomSheetProps = {
 // inside Modal, unlike reanimated layout animations which mis-measure here);
 // tapping the backdrop dismisses it. Kept business-agnostic — callers pass
 // their own content.
+//
+// The sheet lifts itself clear of the keyboard, which a sheet holding a text
+// field needs and one without never notices. `padding` is the behavior on both
+// platforms: a transparent, status-bar-translucent Modal window does not get
+// resized by Android's adjustResize, so the keyboard would otherwise sit on top
+// of whatever is at the bottom of the sheet — in practice its primary action.
+// While the keyboard is up the panel also drops its safe-area bottom padding,
+// since the gesture bar it reserves room for is behind the keyboard; without
+// that, a tall sheet lifts past the top of the screen instead of fitting above
+// it.
 export function BottomSheet({ visible, onClose, children, accessibilityLabel }: BottomSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const shown = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
 
   return (
     <Modal
@@ -29,7 +49,7 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel }: 
       visible={visible}
       onRequestClose={onClose}
     >
-      <View style={styles.root}>
+      <KeyboardAvoidingView behavior="padding" style={styles.root}>
         <Pressable
           accessibilityLabel="닫기"
           accessibilityRole="button"
@@ -43,14 +63,14 @@ export function BottomSheet({ visible, onClose, children, accessibilityLabel }: 
             {
               backgroundColor: theme.backgroundElement,
               borderColor: theme.border,
-              paddingBottom: insets.bottom + Spacing.six,
+              paddingBottom: keyboardVisible ? Spacing.four : insets.bottom + Spacing.six,
             },
           ]}
         >
           <View style={[styles.grabber, { backgroundColor: theme.border }]} />
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

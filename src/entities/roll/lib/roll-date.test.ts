@@ -1,6 +1,13 @@
 import type { Roll } from '../model/roll';
 
-import { daysInMonth, elapsedDaysInMonth, formatMonthKey, rollMonthKey } from './roll-date';
+import {
+  daysInMonth,
+  elapsedDaysInMonth,
+  formatDayRange,
+  formatMonthKey,
+  rollDate,
+  rollMonthKey,
+} from './roll-date';
 
 function makeRoll(overrides: Partial<Roll> = {}): Roll {
   return {
@@ -15,6 +22,34 @@ function makeRoll(overrides: Partial<Roll> = {}): Roll {
     ...overrides,
   };
 }
+
+describe('rollDate', () => {
+  it('answers with the day a daily roll collects', () => {
+    expect(rollDate(makeRoll({ dayKey: '2026-06-30' }))).toBe('2026-06-30');
+  });
+
+  it('answers with the day it was made for a roll bundled by hand', () => {
+    expect(rollDate(makeRoll({ type: 'free', dayKey: undefined }))).toBe('2026-07-24');
+  });
+});
+
+describe('formatDayRange', () => {
+  it('prints a span between the earliest and latest day', () => {
+    expect(formatDayRange(['2026-07-24', '2026-07-18', '2026-07-20'])).toBe('07-18~07-24');
+  });
+
+  it('prints a single day when every cut falls on it', () => {
+    expect(formatDayRange(['2026-07-18', '2026-07-18'])).toBe('07-18');
+  });
+
+  it('has nothing to print for a roll with no cuts left', () => {
+    expect(formatDayRange([])).toBeUndefined();
+  });
+
+  it('spans across a month boundary', () => {
+    expect(formatDayRange(['2026-08-02', '2026-07-30'])).toBe('07-30~08-02');
+  });
+});
 
 describe('rollMonthKey', () => {
   it('files a daily roll under the month of the day it collects', () => {

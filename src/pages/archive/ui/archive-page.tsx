@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useClips } from '@/entities/clip';
@@ -18,6 +19,16 @@ import { useDevelopedRollMonths, useRollsAwaitingDevelop } from '@/widgets/roll-
 
 import { PendingRollCard } from './pending-roll-card';
 import { RollCover } from './roll-cover';
+
+/**
+ * How many waiting rolls the lane shows before folding the rest away: today's
+ * roll and the two most recent behind it.
+ *
+ * Daily rolls arrive one a day, but rolls bundled by hand have no such limit —
+ * without a fold, a collecting spree would push the shelf off the screen and
+ * the cabinet would stop being one scroll of anticipation → what you own.
+ */
+const PendingLaneLimit = 3;
 
 /**
  * The film cabinet.
@@ -40,6 +51,13 @@ export function ArchivePage() {
   const developedMonths = useDevelopedRollMonths();
   const clipMembership = useClipMembership();
   const clips = useClips();
+  const [pendingExpanded, setPendingExpanded] = useState(false);
+
+  const foldedPendingCount = Math.max(awaitingRolls.length - PendingLaneLimit, 0);
+  const visiblePendingRolls =
+    pendingExpanded || foldedPendingCount === 0
+      ? awaitingRolls
+      : awaitingRolls.slice(0, PendingLaneLimit);
 
   const developedCount = developedMonths.reduce((sum, month) => sum + month.rolls.length, 0);
   // A cut no roll references at all — the drawer surfaces these because they
@@ -86,7 +104,7 @@ export function ArchivePage() {
               ● 현상 대기 {awaitingRolls.length}
             </ThemedText>
           </View>
-          {awaitingRolls.map((roll) => (
+          {visiblePendingRolls.map((roll) => (
             <PendingRollCard
               key={roll.id}
               roll={roll}
@@ -97,6 +115,20 @@ export function ArchivePage() {
               onCollect={() => router.push('/capture')}
             />
           ))}
+          {foldedPendingCount > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                pendingExpanded ? '현상 대기 롤 접기' : `현상 대기 롤 ${foldedPendingCount}개 더 보기`
+              }
+              onPress={() => setPendingExpanded((expanded) => !expanded)}
+              style={[styles.laneFold, { borderColor: theme.border }]}
+            >
+              <ThemedText selectable={false} type="edge" themeColor="primary">
+                {pendingExpanded ? '접기' : `+${foldedPendingCount}개 더`}
+              </ThemedText>
+            </Pressable>
+          ) : null}
         </View>
 
         {developedMonths.map((month) => (
@@ -196,6 +228,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
+  },
+  laneFold: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   coverGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   emptyDays: {

@@ -7,11 +7,20 @@ import { useCollectClips } from './use-collect-clips';
 let mockRolls: Roll[];
 const mockAddClipToRoll = jest.fn();
 const mockRemoveClipFromRoll = jest.fn();
+// Stands in for the entity's roll creation: records the input and puts the
+// roll it would have stored where `getRollById` can find it.
+const mockCreateManualRoll = jest.fn((input: { title?: string }) => {
+  const roll = makeRoll('manual-1', { type: 'free', collectionRule: 'manual' });
+  roll.title = input.title?.trim() || '\uBB36\uC74C 07-27'; // 묶음 07-27
+  mockRolls = [...mockRolls, roll];
+  return roll;
+});
 
 // Mocked at the entity's Public API: this hook's contract is which membership
 // writes it issues, and the guard it applies before issuing them.
 jest.mock('@/entities/roll', () => ({
   getRollById: (id: string) => mockRolls.find((roll) => roll.id === id),
+  useCreateManualRoll: () => mockCreateManualRoll,
   useAddClipToRoll: () => mockAddClipToRoll,
   useRemoveClipFromRoll: () => mockRemoveClipFromRoll,
 }));
@@ -24,7 +33,7 @@ function makeRoll(id: string, overrides: Partial<Roll> = {}): Roll {
     targetOrientation: 'portrait',
     status: 'undeveloped',
     createdAt: 1,
-    title: `${id} 롤`, // 롤
+    title: `${id} \uB864`, // 롤
     clipRefs: [],
     ...overrides,
   };
@@ -40,6 +49,41 @@ beforeEach(() => {
 });
 
 describe('useCollectClips', () => {
+  describe('bundleIntoNewRoll', () => {
+    it('makes a roll and puts every selected cut into it', async () => {
+      const { result } = await renderHook(() => useCollectClips());
+
+      const outcome = result.current.bundleIntoNewRoll('\uB178\uC744 \uBAA8\uC74C', ['clip-1', 'clip-2']); // 노을 모음
+
+      expect(outcome).toEqual({
+        rollId: 'manual-1',
+        title: '\uB178\uC744 \uBAA8\uC74C', // 노을 모음
+        changed: 2,
+      });
+      expect(mockAddClipToRoll.mock.calls).toEqual([
+        ['manual-1', 'clip-1'],
+        ['manual-1', 'clip-2'],
+      ]);
+    });
+
+    it('reports the name the roll ended up with when none was given', async () => {
+      const { result } = await renderHook(() => useCollectClips());
+
+      const outcome = result.current.bundleIntoNewRoll(undefined, ['clip-1']);
+
+      expect(mockCreateManualRoll).toHaveBeenCalledWith({ title: undefined });
+      expect(outcome?.title).toBe('\uBB36\uC74C 07-27'); // 묶음 07-27
+    });
+
+    it('makes nothing out of nothing', async () => {
+      const { result } = await renderHook(() => useCollectClips());
+
+      expect(result.current.bundleIntoNewRoll('\uBE48 \uB864', [])).toBeUndefined(); // 빈 롤
+      expect(mockCreateManualRoll).not.toHaveBeenCalled();
+      expect(mockAddClipToRoll).not.toHaveBeenCalled();
+    });
+  });
+
   describe('addClipsToRoll', () => {
     it('adds every cut the roll does not already hold', async () => {
       mockRolls = [makeRoll('roll-a', { clipRefs: refs('clip-1') })];

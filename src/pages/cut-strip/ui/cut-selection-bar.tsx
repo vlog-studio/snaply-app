@@ -19,11 +19,12 @@ type CutSelectionBarProps = {
   /**
    * Title of the roll the strip is filtered to, or undefined outside a roll
    * context. 롤에서 빼기 needs a "from where" to mean anything, so it only
-   * appears here.
+   * appears here — and it takes the leading slot from 새 롤로 묶기 when it does.
    */
   pullRollTitle: string | undefined;
   onCancel: () => void;
   onToggleSelectAll: () => void;
+  onBundleIntoNewRoll: () => void;
   onAddToRoll: () => void;
   onPullFromRoll: () => void;
   onDelete: () => void;
@@ -40,11 +41,18 @@ type ActionTone = 'primary' | 'plain' | 'danger';
  * bottom edge and simply owns it — this screen is pushed over the tabs, so
  * there is no tab bar underneath to hide.
  *
- * The actions follow the filter. Collecting is the default reason to select
- * cuts, so 담기 leads and 삭제 is pushed to the end; 빼기 joins them only when
- * the strip is narrowed to a roll, because that is the only context in which
- * "빼기" has an answer to "out of what". (새 롤로 묶기 takes the leading slot
- * once rolls can be made by hand.)
+ * The actions follow the filter, and there are always three:
+ *
+ * ```text
+ * 전체 / 미현상 / 롤 없음  →  [새 롤로 묶기] [롤에 담기] [삭제]
+ * 롤별(롤 R 선택)          →  [롤에서 빼기] [롤에 담기] [삭제]
+ * ```
+ *
+ * Collecting is the default reason to select cuts, so a collect action leads
+ * and 삭제 is pushed to the end. 빼기 replaces 새 롤로 묶기 rather than joining
+ * it: it needs a roll to be taken out of, so it only means anything inside a
+ * roll filter, and that is also the one context where bundling the cuts into
+ * yet another roll is not what the user came for.
  *
  * Mount-time slide uses a shared value instead of an `entering` preset —
  * Reanimated `entering` animations never start on iOS in Expo Go (see
@@ -57,6 +65,7 @@ export function CutSelectionBar({
   pullRollTitle,
   onCancel,
   onToggleSelectAll,
+  onBundleIntoNewRoll,
   onAddToRoll,
   onPullFromRoll,
   onDelete,
@@ -109,7 +118,11 @@ export function CutSelectionBar({
       onPress={onPress}
       style={[styles.action, toneStyle(tone, hasSelection)]}
     >
+      {/* Three actions share the row, so a long label shrinks rather than
+          wrapping the button to two lines. */}
       <ThemedText
+        adjustsFontSizeToFit
+        numberOfLines={1}
         selectable={false}
         type="smallBold"
         style={{ color: toneColor(tone, hasSelection) }}
@@ -172,13 +185,13 @@ export function CutSelectionBar({
               `${selectedCount}컷을 ${pullRollTitle}에서 빼기`,
               onPullFromRoll,
             )
-          : null}
-        {renderAction(
-          pullRollTitle ? 'plain' : 'primary',
-          '롤에 담기',
-          `${selectedCount}컷 롤에 담기`,
-          onAddToRoll,
-        )}
+          : renderAction(
+              'primary',
+              '새 롤로 묶기',
+              `${selectedCount}컷을 새 롤로 묶기`,
+              onBundleIntoNewRoll,
+            )}
+        {renderAction('plain', '롤에 담기', `${selectedCount}컷 롤에 담기`, onAddToRoll)}
         {renderAction('danger', '삭제', `${selectedCount}컷 삭제`, onDelete)}
       </View>
     </Animated.View>

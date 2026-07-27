@@ -25,9 +25,9 @@ type CutSelectionBarProps = {
 export const CutSelectionBarContentHeight = 52;
 
 /**
- * Bottom action bar shown while clip selection mode is active. It takes over
- * the tab bar's spot (the navigator hides the tab bar and safelight via
- * `shared/ui/tab-bar-chrome`) and slides up from the bottom edge.
+ * Bottom action bar shown while clip selection mode is active. It slides up
+ * from the bottom edge and simply owns it — this screen is pushed over the
+ * tabs, so there is no tab bar underneath to hide.
  *
  * Mount-time slide uses a shared value instead of an `entering` preset —
  * Reanimated `entering` animations never start on iOS in Expo Go (see

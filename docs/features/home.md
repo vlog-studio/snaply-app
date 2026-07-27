@@ -20,7 +20,7 @@ Capture has moved off Home entirely. There is no longer a Home capture ring; the
 - `src/pages/home` owns all current Home UI and its remaining static presentation data, including the develop-notice bottom-sheet content.
 - `src/app/(tabs)/index.tsx` only exposes the page Public API.
 - `src/entities/roll` backs the today's-roll clip counter and the roll ordinal via `useTodayRoll`/`useRolls`; the roll is created/restored on app entry by `src/_app/providers/daily-roll-gate.tsx`.
-- `src/widgets/developed-rolls-shelf` still provides `formatReelLength` (used by the develop-notice estimate); its `useDevelopedRolls` read model now feeds only the archive, not Home.
+- `src/widgets/roll-shelf` still provides `formatReelLength` (used by the develop-notice estimate); its roll read models feed only the archive cabinet, not Home.
 - `src/shared/ui/bottom-sheet` provides the business-agnostic bottom-sheet shell (platform `Modal` + native slide, backdrop-tap to dismiss) used for the develop notice.
 - `src/shared/ui/themed-text`, `fade-in-view`, and `theme` provide business-agnostic presentation primitives.
 - `src/shared/ui/negative-frame` renders a clip's frosted undeveloped negative from a bare URI (samples the first frame via the disk-cached `shared/lib/video-thumbnails` util, shows it blurred + amber-washed via `expo-image`); it is business-agnostic and shared with the roll-detail contact sheet.

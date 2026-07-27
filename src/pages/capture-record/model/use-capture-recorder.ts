@@ -10,6 +10,7 @@ import {
   normalizeCaptureMood,
 } from '@/entities/capture-session';
 import { useCaptureMoment } from '@/features/capture-moment';
+import { useDeleteClips } from '@/features/delete-clip';
 import { useLocalRecordings } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 
@@ -45,11 +46,22 @@ export function useCaptureRecorder() {
   const {
     recordings,
     isLoading: isLibraryLoading,
-    deletingId,
-    errorMessage: libraryError,
-    clearError: clearLibraryError,
-    removeRecording,
+    errorMessage: listError,
+    clearError: clearListError,
+    reloadRecordings,
   } = useLocalRecordings();
+  // The library deletes originals, and an original captured earlier today is
+  // already a clip inside today's roll — so deletion must cascade through the
+  // clip and roll stores, not just remove the file.
+  const {
+    deleteClips,
+    deletingIds,
+    errorMessage: deleteError,
+    clearError: clearDeleteError,
+  } = useDeleteClips();
+  // Deletion in the library is one clip at a time.
+  const [deletingId] = deletingIds;
+  const libraryError = listError ?? deleteError;
   const { captureMoment, error: momentError, clearError: clearMomentError } = useCaptureMoment();
 
   const cameraRef = useRef<CameraView>(null);
@@ -109,7 +121,8 @@ export function useCaptureRecorder() {
 
   const dismissErrors = () => {
     setCaptureError(undefined);
-    clearLibraryError();
+    clearListError();
+    clearDeleteError();
     clearMomentError();
   };
 
@@ -260,8 +273,11 @@ export function useCaptureRecorder() {
   const closeLibrary = () => setIsLibraryVisible(false);
 
   const deleteRecording = async (recording: LocalRecording) => {
-    const wasDeleted = await removeRecording(recording);
-    if (wasDeleted && selectedRecording?.id === recording.id) retake();
+    const deletedIds = await deleteClips([recording]);
+    if (deletedIds.length === 0) return;
+    // The list is read from disk, so refresh it now that the file is gone.
+    await reloadRecordings();
+    if (selectedRecording?.id === recording.id) retake();
   };
 
   // Options are tuned only while idle; once a hold starts the run is committed.

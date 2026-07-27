@@ -13,7 +13,6 @@ import {
 } from 'react';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 
-import { useTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import { Radius, TabBarContentHeight, useResolvedColorScheme, useTheme } from '@/shared/ui/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -61,9 +60,6 @@ export function AppTabs() {
   // back explicitly — otherwise the bar overlaps the Android navigation bar.
   const inset = useSafeAreaInsets();
   const [blurTargetView, setBlurTargetView] = useState<View | null>(null);
-  // Screens can replace the bottom chrome with their own action bar (archive
-  // clip selection); hide both the tab bar and the safelight while they do.
-  const tabBarHidden = useTabBarHidden();
 
   return (
     <SceneBlurTargetContext value={setBlurTargetView}>
@@ -93,7 +89,6 @@ export function AppTabs() {
           ),
           tabBarStyle: {
             position: 'absolute',
-            display: tabBarHidden ? 'none' : 'flex',
             backgroundColor: 'transparent',
             borderTopColor: theme.border,
             borderTopWidth: StyleSheet.hairlineWidth,
@@ -127,7 +122,7 @@ export function AppTabs() {
       </Tabs>
       {/* The safelight — capture is always one tap, centered over the bar on
           every tab. It opens the /capture modal in the root stack. */}
-      {tabBarHidden ? null : <SafelightButton bottom={inset.bottom} />}
+      <SafelightButton bottom={inset.bottom} />
     </SceneBlurTargetContext>
   );
 }

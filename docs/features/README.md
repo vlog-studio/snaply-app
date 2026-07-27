@@ -25,7 +25,8 @@ Root stack
 ├── /sign-in           Social sign-in (shown when signed out)
 ├── (tabs)             (guarded: requires a session — two tabs + a center safelight button)
 │   ├── /              Home (오늘)
-│   └── /archive       Clip archive + developed-roll shelf (보관함); settings entry in its corner
+│   └── /archive       Film cabinet (보관함): develop-waiting lane, developed shelf by month, cut drawer
+├── /cuts              Every original cut (guarded; opened from the cabinet's drawer)
 ├── /settings          Settings (guarded; opened from the archive corner, no longer a tab)
 ├── /roll/[id]         Roll detail contact sheet; develop / view-reel entry (guarded)
 └── /capture           Capture setup (modal, guarded; opened by the center safelight button)
@@ -60,7 +61,7 @@ Tap the center safelight button in the tab bar
 | [Home and moment overview](home.md) | Today's-roll edge print, real clip counter and contact-sheet preview, delayed-develop notice, real developed-roll shelf preview, roll-detail entry | `Partial` |
 | [Capture flow](capture-flow.md) | Mood/duration setup, permissions, camera recording, 담기 into today's roll, develop ceremony, sequential reel playback | `Partial` |
 | [Roll detail](roll-detail.md) | Roll contact-sheet grid, single-cut playback, cut add/remove/reorder on undeveloped rolls, clip counter, develop / view-reel CTA | `Functional` |
-| [Recording archive](recording-archive.md) | Local clip persistence, listing, playback, deletion; developed-roll shelf backed by the roll store | `Partial` |
+| [Recording archive](recording-archive.md) | Film cabinet (develop-waiting lane, developed shelf by month with real cover art and empty-day counts, cut drawer) and the `/cuts` screen (listing, playback, cascading deletion) | `Partial` |
 | [Settings](settings.md) | Reminder, frequency, social connection, and account controls | `Prototype` |
 | [Location alerts and push notifications](location-and-push-notifications.md) | FCM token registration, geofence monitoring, arrival reporting, foreground notification presentation | `Partial` |
 
@@ -70,13 +71,13 @@ Tap the center safelight button in the tab bar
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
 | `src/_app` | `providers`, `routes`, `styles` | Compose the darkroom navigation theme, splash overlay, root stack with the session route guard, and the cross-platform tab navigation. Also mount the headless `PushTokenRegistrar`, `GeofenceGate`, and `DailyRollGate`, and define the background geofence task at startup (`register-background-tasks`). |
-| `src/pages` | `sign-in`, `home`, `capture-record`, `capture-editing`, `capture-result`, `roll-detail`, `archive`, `settings` | Own screen composition and screen-specific state (including the roll↔clip join in `roll-detail`). |
-| `src/widgets` | `developed-rolls-shelf` | Own the cross-entity developed-rolls read model (rolls + clip durations) shared by the home shelf preview and the archive shelf grid. |
-| `src/features` | `capture-moment`, `develop-roll`, `manage-recordings`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own the 담기 action (persist clip + add to today's roll), the 현상 action (rules-based reel composition + status), reuse local-recording handling, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
+| `src/pages` | `sign-in`, `home`, `capture-record`, `capture-editing`, `capture-result`, `roll-detail`, `archive`, `cut-strip`, `settings` | Own screen composition and screen-specific state (including the roll↔clip join in `roll-detail`). |
+| `src/widgets` | `roll-shelf`, `clip-membership` | Own the cross-entity roll read models — the develop-waiting lane and the developed shelf grouped by month (`roll-shelf`), and the reverse `clip → rolls` index (`clip-membership`). |
+| `src/features` | `capture-moment`, `develop-roll`, `manage-recordings`, `delete-clip`, `sign-in`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own the 담기 action (persist clip + add to today's roll), the 현상 action (rules-based reel composition + status), reuse local-recording handling, the social sign-in action, the notification preferences, OS geofence monitoring, and FCM token registration. |
 | `src/entities` | `capture-session`, `clip`, `roll`, `session`, `location` | Define capture moods/durations, own the clip archive and rolls (today's-roll selection, membership, develop status), the authenticated session and current user, and geofence points. |
 | `src/shared` | `lib/recording-files`, `lib/local-store`, `lib/secure-storage`, `lib/location`, `lib/notifications`, UI modules | Provide the platform-specific file, JSON local-store, secure-storage, location, and notification adapters, design tokens, theme helpers, typography, buttons, and other business-agnostic UI. |
 
-No `widgets` layer is currently needed. Page-specific blocks remain inside their owning page slices.
+The `widgets` layer holds the cross-entity read models that no single entity may own and more than one screen needs (`roll-shelf`, `clip-membership`). Page-specific blocks stay inside their owning page slices.
 
 ## Documentation maintenance contract
 

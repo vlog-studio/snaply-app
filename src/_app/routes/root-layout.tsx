@@ -79,6 +79,10 @@ function RootStack() {
         <Stack.Screen name="capture/editing" options={{ headerShown: false }} />
         <Stack.Screen name="capture/result" options={{ headerShown: false }} />
         <Stack.Screen name="roll/[id]" options={{ title: '롤 상세' }} />
+        {/* Every original cut, opened from the cabinet's drawer. A sibling of
+            the tabs rather than a segment inside the archive, so the grid gets
+            the whole screen and its selection bar owns the bottom edge. */}
+        <Stack.Screen name="cuts" options={{ title: '컷' }} />
         {/* Settings moved out of the tab bar (concept §6): reached from the
             archive corner, pushed as a normal stack screen. */}
         <Stack.Screen name="settings" options={{ title: '설정' }} />

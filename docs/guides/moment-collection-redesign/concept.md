@@ -15,6 +15,8 @@
 - [`visual-language.html`](visual-language.html) — 팔레트·타이포·모티프 스타일 가이드
 - [`screens.html`](screens.html) — 네비게이션 구조와 담기/현상/수집 세 플로우 화면 목업
 - [`motion.html`](motion.html) — 눌러보는 꾹-담기, 재생되는 현상 세리머니 (인터랙티브)
+- [`archive-redesign.html`](archive-redesign.html) — 보관함 리디자인 **4안 비교**(현재 화면 진단 + 방향 A~D + 추천). 구현된 보관함이 이 컨셉의 §4 수집욕·§5 시각 언어와 어디서 벌어졌는지 짚는 후속 검토이며, 결론은 **A+B 하이브리드 채택**입니다 (2026-07-27)
+- [`archive-ab-hybrid.html`](archive-ab-hybrid.html) — **보관함 A+B 하이브리드 확정 설계**. 캐비닛(`/archive`)과 컨택트 스트립(`/cuts`) 8화면, 롤 틴트 규칙, 상태·모션 표, FSD 소유 계층, M8 마일스톤. 구현 착수 기준 문서 (2026-07-27)
 
 ---
 

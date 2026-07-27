@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { useClips, type Clip } from '@/entities/clip';
-import { useRollById, type Roll } from '@/entities/roll';
+import { formatDayRange, toDayKey, useRollById, type Roll } from '@/entities/roll';
 
 export type RollDetail = {
   roll: Roll | undefined;
@@ -9,6 +9,12 @@ export type RollDetail = {
   clips: Clip[];
   /** Whether the roll can be developed (has at least one clip). */
   canDevelop: boolean;
+  /**
+   * What the header's edge print stamps for the date: a daily roll's own day,
+   * or the span a hand-made roll's cuts cover. Undefined only when neither is
+   * answerable — a roll bundled by hand whose cuts are all gone.
+   */
+  dateLabel: string | undefined;
 };
 
 /**
@@ -30,5 +36,11 @@ export function useRollDetail(rollId: string | undefined): RollDetail {
       .filter((clip): clip is Clip => clip !== undefined);
   }, [roll, clips]);
 
-  return { roll, clips: orderedClips, canDevelop: orderedClips.length > 0 };
+  // A daily roll is its date, so it stamps that. A roll bundled by hand is a
+  // name instead, and the edge is where its dates go — without this it stamped
+  // a bare "—", which said nothing about a roll that does have dates.
+  const dateLabel =
+    roll?.dayKey ?? formatDayRange(orderedClips.map((clip) => toDayKey(clip.capturedAt)));
+
+  return { roll, clips: orderedClips, canDevelop: orderedClips.length > 0, dateLabel };
 }

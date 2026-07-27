@@ -1,9 +1,11 @@
+import * as Haptics from 'expo-haptics';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
+import { manualRollTitle, rollTint } from '@/entities/roll';
 import { useCollectClips, useCollectTargets, type CollectOutcome } from '@/features/collect-clips';
 import { useDeleteClips } from '@/features/delete-clip';
 import { formatRecordingDate } from '@/features/manage-recordings';
@@ -25,6 +27,8 @@ import { CutAddToRollSheet } from './cut-add-to-roll-sheet';
 import { CutDeleteDialog } from './cut-delete-dialog';
 import { CutFilmStrip } from './cut-film-strip';
 import { CutFilterBar } from './cut-filter-bar';
+import { CutNewRollSheet } from './cut-new-roll-sheet';
+import { CutNotice, type StripNotice } from './cut-notice';
 import { CutRollPickerSheet } from './cut-roll-picker-sheet';
 import { CutSelectionBar, CutSelectionBarContentHeight } from './cut-selection-bar';
 import { CutSheet } from './cut-sheet';
@@ -34,6 +38,21 @@ const NoCuts: Clip[] = [];
 
 /** The cut the sheet is open on, with whether its original is still on disk. */
 type OpenCut = { cut: StripCut; hasFile: boolean };
+
+/**
+ * A roll being made by hand, from the moment the sheet opens until it takes.
+ *
+ * The page holds it rather than the sheet, because the draft belongs to the
+ * selection it names: a second bundle must not inherit the first one's name.
+ * `defaultTitle` is settled here too — it depends on the clock, which a render
+ * may not read, and the day the sheet opened is the honest answer anyway.
+ */
+type BundleDraft = {
+  cuts: Clip[];
+  title: string;
+  defaultTitle: string;
+  errorMessage?: string;
+};
 
 /** What the selection bar prints next to the count, so a batch names its scope. */
 function filterLabel(filter: CutFilter, activeRollTitle: string | undefined): string {
@@ -62,10 +81,10 @@ function filterLabel(filter: CutFilter, activeRollTitle: string | undefined): st
  * The clip store is what rolls reference and what carries duration, mood, and
  * orientation; the file list could only ever answer "what is on disk".
  *
- * The screen writes as well as reads: cuts can be put into a roll and taken back
- * out from both the selection bar and the cut sheet, and deleting an original
- * goes through a dialog that names every roll the deletion rewrites. 새 롤로
- * 묶기 arrives with manual roll creation.
+ * The screen writes as well as reads: cuts can be bundled into a roll of their
+ * own, put into an existing roll, and taken back out — from both the selection
+ * bar and the cut sheet — and deleting an original goes through a dialog that
+ * names every roll the deletion rewrites.
  */
 export function CutStripPage() {
   const theme = useTheme();
@@ -79,10 +98,12 @@ export function CutStripPage() {
   const [playingClip, setPlayingClip] = useState<Clip>();
   /** Cuts the add sheet is collecting for; its presence opens the sheet. */
   const [collecting, setCollecting] = useState<Clip[]>();
+  /** The new-roll sheet's draft; its presence opens the sheet. */
+  const [bundle, setBundle] = useState<BundleDraft>();
   /** Cuts waiting on the delete confirmation; its presence opens the dialog. */
   const [pendingDelete, setPendingDelete] = useState<Clip[]>();
-  /** A refusal worth saying out loud (a roll finished developing under us). */
-  const [notice, setNotice] = useState<string>();
+  /** What the last collect action did, or why it could not. */
+  const [notice, setNotice] = useState<StripNotice>();
 
   const strip = useCutStrip(filter);
   const rollFilters = useCutRollFilters();
@@ -90,7 +111,7 @@ export function CutStripPage() {
   // metadata + every roll's references), so it lives in its own feature rather
   // than in the recording-file hook that only knows about files.
   const { deleteClips, deletingIds, errorMessage } = useDeleteClips();
-  const { addClipsToRoll, removeClipsFromRoll } = useCollectClips();
+  const { bundleIntoNewRoll, addClipsToRoll, removeClipsFromRoll } = useCollectClips();
 
   const collectingIds = useMemo(() => (collecting ?? NoCuts).map((clip) => clip.id), [collecting]);
   const pendingDeleteIds = useMemo(
@@ -124,7 +145,7 @@ export function CutStripPage() {
    * the press, and a refusal that looks like a success is worse than either.
    */
   const reportOutcome = useCallback((outcome: CollectOutcome, frozenMessage: string) => {
-    setNotice(outcome.frozen ? frozenMessage : undefined);
+    setNotice(outcome.frozen ? { tone: 'warn', message: frozenMessage } : undefined);
   }, []);
 
   // Narrowing the strip takes frames off screen, and a selection the user can
@@ -222,6 +243,45 @@ export function CutStripPage() {
     [collecting, addClipsToRoll, reportOutcome, exitSelection],
   );
 
+  /**
+   * Makes the roll and, if it took, says so in the roll's own color with the
+   * release snap: on this screen there is no cover to fly the frames into, so
+   * the confirmation is what carries "묶였다" (concept §7).
+   *
+   * A failure keeps the sheet open with the typed name intact — the selection
+   * is still there, so pressing again is the whole retry.
+   */
+  const createRoll = useCallback(() => {
+    if (!bundle) return;
+    try {
+      const outcome = bundleIntoNewRoll(
+        bundle.title,
+        bundle.cuts.map((clip) => clip.id),
+      );
+      if (!outcome) return;
+      if (process.env.EXPO_OS !== 'web') {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+      setNotice({
+        tone: 'done',
+        message: `${outcome.title} · ${outcome.changed}컷으로 묶었어요`,
+        tint: rollTint(outcome.rollId),
+      });
+      setBundle(undefined);
+      exitSelection();
+    } catch {
+      setBundle((current) =>
+        current ? { ...current, errorMessage: '롤을 만들지 못했어요. 다시 시도해 주세요.' } : current,
+      );
+    }
+  }, [bundle, bundleIntoNewRoll, exitSelection]);
+
+  const startBundling = useCallback((cuts: Clip[]) => {
+    if (cuts.length === 0) return;
+    setNotice(undefined);
+    setBundle({ cuts, title: '', defaultTitle: manualRollTitle(undefined, Date.now()) });
+  }, []);
+
   const pullFromRoll = useCallback(
     (rollId: string, targets: Clip[]) => {
       if (targets.length === 0) return;
@@ -275,13 +335,7 @@ export function CutStripPage() {
             </View>
           ) : null}
 
-          {notice ? (
-            <View style={[styles.messageCard, { borderColor: theme.amber }]}>
-              <ThemedText type="smallBold" themeColor="amber">
-                {notice}
-              </ThemedText>
-            </View>
-          ) : null}
+          <CutNotice notice={notice} />
 
           {!strip.isHydrated ? (
             <View style={[styles.messageCard, { borderColor: theme.border }]}>
@@ -393,6 +447,7 @@ export function CutStripPage() {
           pullRollTitle={activeRoll?.canEditMembership ? activeRoll.title : undefined}
           onCancel={exitSelection}
           onToggleSelectAll={toggleSelectAll}
+          onBundleIntoNewRoll={() => startBundling(selectedCuts)}
           onAddToRoll={() => setCollecting(selectedCuts)}
           onPullFromRoll={() => {
             if (filter.kind !== 'roll') return;
@@ -426,7 +481,27 @@ export function CutStripPage() {
         cutCount={collecting?.length ?? 0}
         targets={collectTargets}
         onSelect={collectInto}
+        // Hands the same cuts to the new-roll sheet. One sheet at a time: the
+        // add sheet closes in the commit that opens the other.
+        onBundleIntoNewRoll={() => {
+          const targets = collecting ?? NoCuts;
+          setCollecting(undefined);
+          startBundling(targets);
+        }}
         onClose={() => setCollecting(undefined)}
+      />
+
+      <CutNewRollSheet
+        visible={bundle !== undefined}
+        cutCount={bundle?.cuts.length ?? 0}
+        title={bundle?.title ?? ''}
+        defaultTitle={bundle?.defaultTitle ?? ''}
+        errorMessage={bundle?.errorMessage}
+        onChangeTitle={(title) =>
+          setBundle((current) => (current ? { ...current, title } : current))
+        }
+        onCreate={createRoll}
+        onClose={() => setBundle(undefined)}
       />
 
       <CutDeleteDialog

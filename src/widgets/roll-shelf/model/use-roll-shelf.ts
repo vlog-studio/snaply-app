@@ -4,9 +4,12 @@ import { useClips, type Clip } from '@/entities/clip';
 import {
   TodayRollTint,
   elapsedDaysInMonth,
+  formatDayRange,
   formatMonthKey,
+  rollDate,
   rollMonthKey,
   rollTint,
+  toDayKey,
   useRolls,
   useTodayRoll,
   type Roll,
@@ -24,7 +27,22 @@ const CoverFrameCount = 4;
 export type RollSummary = {
   id: string;
   title: string;
+  /**
+   * Set only on a daily roll — the day it collects. Its absence is what marks
+   * a roll assembled by hand, whose title is a name rather than a date.
+   */
   dayKey?: string;
+  /**
+   * The day the cabinet files and sorts this roll under: the day a daily roll
+   * collects, or the day a hand-made one was bundled. Always answerable.
+   */
+  date: string;
+  /**
+   * The days its cuts were captured on, as `07-18` or `07-18~07-24`. Undefined
+   * when none of them resolve. This is what a hand-made roll prints where a
+   * daily roll prints its date.
+   */
+  dayRange?: string;
   status: RollStatus;
   clipCount: number;
   /** Total length in seconds, summed from the referenced clips. */
@@ -74,6 +92,8 @@ function summarize(roll: Roll, clipsById: Map<string, Clip>, todayRollId?: strin
     id: roll.id,
     title: roll.title,
     dayKey: roll.dayKey,
+    date: rollDate(roll),
+    dayRange: formatDayRange(clips.map((clip) => toDayKey(clip.capturedAt))),
     status: roll.status,
     clipCount: clipIds.length,
     totalSec: clips.reduce((sum, clip) => sum + clip.durationSec, 0),
@@ -93,6 +113,10 @@ function useClipsById(): Map<string, Clip> {
  * still has a reel waiting to be made. Today's roll is always present even with
  * no cuts yet — it is the invitation to capture — while other rolls appear only
  * once they hold something to develop.
+ *
+ * Rolls bundled by hand stand in this lane beside the daily ones. The condition
+ * is about what can be developed, not about having a day: everything a user can
+ * develop has to be in one place for "waiting" to mean anything.
  *
  * The filter is "not finished" rather than "undeveloped", so a roll left in
  * `developing` by an interrupted ceremony still surfaces here instead of
@@ -169,9 +193,10 @@ export function useDevelopedRollMonths(): DevelopedRollMonth[] {
       .map(([key, monthRolls]) => ({
         key,
         label: formatMonthKey(key),
-        rolls: monthRolls.sort((left, right) =>
-          (right.dayKey ?? '').localeCompare(left.dayKey ?? ''),
-        ),
+        // Sorted by the day each roll stands for, not by `dayKey` — a
+        // hand-made roll has none, and sorting on it would file every one of
+        // them at the bottom of its month.
+        rolls: monthRolls.sort((left, right) => right.date.localeCompare(left.date)),
         emptyDayCount: todayDayKey ? countEmptyDays(key, todayDayKey, collectedDays) : 0,
       }));
   }, [rolls, todayRoll, clipsById]);

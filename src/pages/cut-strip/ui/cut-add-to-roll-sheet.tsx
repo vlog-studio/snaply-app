@@ -11,6 +11,8 @@ type CutAddToRollSheetProps = {
   cutCount: number;
   targets: CollectTarget[];
   onSelect: (rollId: string) => void;
+  /** Leaves for the new-roll sheet when none of the listed rolls is the one. */
+  onBundleIntoNewRoll: () => void;
   onClose: () => void;
 };
 
@@ -25,12 +27,16 @@ type CutAddToRollSheetProps = {
  * Distinct from the roll picker that narrows the strip: that one chooses what
  * to look at and lists rolls that hold something, this one chooses where to
  * write and an empty roll is a perfectly good target.
+ *
+ * 새 롤로 묶기 sits under the list because early on the list is only today's
+ * roll, and "none of these" would otherwise be a dead end.
  */
 export function CutAddToRollSheet({
   visible,
   cutCount,
   targets,
   onSelect,
+  onBundleIntoNewRoll,
   onClose,
 }: CutAddToRollSheetProps) {
   const theme = useTheme();
@@ -90,6 +96,20 @@ export function CutAddToRollSheet({
           ))}
         </ScrollView>
       )}
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${cutCount}컷을 새 롤로 묶기`}
+        onPress={onBundleIntoNewRoll}
+        style={[styles.newRoll, { borderColor: theme.border }]}
+      >
+        <ThemedText selectable={false} type="smallBold" themeColor="primary">
+          + 새 롤로 묶기
+        </ThemedText>
+        <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+          이 {cutCount}컷만의 롤을 만들어요
+        </ThemedText>
+      </Pressable>
     </BottomSheet>
   );
 }
@@ -111,6 +131,17 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
   },
   tint: { width: 10, height: 10, borderRadius: 5 },
+  newRoll: {
+    minHeight: 56,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    marginTop: Spacing.two,
+  },
   rowText: { flex: 1, gap: 2 },
   empty: {
     borderWidth: 1.5,

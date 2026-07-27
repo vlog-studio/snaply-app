@@ -1,6 +1,11 @@
 import { useCallback } from 'react';
 
-import { getRollById, useAddClipToRoll, useRemoveClipFromRoll } from '@/entities/roll';
+import {
+  getRollById,
+  useAddClipToRoll,
+  useCreateManualRoll,
+  useRemoveClipFromRoll,
+} from '@/entities/roll';
 
 /** What a collect action actually did, so a caller can report it honestly. */
 export type CollectOutcome = {
@@ -13,11 +18,21 @@ export type CollectOutcome = {
   frozen: boolean;
 };
 
+/** The roll a bundle produced, for the confirmation that names it. */
+export type BundleOutcome = {
+  rollId: string;
+  /** The name the roll ended up with — the given one, or the day's default. */
+  title: string;
+  /** How many cuts went in. */
+  changed: number;
+};
+
 const NoChange: CollectOutcome = { changed: 0, frozen: false };
 const Frozen: CollectOutcome = { changed: 0, frozen: true };
 
 /**
- * Putting cuts into a roll and taking them back out.
+ * Bundling cuts into a new roll, putting them into an existing one, and taking
+ * them back out.
  *
  * Membership is the one thing a cut and a roll share, and both screens that
  * show it — the contact strip and roll detail — need to change it, which is
@@ -35,6 +50,7 @@ const Frozen: CollectOutcome = { changed: 0, frozen: true };
  * against.
  */
 export function useCollectClips() {
+  const createManualRoll = useCreateManualRoll();
   const addClipToRoll = useAddClipToRoll();
   const removeClipFromRoll = useRemoveClipFromRoll();
 
@@ -60,6 +76,26 @@ export function useCollectClips() {
     [addClipToRoll],
   );
 
+  /**
+   * Makes a roll out of the given cuts and puts them in it.
+   *
+   * A new roll can never be refused the way an existing one can: it is created
+   * undeveloped a moment before the cuts go in, so the outcome only says which
+   * roll appeared and how many cuts it holds. Bundling nothing makes nothing —
+   * an empty roll would be a dead end, and the store retires those anyway.
+   *
+   * The name is optional; the entity decides what a blank one becomes.
+   */
+  const bundleIntoNewRoll = useCallback(
+    (title: string | undefined, clipIds: readonly string[]): BundleOutcome | undefined => {
+      if (clipIds.length === 0) return undefined;
+      const roll = createManualRoll({ title });
+      const outcome = addClipsToRoll(roll.id, clipIds);
+      return { rollId: roll.id, title: roll.title, changed: outcome.changed };
+    },
+    [createManualRoll, addClipsToRoll],
+  );
+
   const removeClipsFromRoll = useCallback(
     (rollId: string, clipIds: readonly string[]): CollectOutcome => {
       const roll = getRollById(rollId);
@@ -74,13 +110,13 @@ export function useCollectClips() {
         removeClipFromRoll(rollId, clipId);
         changed += 1;
       }
-      // Emptying a manually made roll should retire it, but a roll cannot be
-      // made by hand yet, and a daily roll survives holding nothing (it is the
-      // invitation to capture). The cleanup lands with 새 롤로 묶기.
+      // Taking the last cut out of a hand-made roll retires the roll — the
+      // store enforces that, since deleting originals can empty one just as
+      // easily as this can. A daily roll survives holding nothing.
       return { changed, frozen: false };
     },
     [removeClipFromRoll],
   );
 
-  return { addClipsToRoll, removeClipsFromRoll };
+  return { bundleIntoNewRoll, addClipsToRoll, removeClipsFromRoll };
 }

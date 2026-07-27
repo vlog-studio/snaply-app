@@ -3,8 +3,17 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
 
+import { manualRollTitle } from '../lib/roll-title';
 import { toDayKey } from './day-key';
 import type { ClipRef, Reel, Roll, RollStatus } from './roll';
+
+/** What the user gets to decide when bundling cuts into a roll by hand. */
+export type ManualRollInput = {
+  /** Optional — a blank name becomes the day the roll was made. */
+  title?: string;
+  /** Injectable for tests; production callers use the default. */
+  createdAt?: number;
+};
 
 /**
  * Owns rolls: today's-roll selection, clip membership, and development state.
@@ -28,6 +37,7 @@ type RollState = {
    */
   todayRollId: string | null;
   hasHydrated: boolean;
+  createManualRoll: (input: ManualRollInput) => Roll;
   addClipToRoll: (rollId: string, clipId: string) => void;
   removeClipFromRoll: (rollId: string, clipId: string) => void;
   removeClipsEverywhere: (clipIds: readonly string[]) => void;
@@ -55,6 +65,61 @@ function createDailyRoll(dayKey: string, createdAt: number): Roll {
     title: `${dayKey} 데일리 롤`, // 데일리 롤
     clipRefs: [],
   };
+}
+
+/**
+ * Keeps a new roll's id off one already stored. Two rolls made in the same
+ * millisecond is not a real user action, but a duplicate id would make every
+ * membership write land on both rolls at once, so it is cheap to rule out.
+ */
+function uniqueRollId(base: string, taken: ReadonlySet<string>): string {
+  if (!taken.has(base)) return base;
+  let suffix = 2;
+  while (taken.has(`${base}-${suffix}`)) suffix += 1;
+  return `${base}-${suffix}`;
+}
+
+/**
+ * Builds a roll the user bundled by hand: character `free`, collected
+ * `manual`, portrait, undeveloped, holding nothing yet — the caller puts the
+ * selected cuts in.
+ *
+ * It deliberately carries no `dayKey`. That field means "the day this roll
+ * collects", which a hand-made roll has no answer to, and its absence is what
+ * keeps the roll clear of `ensureDailyRoll` and today's-roll lookups. Where the
+ * cabinet needs a date for it anyway, `rollDate` answers with `createdAt`.
+ */
+function createFreeRoll(
+  { title, createdAt }: { title: string | undefined; createdAt: number },
+  takenIds: ReadonlySet<string>,
+): Roll {
+  return {
+    id: uniqueRollId(`manual-${createdAt}`, takenIds),
+    type: 'free',
+    collectionRule: 'manual',
+    targetOrientation: 'portrait',
+    status: 'undeveloped',
+    createdAt,
+    title: manualRollTitle(title, createdAt),
+    clipRefs: [],
+  };
+}
+
+/**
+ * Whether a roll still has a reason to exist after losing cuts.
+ *
+ * A hand-made roll that has lost its last cut is a dead end: nothing points at
+ * it, it shows an empty card in the waiting lane, and there is no UI for
+ * deleting a roll — so emptying one retires it. A daily roll survives holding
+ * nothing, because an empty today is the invitation to capture, and a developed
+ * roll survives too, because its reel is a finished artifact.
+ *
+ * The rule lives in the store rather than in the action that empties a roll:
+ * both taking a cut out and deleting an original can be what empties it, and an
+ * invariant enforced in two callers is one that eventually holds in one.
+ */
+function keepsExisting(roll: Roll): boolean {
+  return roll.type !== 'free' || roll.status !== 'undeveloped' || roll.clipRefs.length > 0;
 }
 
 function appendClipRef(clipRefs: ClipRef[], clipId: string): ClipRef[] {
@@ -108,10 +173,18 @@ function withoutClips(roll: Roll, removedClipIds: ReadonlySet<string>): Roll {
 
 export const useRollStore = create<RollState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       rolls: [],
       todayRollId: null,
       hasHydrated: false,
+      createManualRoll: ({ title, createdAt = Date.now() }) => {
+        const roll = createFreeRoll(
+          { title, createdAt },
+          new Set(get().rolls.map((existing) => existing.id)),
+        );
+        set((state) => ({ rolls: [...state.rolls, roll] }));
+        return roll;
+      },
       addClipToRoll: (rollId, clipId) =>
         set((state) => ({
           rolls: state.rolls.map((roll) =>
@@ -120,17 +193,21 @@ export const useRollStore = create<RollState>()(
         })),
       removeClipFromRoll: (rollId, clipId) =>
         set((state) => ({
-          rolls: state.rolls.map((roll) =>
-            roll.id === rollId
-              ? { ...roll, clipRefs: roll.clipRefs.filter((ref) => ref.clipId !== clipId) }
-              : roll,
-          ),
+          rolls: state.rolls
+            .map((roll) =>
+              roll.id === rollId
+                ? { ...roll, clipRefs: roll.clipRefs.filter((ref) => ref.clipId !== clipId) }
+                : roll,
+            )
+            .filter(keepsExisting),
         })),
       removeClipsEverywhere: (clipIds) =>
         set((state) => {
           const removed = new Set(clipIds);
           if (removed.size === 0) return state;
-          return { rolls: state.rolls.map((roll) => withoutClips(roll, removed)) };
+          return {
+            rolls: state.rolls.map((roll) => withoutClips(roll, removed)).filter(keepsExisting),
+          };
         }),
       reorderRollClips: (rollId, orderedClipIds) =>
         set((state) => ({
@@ -211,6 +288,15 @@ export function useTodayRoll(): Roll | undefined {
 
 export function useRollsHydrated(): boolean {
   return useRollStore((state) => state.hasHydrated);
+}
+
+/**
+ * Creates a roll the user bundled by hand and returns it, so the caller can put
+ * the selected cuts into the roll it just made. Unlike `ensureDailyRoll` this is
+ * never idempotent — asking twice means the user wanted two rolls.
+ */
+export function useCreateManualRoll(): (input: ManualRollInput) => Roll {
+  return useRollStore((state) => state.createManualRoll);
 }
 
 export function useAddClipToRoll(): (rollId: string, clipId: string) => void {

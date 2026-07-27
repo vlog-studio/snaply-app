@@ -4,7 +4,7 @@ import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
-import { useReorderRollClips } from '@/entities/roll';
+import { getRollById, useReorderRollClips } from '@/entities/roll';
 import { useCollectClips } from '@/features/collect-clips';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
@@ -29,7 +29,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topInset = useTopContentInset();
-  const { roll, clips, canDevelop } = useRollDetail(rollId);
+  const { roll, clips, canDevelop, dateLabel } = useRollDetail(rollId);
   const addableClips = useAddableClips(roll);
   // Membership goes through the collect feature on both surfaces that change it
   // (here and the contact strip), so the "a developed roll is frozen" rule lives
@@ -115,6 +115,10 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
     // archive, so no confirmation gate is needed.
     removeClipsFromRoll(roll.id, [...selectedIds]);
     exitEditing();
+    // Emptying a roll bundled by hand retires it. Standing on the screen of a
+    // roll that no longer exists would answer "롤을 찾을 수 없어요" to something
+    // the user just did, so leave instead.
+    if (!getRollById(roll.id)) router.back();
   };
 
   const applyReorder = () => {
@@ -140,7 +144,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
       >
         <View style={styles.header}>
           <ThemedText type="edge" themeColor="amber">
-            ROLL · {roll.dayKey ?? '—'} · {roll.status === 'developed' ? '현상됨' : '미현상'}
+            ROLL · {dateLabel ?? '—'} · {roll.status === 'developed' ? '현상됨' : '미현상'}
           </ThemedText>
           <View style={styles.titleRow}>
             <ThemedText type="title">{roll.title}</ThemedText>

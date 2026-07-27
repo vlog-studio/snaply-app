@@ -15,7 +15,9 @@ A roll's detail screen shows the moments collected into that roll as a grid **co
       -- 릴 보기 (already developed) --> /capture/result           (reel player)
 ```
 
-The route is `/roll/[id]`; `id` is the roll id (today's roll id is `daily-<YYYY-MM-DD>`). It is a guarded stack screen with a themed native header titled "롤 상세".
+The route is `/roll/[id]`; `id` is the roll id (a daily roll's id is `daily-<YYYY-MM-DD>`, a roll bundled by hand `manual-<createdAt>`). It is a guarded stack screen with a themed native header titled "롤 상세".
+
+The screen handles both kinds of roll unchanged — a free roll is edited, developed, and played exactly like a daily one, since nothing here reads `roll.type` (see [Two kinds of roll](recording-archive.md#two-kinds-of-roll)). The one place they differ is the header's edge print, below.
 
 ## Current behavior
 
@@ -26,7 +28,7 @@ The route is `/roll/[id]`; `id` is the roll id (today's roll id is `daily-<YYYY-
 | Remove cuts (undeveloped only) | `Functional` | Long-press a cut to enter selection mode (checkbox overlays; hardware back exits the mode). The footer swaps to 취소 · N개 선택 · 롤에서 빼기. Removing drops the roll's clip references only — the original cuts stay in the archive — so there is no confirmation dialog. |
 | Reorder cuts (undeveloped only) | `Functional` | The 순서 바꾸기 chip (shown with ≥2 cuts) enters tap-to-renumber mode: tapping cuts assigns new positions 1, 2, … (tapping again unassigns); 적용 commits via the roll store's `reorderRollClips`. Cuts left unnumbered keep their relative order after the numbered ones. |
 | Add cuts (undeveloped only) | `Functional` | Tapping a dashed empty slot (shown as ＋) opens the 컷 추가 sheet listing archive clips not yet in the roll, newest first, with legible first-frame thumbnails. Multi-select is capped at the roll's remaining empty slots; picks are numbered and appended to the roll in pick order. |
-| Clip count / header | `Functional` | The header edge print (`ROLL · <dayKey> · 미현상/현상됨`), roll title, and `NN/12` counter reflect the real roll. |
+| Clip count / header | `Functional` | The header edge print (`ROLL · <날짜> · 미현상/현상됨`), roll title, and `NN/12` counter reflect the real roll. The date is a daily roll's own `dayKey`; a roll bundled by hand has none, so it prints the span its cuts cover instead (`07-18~07-24`), derived in `useRollDetail`. It falls back to `—` only when neither is answerable — a hand-made roll whose cuts are all gone. |
 | Missing roll | `Functional` | An unknown or malformed id renders a "롤을 찾을 수 없어요" empty state instead of crashing. |
 | 현상하기 (develop) | `Functional` | For an undeveloped roll the CTA is enabled only when the roll has at least one clip. It opens the develop ceremony (`/capture/editing?rollId`), which composes and persists the roll's reel and marks it developed (see [Capture flow](capture-flow.md)). |
 | 릴 보기 (view reel) | `Functional` | Once the roll is developed (status `developed` with a reel), the CTA becomes "릴 보기" and opens the sequential reel player (`/capture/result?rollId`). |
@@ -52,6 +54,7 @@ The roll and its clip references (including order), and the clip metadata, are p
 ## Known limitations
 
 - Editing is unavailable once a roll is developed; there is no "re-develop" flow yet.
-- Removing a cut from the roll never deletes the original recording — permanent deletion lives in the archive's cut tab.
+- Removing a cut from the roll never deletes the original recording — permanent deletion lives in the archive's cut tab. Taking the last cut out of a hand-made roll retires the roll itself, and the screen leaves rather than reporting "롤을 찾을 수 없어요" about something the user just did.
+- A roll cannot be renamed here, or anywhere: a hand-made roll's name is given once when it is bundled.
 - The add sheet lists clips from the clip store; a recording that was never 담기'd (no clip entity) cannot be added from here.
 - Reordering is tap-to-renumber; drag-and-drop is a possible later upgrade.

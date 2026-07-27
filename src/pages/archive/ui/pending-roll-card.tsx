@@ -90,7 +90,9 @@ function PendingRollCardComponent({ roll, onPress, onDevelop, onCollect }: Pendi
       <View style={styles.footRow}>
         <ThemedText type="edge" themeColor="textSecondary">
           {isReady
-            ? `${roll.clipCount}컷 · 하루 종료`
+            ? // A day ends on its own; a hand-made roll never does, so it says
+              // what it holds instead of claiming a day is over.
+              `${roll.clipCount}컷 · ${roll.dayKey ? '하루 종료' : (roll.dayRange ?? '직접 묶은 롤')}`
             : roll.clipCount === 0
               ? '첫 컷을 기다리는 롤'
               : '자정 이후 현상 열림'}
@@ -146,8 +148,12 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   strip: { flexDirection: 'row', gap: Spacing.one },
+  // Sized by how many frames the strip can hold, not by how many it has: with
+  // `flex: 1` a roll holding a single cut stretched that one frame across the
+  // whole card. Common now that a roll can be bundled by hand out of two or
+  // three cuts, and the strip should read the same width whatever it holds.
   frame: {
-    flex: 1,
+    width: `${100 / StripFrames - 1}%`,
     aspectRatio: 3 / 4,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
@@ -155,7 +161,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   frameEmpty: {
-    flex: 1,
+    width: `${100 / StripFrames - 1}%`,
     aspectRatio: 3 / 4,
     borderRadius: Radius.small,
     borderCurve: 'continuous',

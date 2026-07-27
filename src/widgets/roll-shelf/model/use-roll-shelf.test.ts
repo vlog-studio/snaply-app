@@ -31,12 +31,12 @@ jest.mock('@/entities/roll', () => ({
   useTodayRoll: () => mockTodayRoll,
 }));
 
-function makeClip(id: string, durationSec: number): Clip {
+function makeClip(id: string, durationSec: number, capturedOn = '2026-07-24'): Clip {
   return {
     id,
     uri: `file:///${id}.mp4`,
     durationSec,
-    capturedAt: 1,
+    capturedAt: new Date(`${capturedOn}T09:00:00`).getTime(),
     width: 1080,
     height: 1920,
     orientation: 'portrait',
@@ -57,7 +57,7 @@ function makeRoll(dayKey: string, overrides: Partial<Roll> = {}): Roll {
     status: 'undeveloped',
     createdAt: new Date(`${dayKey}T09:00:00`).getTime(),
     dayKey,
-    title: `${dayKey} 롤`, // 롤
+    title: `${dayKey} \uB864`, // 롤
     clipRefs: [],
     ...overrides,
   };
@@ -66,6 +66,21 @@ function makeRoll(dayKey: string, overrides: Partial<Roll> = {}): Roll {
 function developed(dayKey: string, clipIds: string[], developedAt: number): Roll {
   const reel: Reel = { clipRefs: refs(...clipIds), developedAt };
   return makeRoll(dayKey, { status: 'developed', clipRefs: refs(...clipIds), reel });
+}
+
+/** A roll the user bundled by hand: no `dayKey`, filed by the day it was made. */
+function freeRoll(id: string, madeOn: string, overrides: Partial<Roll> = {}): Roll {
+  return {
+    id,
+    type: 'free',
+    collectionRule: 'manual',
+    targetOrientation: 'portrait',
+    status: 'undeveloped',
+    createdAt: new Date(`${madeOn}T09:00:00`).getTime(),
+    title: '\uB178\uC744 \uBAA8\uC74C', // 노을 모음
+    clipRefs: [],
+    ...overrides,
+  };
 }
 
 beforeEach(() => {
@@ -155,6 +170,40 @@ describe('useRollsAwaitingDevelop', () => {
     expect(result.current[0]).toMatchObject({ clipCount: 5, totalSec: 15 });
   });
 
+  it('stands a hand-made roll in the lane beside the daily ones', async () => {
+    const today = makeRoll('2026-07-27');
+    mockClips = [makeClip('a', 3)];
+    mockRolls = [freeRoll('manual-1', '2026-07-26', { clipRefs: refs('a') }), today];
+    mockTodayRoll = today;
+
+    const { result } = await renderHook(() => useRollsAwaitingDevelop());
+
+    expect(result.current.map((roll) => roll.id)).toEqual(['daily-2026-07-27', 'manual-1']);
+  });
+
+  it('files a hand-made roll under the day it was bundled', async () => {
+    mockClips = [makeClip('a', 3, '2026-07-18')];
+    mockRolls = [freeRoll('manual-1', '2026-07-26', { clipRefs: refs('a') })];
+
+    const { result } = await renderHook(() => useRollsAwaitingDevelop());
+
+    expect(result.current[0]).toMatchObject({ date: '2026-07-26', dayRange: '07-18' });
+    expect(result.current[0].dayKey).toBeUndefined();
+  });
+
+  it('spans the days a hand-made roll collected across', async () => {
+    mockClips = [
+      makeClip('a', 3, '2026-07-24'),
+      makeClip('b', 3, '2026-07-18'),
+      makeClip('c', 3, '2026-07-20'),
+    ];
+    mockRolls = [freeRoll('manual-1', '2026-07-26', { clipRefs: refs('a', 'b', 'c') })];
+
+    const { result } = await renderHook(() => useRollsAwaitingDevelop());
+
+    expect(result.current[0].dayRange).toBe('07-18~07-24');
+  });
+
   it("gives today's roll the reserved ember tint", async () => {
     const today = makeRoll('2026-07-27');
     mockRolls = [today];
@@ -181,6 +230,25 @@ describe('useDevelopedRollMonths', () => {
     expect(result.current[0].rolls.map((roll) => roll.dayKey)).toEqual([
       '2026-07-24',
       '2026-07-21',
+    ]);
+  });
+
+  // Sorting on `dayKey` would file every hand-made roll at the bottom of its
+  // month, since it has none.
+  it('orders a hand-made roll among the daily ones by the day it stands for', async () => {
+    const bundled = freeRoll('manual-1', '2026-07-22', {
+      status: 'developed',
+      clipRefs: refs('a'),
+      reel: { clipRefs: refs('a'), developedAt: 25 },
+    });
+    mockRolls = [developed('2026-07-24', ['b'], 30), bundled, developed('2026-07-21', ['c'], 20)];
+
+    const { result } = await renderHook(() => useDevelopedRollMonths());
+
+    expect(result.current[0].rolls.map((roll) => roll.id)).toEqual([
+      'daily-2026-07-24',
+      'manual-1',
+      'daily-2026-07-21',
     ]);
   });
 

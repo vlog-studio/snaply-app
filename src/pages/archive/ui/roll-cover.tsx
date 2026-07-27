@@ -71,8 +71,11 @@ function RollCoverComponent({ roll, onPress }: RollCoverProps) {
 
       <View style={styles.body}>
         <View style={styles.topRow}>
+          {/* A daily roll's date is its title, so the edge only counts cuts.
+              A hand-made roll's title is a name, so the edge takes over the
+              dates and prints the span its cuts cover. */}
           <ThemedText selectable={false} style={styles.coverEdge}>
-            {roll.dayKey ?? '롤'} · {roll.clipCount}컷
+            {roll.dayKey ?? roll.dayRange ?? '롤'} · {roll.clipCount}컷
           </ThemedText>
           <View style={styles.lengthBadge}>
             <ThemedText selectable={false} style={[styles.lengthText, { color: theme.lumen }]}>

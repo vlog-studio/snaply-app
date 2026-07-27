@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  permissionIconText: { color: '#FF6B35', fontSize: 44, lineHeight: 48 },
+  permissionIconText: { fontSize: 44, lineHeight: 48 },
   permissionDescription: { color: 'rgba(255,255,255,0.72)', textAlign: 'center' },
   permissionError: { color: '#FFB4AB', textAlign: 'center' },
   permissionAction: { width: '100%', maxWidth: 360 },

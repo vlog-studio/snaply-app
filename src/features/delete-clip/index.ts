@@ -1,1 +1,1 @@
-export { useDeleteClips } from './model/use-delete-clips';
+export { useDeleteClips, type DeletableClip } from './model/use-delete-clips';

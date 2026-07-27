@@ -2,11 +2,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRemoveClips } from '@/entities/clip';
 import { useRemoveClipsEverywhere } from '@/entities/roll';
-import { deleteLocalRecording, type LocalRecording } from '@/shared/lib/recording-files';
-import { deleteRecordingThumbnail } from '@/shared/lib/recording-thumbnails';
+import { deleteLocalRecording } from '@/shared/lib/recording-files';
+import { deleteVideoThumbnail } from '@/shared/lib/video-thumbnails';
 
 const PartialFailureMessage = '일부 컷을 삭제하지 못했어요.'; // 일부 컷을 삭제하지 못했어요.
 const TotalFailureMessage = '컷을 삭제하지 못했어요.'; // 컷을 삭제하지 못했어요.
+
+/**
+ * The minimum a delete needs to know: which clip, and where its file is. Stated
+ * structurally so both a `Clip` (what the archive holds) and a `LocalRecording`
+ * (what the capture library holds) can be handed to it directly.
+ */
+export type DeletableClip = { id: string; uri: string };
 
 /**
  * Deletes originals from the archive, permanently and completely.
@@ -42,7 +49,7 @@ export function useDeleteClips() {
 
   /** Returns the ids actually deleted, so the caller can refresh its list. */
   const deleteClips = useCallback(
-    async (targets: readonly LocalRecording[]): Promise<string[]> => {
+    async (targets: readonly DeletableClip[]): Promise<string[]> => {
       if (targets.length === 0) return [];
 
       setDeletingIds(new Set(targets.map((target) => target.id)));
@@ -61,7 +68,7 @@ export function useDeleteClips() {
           continue;
         }
         try {
-          deleteRecordingThumbnail(target);
+          deleteVideoThumbnail(target.uri);
         } catch {
           // The thumbnail is a derived cache, so losing it only forces
           // re-extraction. Failing to clear it must never turn a completed

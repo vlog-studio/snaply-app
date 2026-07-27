@@ -3,15 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { Clip } from '@/entities/clip';
 import { useDeleteClips } from '@/features/delete-clip';
-import {
-  formatRecordingDate,
-  formatRecordingDay,
-  recordingDayKey,
-  useLocalRecordings,
-} from '@/features/manage-recordings';
-import { formatFileSize } from '@/shared/lib/format-file-size';
-import type { LocalRecording } from '@/shared/lib/recording-files';
+import { formatRecordingDate } from '@/features/manage-recordings';
+import { localRecordingExists } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
@@ -19,84 +14,83 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 import { selectRollsForClips, useClipMembership } from '@/widgets/clip-membership';
 
-import { CutCell } from './cut-cell';
+import {
+  useCutRollFilters,
+  useCutStrip,
+  type CutFilter,
+  type StripCut,
+} from '../model/use-cut-strip';
+import { CutFilmStrip } from './cut-film-strip';
+import { CutFilterBar } from './cut-filter-bar';
+import { CutRollPickerSheet } from './cut-roll-picker-sheet';
 import { CutSelectionBar, CutSelectionBarContentHeight } from './cut-selection-bar';
+import { CutSheet } from './cut-sheet';
 
-// "최신순" = one flat newest-first grid, "일자별" = the same grid split into
-// per-day sections.
-type ClipSort = 'recent' | 'day';
+const AllCuts: CutFilter = { kind: 'all' };
 
-type ClipDayGroup = { key: string; label: string; items: LocalRecording[] };
+/** The cut the sheet is open on, with whether its original is still on disk. */
+type OpenCut = { cut: StripCut; hasFile: boolean };
 
 /**
  * Every original cut, reached from the cabinet's drawer.
  *
- * This lives on its own pushed route rather than as a segment of the archive:
- * the cabinet is about rolls, and cuts are the raw material behind them. Being
- * a pushed screen also means it has no tab bar, so its selection bar simply
- * owns the bottom edge instead of having to hide the app's chrome.
+ * A day is a horizontal strip of film, not a row of a grid: frames sit between
+ * sprocket holes in the order they were captured, and each day scrolls on its
+ * own axis. What a grid could never say, the strip does — the colored dots under
+ * a frame are the rolls holding that cut, so N:M is visible without opening
+ * anything, and a frame with a dashed amber edge is one no roll holds at all.
  *
- * Still a grid; the contact-strip rendering and roll-membership dots land in
- * the next step.
+ * The screen reads from `entities/clip` rather than the recording files on disk.
+ * The clip store is what rolls reference and what carries duration, mood, and
+ * orientation; the file list could only ever answer "what is on disk".
+ *
+ * This screen reads. Collecting actions — 새 롤로 묶기, 롤에 담기, 롤에서 빼기 —
+ * arrive with the write step, along with the delete dialog that names the rolls
+ * a deletion changes.
  */
 export function CutStripPage() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const topInset = useTopContentInset();
-  const [clipSort, setClipSort] = useState<ClipSort>('recent');
+  const [filter, setFilter] = useState<CutFilter>(AllCuts);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
-  const { recordings, isLoading, errorMessage, reloadRecordings } = useLocalRecordings();
+  const [rollPickerVisible, setRollPickerVisible] = useState(false);
+  const [openCut, setOpenCut] = useState<OpenCut>();
+  const [playingClip, setPlayingClip] = useState<Clip>();
+
+  const strip = useCutStrip(filter);
+  const rollFilters = useCutRollFilters();
   // Deleting an original is a cross-entity action (file + thumbnail + clip
   // metadata + every roll's references), so it lives in its own feature rather
   // than in the recording-file hook that only knows about files.
-  const { deleteClips, deletingIds, errorMessage: deleteErrorMessage } = useDeleteClips();
+  const { deleteClips, deletingIds, errorMessage } = useDeleteClips();
   const clipMembership = useClipMembership();
 
-  // Global newest-first clip number (컷 01 is the oldest), independent of the
-  // day grouping so a clip keeps the same number across both views.
-  const clipNumbers = useMemo(() => {
-    const map = new Map<string, string>();
-    recordings.forEach((recording, index) => {
-      map.set(recording.id, String(recordings.length - index).padStart(2, '0'));
-    });
-    return map;
-  }, [recordings]);
-
-  const dayGroups = useMemo<ClipDayGroup[]>(() => {
-    const groups: ClipDayGroup[] = [];
-    const byKey = new Map<string, ClipDayGroup>();
-    for (const recording of recordings) {
-      const key = recordingDayKey(recording.createdAt);
-      let group = byKey.get(key);
-      if (!group) {
-        group = { key, label: formatRecordingDay(recording.createdAt), items: [] };
-        byKey.set(key, group);
-        groups.push(group);
-      }
-      group.items.push(recording);
-    }
-    return groups;
-  }, [recordings]);
+  const visibleCuts = useMemo(
+    () => strip.days.flatMap((day) => day.cuts.map((cut) => cut.clip)),
+    [strip.days],
+  );
+  const activeRoll =
+    filter.kind === 'roll' ? rollFilters.find((roll) => roll.rollId === filter.rollId) : undefined;
 
   const exitSelection = useCallback(() => {
     setSelectionMode(false);
     setSelectedIds(new Set());
   }, []);
 
-  const enterSelection = useCallback((recording: LocalRecording) => {
-    setSelectionMode(true);
-    setSelectedIds(new Set([recording.id]));
+  // Narrowing the strip takes frames off screen, and a selection the user can
+  // no longer see is one they cannot check before deleting. Leave selection
+  // mode on, drop what it held.
+  const applyFilter = useCallback((next: CutFilter) => {
+    setFilter(next);
+    setSelectedIds(new Set());
   }, []);
 
   useFocusEffect(
-    useCallback(() => {
-      void reloadRecordings();
-      // Returning to a screen still in selection mode would show a bar over a
-      // list the user has lost track of — always leave it clean.
-      return () => exitSelection();
-    }, [reloadRecordings, exitSelection]),
+    // Returning to a screen still in selection mode would show a bar over a
+    // list the user has lost track of — always leave it clean.
+    useCallback(() => () => exitSelection(), [exitSelection]),
   );
 
   // Android hardware back exits selection mode instead of leaving the screen.
@@ -109,67 +103,83 @@ export function CutStripPage() {
     return () => subscription.remove();
   }, [selectionMode, exitSelection]);
 
-  const toggleSelected = useCallback((recording: LocalRecording) => {
+  const toggleSelected = useCallback((cut: StripCut) => {
     setSelectedIds((current) => {
       const next = new Set(current);
-      if (next.has(recording.id)) next.delete(recording.id);
-      else next.add(recording.id);
+      if (next.has(cut.clip.id)) next.delete(cut.clip.id);
+      else next.add(cut.clip.id);
       return next;
     });
   }, []);
 
-  const allSelected = recordings.length > 0 && selectedIds.size === recordings.length;
-
-  const toggleSelectAll = useCallback(() => {
-    setSelectedIds((current) =>
-      current.size === recordings.length ? new Set() : new Set(recordings.map((item) => item.id)),
-    );
-  }, [recordings]);
-
-  const handleCellPress = useCallback(
-    (recording: LocalRecording) => {
-      if (selectionMode) toggleSelected(recording);
-      else setSelectedRecording(recording);
+  const handlePressCut = useCallback(
+    (cut: StripCut) => {
+      if (selectionMode) {
+        toggleSelected(cut);
+        return;
+      }
+      // A clip's metadata can outlive its file, so resolve that once here rather
+      // than letting the sheet offer a playback that cannot happen.
+      setOpenCut({ cut, hasFile: localRecordingExists(cut.clip.uri) });
     },
     [selectionMode, toggleSelected],
   );
 
-  const confirmBatchDelete = () => {
-    const targets = recordings.filter((recording) => selectedIds.has(recording.id));
-    if (targets.length === 0) return;
+  const enterSelection = useCallback((cut: StripCut) => {
+    setSelectionMode(true);
+    setSelectedIds(new Set([cut.clip.id]));
+  }, []);
 
-    // Deleting an original takes it out of every roll that references it, so
-    // name how many rolls change before asking. Removing a cut from one roll
-    // while keeping the original is a separate action (roll detail).
-    const affectedRolls = selectRollsForClips(
-      clipMembership,
-      targets.map((target) => target.id),
+  // Select-all covers what the filter is showing, not the whole archive — the
+  // frames off screen are not what the user is looking at.
+  const allSelected = visibleCuts.length > 0 && selectedIds.size === visibleCuts.length;
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedIds((current) =>
+      current.size === visibleCuts.length
+        ? new Set()
+        : new Set(visibleCuts.map((clip) => clip.id)),
     );
-    const rollNotice =
-      affectedRolls.length > 0
-        ? ` 이 컷이 든 롤 ${affectedRolls.length}개에서도 함께 사라져요.`
-        : '';
+  }, [visibleCuts]);
 
-    Alert.alert(
-      `${targets.length}개 컷을 삭제할까요?`,
-      `삭제한 원본은 복구할 수 없어요.${rollNotice}`,
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: () => {
-            void deleteClips(targets).then((deletedIds) => {
-              // The file list is read from disk, so refresh it once the files
-              // are actually gone rather than guessing which deletes succeeded.
-              if (deletedIds.length > 0) void reloadRecordings();
-            });
-            exitSelection();
+  const confirmDelete = useCallback(
+    (targets: Clip[]) => {
+      if (targets.length === 0) return;
+
+      // Deleting an original takes it out of every roll that references it, so
+      // name how many rolls change before asking. Removing a cut from one roll
+      // while keeping the original is a separate action (roll detail).
+      const affectedRolls = selectRollsForClips(
+        clipMembership,
+        targets.map((target) => target.id),
+      );
+      const rollNotice =
+        affectedRolls.length > 0
+          ? ` 이 컷이 든 롤 ${affectedRolls.length}개에서도 함께 사라져요.`
+          : '';
+
+      Alert.alert(
+        `${targets.length}개 컷을 삭제할까요?`,
+        `삭제한 원본은 복구할 수 없어요.${rollNotice}`,
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '삭제',
+            style: 'destructive',
+            onPress: () => {
+              void deleteClips(targets);
+              setOpenCut(undefined);
+              exitSelection();
+            },
           },
-        },
-      ],
-    );
-  };
+        ],
+      );
+    },
+    [clipMembership, deleteClips, exitSelection],
+  );
+
+  const isEmptyArchive = strip.isHydrated && strip.totalCount === 0;
+  const isEmptyFilter = strip.isHydrated && strip.totalCount > 0 && strip.count === 0;
 
   return (
     <>
@@ -191,29 +201,29 @@ export function CutStripPage() {
       >
         <View style={styles.header}>
           <ThemedText type="edge" themeColor="amber">
-            NEGATIVE · 컷 {recordings.length}
+            NEGATIVE · {strip.totalCount} FRAMES
           </ThemedText>
           <ThemedText themeColor="textSecondary">
-            담은 원본 컷이에요. 롤은 이 원본을 참조만 해요.
+            하루가 스트립 한 줄이에요. 프레임 아래 색 점이 이 컷이 든 롤이에요.
           </ThemedText>
         </View>
 
-        <FadeInView duration={260} style={styles.clipList}>
-          {(errorMessage ?? deleteErrorMessage) ? (
+        <FadeInView duration={260} style={styles.list}>
+          {errorMessage ? (
             <View style={[styles.messageCard, { borderColor: theme.danger }]}>
               <ThemedText type="smallBold" themeColor="danger">
-                {errorMessage ?? deleteErrorMessage}
+                {errorMessage}
               </ThemedText>
             </View>
           ) : null}
 
-          {isLoading && recordings.length === 0 ? (
+          {!strip.isHydrated ? (
             <View style={[styles.messageCard, { borderColor: theme.border }]}>
               <ThemedText themeColor="textSecondary">담긴 컷을 불러오는 중이에요…</ThemedText>
             </View>
           ) : null}
 
-          {!isLoading && recordings.length === 0 ? (
+          {isEmptyArchive ? (
             <View style={[styles.emptyCard, { borderColor: theme.border }]}>
               <View style={[styles.emptyIcon, { backgroundColor: theme.film }]}>
                 <ThemedText
@@ -235,86 +245,65 @@ export function CutStripPage() {
             </View>
           ) : null}
 
-          {recordings.length > 0 ? (
-            <View style={styles.clipToolbar}>
-              <View style={[styles.sortToggle, { borderColor: theme.border }]}>
-                {(
-                  [
-                    ['recent', '최신순'],
-                    ['day', '일자별'],
-                  ] as const
-                ).map(([value, label]) => {
-                  const isActive = clipSort === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isActive }}
-                      onPress={() => setClipSort(value)}
-                      style={[
-                        styles.sortChip,
-                        isActive && { backgroundColor: theme.backgroundElement },
-                      ]}
-                    >
-                      <ThemedText
-                        selectable={false}
-                        type="edge"
-                        style={{ color: isActive ? theme.text : theme.textSecondary }}
-                      >
-                        {label}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
+          {strip.totalCount > 0 ? (
+            <>
+              <CutFilterBar
+                filter={filter}
+                looseCount={strip.looseCount}
+                activeRoll={activeRoll}
+                canFilterByRoll={rollFilters.length > 0}
+                onSelect={applyFilter}
+                onOpenRollPicker={() => setRollPickerVisible(true)}
+              />
+
+              <View style={styles.toolbar}>
+                <ThemedText type="edge" themeColor="textSecondary">
+                  {selectionMode ? '탭해서 선택' : '길게 눌러 선택'}
+                </ThemedText>
+                {selectionMode ? null : (
+                  <Pressable
+                    accessibilityLabel="선택 모드"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setSelectionMode(true)}
+                    style={styles.toolbarAction}
+                  >
+                    <ThemedText selectable={false} type="edge" themeColor="primary">
+                      선택
+                    </ThemedText>
+                  </Pressable>
+                )}
               </View>
-              <ThemedText type="edge" themeColor="textSecondary">
-                {selectionMode ? '탭해서 선택' : '길게 눌러 선택'}
-              </ThemedText>
+            </>
+          ) : null}
+
+          {isEmptyFilter ? (
+            <View style={[styles.emptyCard, { borderColor: theme.border }]}>
+              <ThemedText type="smallBold">이 필터에 해당하는 컷이 없어요</ThemedText>
+              <Pressable
+                accessibilityLabel="필터 해제"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => applyFilter(AllCuts)}
+              >
+                <ThemedText type="linkPrimary">필터 해제</ThemedText>
+              </Pressable>
             </View>
           ) : null}
 
-          {recordings.length > 0 && clipSort === 'recent' ? (
-            <View style={styles.clipGrid}>
-              {recordings.map((recording) => (
-                <CutCell
-                  key={recording.id}
-                  recording={recording}
-                  clipNo={clipNumbers.get(recording.id) ?? ''}
-                  selectionMode={selectionMode}
-                  selected={selectedIds.has(recording.id)}
-                  isDeleting={deletingIds.has(recording.id)}
-                  onPress={() => handleCellPress(recording)}
-                  onLongPress={() => enterSelection(recording)}
-                />
-              ))}
-            </View>
-          ) : null}
+          {strip.days.map((day) => (
+            <CutFilmStrip
+              key={day.dayKey}
+              day={day}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              deletingIds={deletingIds}
+              onPressCut={handlePressCut}
+              onLongPressCut={enterSelection}
+            />
+          ))}
 
-          {recordings.length > 0 && clipSort === 'day'
-            ? dayGroups.map((group) => (
-                <View key={group.key} style={styles.clipDayGroup}>
-                  <ThemedText type="edge" themeColor="textSecondary">
-                    {group.label} · {group.items.length}컷
-                  </ThemedText>
-                  <View style={styles.clipGrid}>
-                    {group.items.map((recording) => (
-                      <CutCell
-                        key={recording.id}
-                        recording={recording}
-                        clipNo={clipNumbers.get(recording.id) ?? ''}
-                        selectionMode={selectionMode}
-                        selected={selectedIds.has(recording.id)}
-                        isDeleting={deletingIds.has(recording.id)}
-                        onPress={() => handleCellPress(recording)}
-                        onLongPress={() => enterSelection(recording)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ))
-            : null}
-
-          {recordings.length > 0 ? (
+          {strip.totalCount > 0 ? (
             <ThemedText type="small" style={styles.storageNote} themeColor="textSecondary">
               원본 컷은 이 기기의 Snaply 앱 안에 저장되며 앱을 삭제하면 함께 사라져요.
             </ThemedText>
@@ -329,43 +318,67 @@ export function CutStripPage() {
           allSelected={allSelected}
           onCancel={exitSelection}
           onToggleSelectAll={toggleSelectAll}
-          onDelete={confirmBatchDelete}
+          onDelete={() => confirmDelete(visibleCuts.filter((clip) => selectedIds.has(clip.id)))}
         />
       ) : null}
 
+      <CutSheet
+        cut={openCut?.cut}
+        hasFile={openCut?.hasFile ?? false}
+        isDeleting={openCut ? deletingIds.has(openCut.cut.clip.id) : false}
+        // The player opens over the sheet rather than replacing it: dismissing
+        // one modal in the same commit that presents another is the fragile
+        // case on iOS, and coming back to the cut you were reading is the
+        // behavior you want anyway.
+        onPlay={() => setPlayingClip(openCut?.cut.clip)}
+        onDelete={() => openCut && confirmDelete([openCut.cut.clip])}
+        onClose={() => setOpenCut(undefined)}
+      />
+
+      <CutRollPickerSheet
+        visible={rollPickerVisible}
+        rolls={rollFilters}
+        selectedRollId={filter.kind === 'roll' ? filter.rollId : undefined}
+        onSelect={(rollId) => {
+          applyFilter({ kind: 'roll', rollId });
+          setRollPickerVisible(false);
+        }}
+        onClose={() => setRollPickerVisible(false)}
+      />
+
       <Modal
         animationType="fade"
-        onRequestClose={() => setSelectedRecording(undefined)}
+        onRequestClose={() => setPlayingClip(undefined)}
         presentationStyle="fullScreen"
-        visible={Boolean(selectedRecording)}
+        visible={Boolean(playingClip)}
       >
         <View style={styles.previewScreen}>
-          {selectedRecording ? (
+          {playingClip ? (
             <VideoPreview
-              key={selectedRecording.id}
+              key={playingClip.id}
               contentFit="contain"
               muted={false}
               nativeControls
-              uri={selectedRecording.uri}
+              uri={playingClip.uri}
             />
           ) : null}
           <Pressable
             accessibilityLabel="컷 재생 닫기"
             accessibilityRole="button"
-            onPress={() => setSelectedRecording(undefined)}
+            onPress={() => setPlayingClip(undefined)}
             style={[styles.previewClose, { top: insets.top + Spacing.three }]}
           >
             <ThemedText selectable={false} style={styles.previewCloseText}>
               ×
             </ThemedText>
           </Pressable>
-          {selectedRecording ? (
+          {playingClip ? (
             <View style={[styles.previewMeta, { bottom: insets.bottom + Spacing.four }]}>
               <ThemedText type="edge" style={styles.previewMetaEdge}>
-                {formatRecordingDate(selectedRecording.createdAt)}
+                {formatRecordingDate(playingClip.capturedAt)}
               </ThemedText>
               <ThemedText type="small" style={styles.mutedWhite}>
-                {formatFileSize(selectedRecording.size)} · 앱에 저장된 원본 컷
+                {playingClip.durationSec}초 · 앱에 저장된 원본 컷
               </ThemedText>
             </View>
           ) : null}
@@ -384,7 +397,7 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
   },
   header: { gap: Spacing.two },
-  clipList: { gap: Spacing.three },
+  list: { gap: Spacing.four },
   messageCard: { borderWidth: 1, borderRadius: Radius.medium, padding: Spacing.four },
   emptyCard: {
     borderWidth: 1.5,
@@ -405,30 +418,14 @@ const styles = StyleSheet.create({
   emptyIconText: { fontSize: 22 },
   emptyCopy: { flex: 1, gap: Spacing.one, alignItems: 'center' },
   centerText: { textAlign: 'center' },
-  clipToolbar: {
-    minHeight: 44,
+  toolbar: {
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.three,
   },
-  sortToggle: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    padding: Spacing.one,
-    borderRadius: Radius.pill,
-    borderCurve: 'continuous',
-    gap: Spacing.one,
-  },
-  sortChip: {
-    minHeight: 32,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
-  clipDayGroup: { gap: Spacing.two },
+  toolbarAction: { minHeight: 32, justifyContent: 'center' },
   storageNote: { textAlign: 'center', paddingTop: Spacing.two },
   previewScreen: { flex: 1, backgroundColor: '#000000' },
   previewClose: {

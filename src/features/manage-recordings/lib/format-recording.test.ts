@@ -2,7 +2,7 @@ import {
   formatRecordingDate,
   formatRecordingDay,
   formatRecordingTime,
-  recordingDayKey,
+  relativeDayLabel,
 } from './format-recording';
 
 describe('formatRecordingDate', () => {
@@ -23,22 +23,6 @@ describe('formatRecordingTime', () => {
 
     expect(formatted).toContain('3:04');
     expect(formatted).not.toContain('7월');
-  });
-});
-
-describe('recordingDayKey', () => {
-  it('produces the same key for two times on the same calendar day', () => {
-    const morning = new Date(2026, 6, 20, 9, 0).getTime();
-    const evening = new Date(2026, 6, 20, 23, 30).getTime();
-
-    expect(recordingDayKey(morning)).toBe(recordingDayKey(evening));
-  });
-
-  it('produces different keys for different days', () => {
-    const dayOne = new Date(2026, 6, 20, 12, 0).getTime();
-    const dayTwo = new Date(2026, 6, 21, 12, 0).getTime();
-
-    expect(recordingDayKey(dayOne)).not.toBe(recordingDayKey(dayTwo));
   });
 });
 
@@ -69,5 +53,29 @@ describe('formatRecordingDay', () => {
     expect(label).toContain('20일');
     expect(label).not.toBe('오늘');
     expect(label).not.toBe('어제');
+  });
+});
+
+describe('relativeDayLabel', () => {
+  const fixedNow = new Date(2026, 6, 24, 10, 0).getTime();
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedNow);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it.each([
+    [new Date(2026, 6, 24, 8, 0).getTime(), '오늘'],
+    [new Date(2026, 6, 23, 22, 0).getTime(), '어제'],
+  ])('names the day as %s', (timestamp, expected) => {
+    expect(relativeDayLabel(timestamp)).toBe(expected);
+  });
+
+  it('leaves an older day unnamed, so its heading can print the date alone', () => {
+    expect(relativeDayLabel(new Date(2026, 6, 20, 12, 0).getTime())).toBeUndefined();
   });
 });

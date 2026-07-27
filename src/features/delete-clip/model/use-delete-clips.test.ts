@@ -1,11 +1,9 @@
 import { act, renderHook } from '@testing-library/react-native';
 
-import type { LocalRecording } from '@/shared/lib/recording-files';
-
-import { useDeleteClips } from './use-delete-clips';
+import { useDeleteClips, type DeletableClip } from './use-delete-clips';
 
 const mockDeleteLocalRecording = jest.fn();
-const mockDeleteRecordingThumbnail = jest.fn();
+const mockDeleteVideoThumbnail = jest.fn();
 const mockRemoveClips = jest.fn();
 const mockRemoveClipsEverywhere = jest.fn();
 
@@ -13,8 +11,8 @@ const mockRemoveClipsEverywhere = jest.fn();
 jest.mock('@/shared/lib/recording-files', () => ({
   deleteLocalRecording: (uri: string) => mockDeleteLocalRecording(uri),
 }));
-jest.mock('@/shared/lib/recording-thumbnails', () => ({
-  deleteRecordingThumbnail: (recording: unknown) => mockDeleteRecordingThumbnail(recording),
+jest.mock('@/shared/lib/video-thumbnails', () => ({
+  deleteVideoThumbnail: (uri: string) => mockDeleteVideoThumbnail(uri),
 }));
 jest.mock('@/entities/clip', () => ({
   useRemoveClips: () => mockRemoveClips,
@@ -23,14 +21,8 @@ jest.mock('@/entities/roll', () => ({
   useRemoveClipsEverywhere: () => mockRemoveClipsEverywhere,
 }));
 
-function makeRecording(id: string): LocalRecording {
-  return {
-    id,
-    uri: `file:///doc/recordings/${id}`,
-    fileName: id,
-    size: 1024,
-    createdAt: 1_753_200_000_000,
-  };
+function makeRecording(id: string): DeletableClip {
+  return { id, uri: `file:///doc/recordings/${id}` };
 }
 
 beforeEach(() => {
@@ -48,7 +40,7 @@ describe('useDeleteClips', () => {
     });
 
     expect(mockDeleteLocalRecording).toHaveBeenCalledWith(recording.uri);
-    expect(mockDeleteRecordingThumbnail).toHaveBeenCalledWith(recording);
+    expect(mockDeleteVideoThumbnail).toHaveBeenCalledWith(recording.uri);
     expect(mockRemoveClipsEverywhere).toHaveBeenCalledWith(['snaply-1.mp4']);
     expect(mockRemoveClips).toHaveBeenCalledWith(['snaply-1.mp4']);
   });
@@ -93,7 +85,7 @@ describe('useDeleteClips', () => {
 
     expect(deletedIds).toEqual(['snaply-2.mp4']);
     expect(mockRemoveClips).toHaveBeenCalledWith(['snaply-2.mp4']);
-    expect(mockDeleteRecordingThumbnail).not.toHaveBeenCalledWith(kept);
+    expect(mockDeleteVideoThumbnail).not.toHaveBeenCalledWith(kept.uri);
     expect(result.current.errorMessage).toBe('일부 컷을 삭제하지 못했어요.'); // 일부 컷을 삭제하지 못했어요.
   });
 
@@ -113,7 +105,7 @@ describe('useDeleteClips', () => {
   it('still commits the delete when clearing the thumbnail cache fails', async () => {
     // The file is already gone at that point, so a derived-cache failure must
     // not leave the metadata and roll references behind.
-    mockDeleteRecordingThumbnail.mockImplementation(() => {
+    mockDeleteVideoThumbnail.mockImplementation(() => {
       throw new Error('cache locked');
     });
     const { result } = await renderHook(() => useDeleteClips());

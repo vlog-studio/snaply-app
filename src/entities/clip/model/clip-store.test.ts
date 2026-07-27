@@ -109,10 +109,10 @@ describe('clip store', () => {
   });
 
   it('removes several clips in one write', async () => {
-    act(() => {
-      useClipStore.setState({
-        clips: [makeClip({ id: 'clip-1' }), makeClip({ id: 'clip-2' }), makeClip({ id: 'clip-3' })],
-      });
+    // Seeded before anything renders, so there is no update for `act` to flush;
+    // wrapping it would open an act scope the later assertions render inside.
+    useClipStore.setState({
+      clips: [makeClip({ id: 'clip-1' }), makeClip({ id: 'clip-2' }), makeClip({ id: 'clip-3' })],
     });
 
     const { result } = await renderHook(() => ({
@@ -126,9 +126,7 @@ describe('clip store', () => {
   });
 
   it.each([[[]], [['clip-unknown']]])('leaves the clips untouched for %j', async (ids) => {
-    act(() => {
-      useClipStore.setState({ clips: [makeClip({ id: 'clip-1' })] });
-    });
+    useClipStore.setState({ clips: [makeClip({ id: 'clip-1' })] });
 
     const { result } = await renderHook(() => useRemoveClips());
     await act(async () => result.current(ids));
@@ -137,10 +135,8 @@ describe('clip store', () => {
   });
 
   it('resolves ids to clips in id order, skipping unknown ids', async () => {
-    act(() => {
-      useClipStore.setState({
-        clips: [makeClip({ id: 'clip-1' }), makeClip({ id: 'clip-2' })],
-      });
+    useClipStore.setState({
+      clips: [makeClip({ id: 'clip-1' }), makeClip({ id: 'clip-2' })],
     });
 
     expect(getClipsByIds(['clip-2', 'nope', 'clip-1']).map((clip) => clip.id)).toEqual([

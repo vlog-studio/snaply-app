@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { Link, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useLocalRecordings } from '@/features/manage-recordings';
+import { useClips } from '@/entities/clip';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
@@ -29,9 +28,8 @@ import { RollCover } from './roll-cover';
  * is gone — asking which of the two the user wants to see was the wrong
  * question, since the answer is almost always the rolls.
  *
- * Cut counts still come from the recording files rather than the clip store, so
- * the drawer's number always matches the screen it opens; both move onto
- * `entities/clip` together in the next step.
+ * The drawer counts clips, not files on disk — the same source the strip behind
+ * it reads, so the number on the drawer is the number of frames inside it.
  */
 export function ArchivePage() {
   const theme = useTheme();
@@ -41,18 +39,12 @@ export function ArchivePage() {
   const awaitingRolls = useRollsAwaitingDevelop();
   const developedMonths = useDevelopedRollMonths();
   const clipMembership = useClipMembership();
-  const { recordings, reloadRecordings } = useLocalRecordings();
-
-  useFocusEffect(
-    useCallback(() => {
-      void reloadRecordings();
-    }, [reloadRecordings]),
-  );
+  const clips = useClips();
 
   const developedCount = developedMonths.reduce((sum, month) => sum + month.rolls.length, 0);
   // A cut no roll references at all — the drawer surfaces these because they
   // are the ones with nothing holding them.
-  const looseCutCount = recordings.filter((recording) => !clipMembership.has(recording.id)).length;
+  const looseCutCount = clips.filter((clip) => !clipMembership.has(clip.id)).length;
 
   return (
     <ScrollView
@@ -65,7 +57,7 @@ export function ArchivePage() {
     >
       <View style={styles.header}>
         <ThemedText type="edge" themeColor="amber">
-          CABINET · 롤 {developedCount} · 컷 {recordings.length}
+          CABINET · 롤 {developedCount} · 컷 {clips.length}
         </ThemedText>
         {/* Settings tucked into the archive corner — no longer a tab (concept §6). */}
         <View style={styles.titleRow}>
@@ -163,7 +155,7 @@ export function ArchivePage() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="모든 컷 열기"
-            accessibilityHint={`${recordings.length}개의 원본 컷을 봐요`}
+            accessibilityHint={`${clips.length}개의 원본 컷을 봐요`}
             // The direct child of `<Link asChild>` must carry a single flattened
             // style — expo-router's Slot cannot merge its own style into an array
             // and throws in development instead.
@@ -172,7 +164,7 @@ export function ArchivePage() {
             <View style={styles.drawerText}>
               <ThemedText type="smallBold">모든 컷</ThemedText>
               <ThemedText type="edge" themeColor="textSecondary">
-                {recordings.length}컷{looseCutCount > 0 ? ` · 롤 없는 컷 ${looseCutCount}` : ''}
+                {clips.length}컷{looseCutCount > 0 ? ` · 롤 없는 컷 ${looseCutCount}` : ''}
               </ThemedText>
             </View>
             <ThemedText type="edge" themeColor="textSecondary">

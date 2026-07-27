@@ -946,14 +946,14 @@
               <td>실기기: 지난 미현상 롤이 최상단에 뜨고 <code>현상하기</code>가 세리머니로 진입, 커버가 실제 첫 프레임, 홈 선반 미리보기 정상</td>
             </tr>
             <tr>
-              <td><b>M8-3</b></td><td>스트립 (B) 읽기</td>
-              <td><code>pages/cut-strip</code> 내부를 격자 → 스트립으로: 필터 · 일자 스트립 · 퍼포레이션 · 롤 점 · 컷 시트(재생·롤 목록). 라우트와 <code>tab-bar-chrome</code> 제거는 M8-2에서 완료 · <b>컷 목록을 파일에서 <code>entities/clip</code>으로 전환</b>(P6)</td>
-              <td>실기기: 서랍→스트립 진입, 두 롤에 든 컷의 점 2개, 현상 완료 롤의 <code>빼기</code> 비활성</td>
+              <td><b>M8-3</b> <span class="keep">구현 완료</span></td><td>스트립 (B) 읽기</td>
+              <td><code>pages/cut-strip</code> 내부를 격자 → 스트립으로: <code>model/use-cut-strip</code>(필터·일자 그룹·일자 상태·오늘의 빈 프레임) · <code>ui/cut-film-strip</code>(퍼포레이션) · <code>ui/cut-frame</code>(롤 점) · <code>ui/cut-filter-bar</code> · <code>ui/cut-roll-picker-sheet</code> · <code>ui/cut-sheet</code>(재생·롤 목록) · <b>컷 목록을 파일에서 <code>entities/clip</code>으로 전환</b>(P6, 캐비닛 컷 수도 함께) · 소비자가 사라진 <code>shared/lib/recording-thumbnails</code>·<code>useRecordingThumbnail</code>·<code>recordingDayKey</code> 제거 · <code>localRecordingExists</code>(원본 유실 상태)</td>
+              <td>실기기: 서랍→스트립 진입, 두 롤에 든 컷의 점 2개, 현상 완료 롤이 컷 시트에서 <code>멤버십 고정</code>. <b>검증 항목 조정</b>: <code>빼기</code>는 버튼 자체가 M8-4 산출물이라 이 단계에서 비활성 버튼을 세우지 않고(§3 하위 결정 ① — 동작 없는 컨트롤 금지) 고정 상태를 문장으로 표시. <code>빼기 비활성</code> 검증은 M8-4로 이동</td>
             </tr>
             <tr>
               <td><b>M8-4</b></td><td>스트립 (B) 쓰기 · 안전한 쪽</td>
-              <td><code>features/collect-clips</code>의 <code>롤에 담기</code>·<code>롤에서 빼기</code> · 컨텍스트 선택 바 · 2단 분리 삭제 다이얼로그</td>
-              <td>실기기: 롤별 필터에서 빼기, 삭제 다이얼로그의 영향 롤 목록이 실제와 일치, 삭제 후 롤 상세에 깨진 컷 없음. <b>이 단계의 선택 바는 비-롤 컨텍스트에서 2액션</b>(담기·삭제) — 다음 단계에서 <code>새 롤로 묶기</code>가 주 버튼 자리에 들어옵니다</td>
+              <td><code>features/collect-clips</code>의 <code>롤에 담기</code>·<code>롤에서 빼기</code>(컷 시트 행의 <code>빼기</code> 포함 — 현상 완료 롤은 비활성) · 컨텍스트 선택 바 · 2단 분리 삭제 다이얼로그</td>
+              <td>실기기: 롤별 필터에서 빼기, <b>컷 시트에서 현상 완료 롤의 <code>빼기</code> 비활성</b>(M8-3에서 이동), 삭제 다이얼로그의 영향 롤 목록이 실제와 일치, 삭제 후 롤 상세에 깨진 컷 없음. <b>이 단계의 선택 바는 비-롤 컨텍스트에서 2액션</b>(담기·삭제) — 다음 단계에서 <code>새 롤로 묶기</code>가 주 버튼 자리에 들어옵니다</td>
             </tr>
             <tr>
               <td><b>M8-5</b></td><td>새 롤 생성 <span class="new">범위 확장 확정</span></td>

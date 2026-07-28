@@ -164,8 +164,9 @@ const { data, isPending, error } = useQuery(locationQueries.nearby(origin));
 
 ## 3. DTO schema + mapper (wire shape never leaks)
 
-**When:** any endpoint whose JSON differs from the domain model (here: snake_case wire
-vs. camelCase domain).
+**When:** any endpoint whose JSON differs from the domain model (here: abbreviated wire
+names `lat`/`lng` vs. the domain's `latitude`/`longitude`, plus wire fields the domain
+does not carry).
 
 **Canonical:** [`location.dto.ts`](../../src/entities/location/api/location.dto.ts).
 
@@ -176,8 +177,10 @@ import type { Location } from '../model/location';
 
 export const locationDtoSchema = z.object({
   id: z.string(),
-  radius_meters: z.number().int(),
-  message_template: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  // Free-form on the backend — deliberately not narrowed to a union.
+  category: z.string(),
   // ...remaining wire fields
 });
 export type LocationDto = z.infer<typeof locationDtoSchema>;
@@ -186,8 +189,9 @@ export const locationsDtoSchema = z.array(locationDtoSchema);
 export function mapLocation(dto: LocationDto): Location {
   return {
     id: dto.id,
-    radiusMeters: dto.radius_meters,
-    messageTemplate: dto.message_template,
+    latitude: dto.lat,
+    longitude: dto.lng,
+    category: dto.category,
     // ...
   };
 }
@@ -196,9 +200,16 @@ export function mapLocation(dto: LocationDto): Location {
 **Rules**
 - Validate with Zod at the transport boundary; infer the DTO type (`z.infer`) — never
   hand-declare it twice.
-- The mapper is the only place the wire shape (snake_case, etc.) exists. DTO field names
-  must not appear anywhere else in the app.
+- The mapper is the only place the wire shape exists. DTO field names must not appear
+  anywhere else in the app.
 - Do not export the DTO type from the slice Public API — it is an internal wire detail.
+- Declare only the fields the app maps. Zod strips the rest, so a response field the app
+  ignores (`distanceMeters` here) costs nothing and does not belong in the schema.
+- Narrow a field to an enum only when the backend contract guarantees the set. A
+  server-side free-text field validated as a union fails the **whole** response the first
+  time an unseen value appears — and a caller that swallows the error (the geofence setup
+  does) turns that into a silent outage. Test the mapper: it is a pure function on a
+  contract that drifts.
 
 ---
 

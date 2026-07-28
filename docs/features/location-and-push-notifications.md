@@ -42,7 +42,9 @@ There is no screen or route for this feature. It is composed headlessly at the a
 | `src/shared/lib/notifications` | `messaging.ts`, `local.ts` (+ `.web`) | Platform adapters for FCM (permission, remote registration, token, refresh/foreground subscriptions) and local notification presentation. Firebase is loaded lazily and degrades to inert stubs when the native module is absent. |
 | `src/shared/lib/location` | `permissions.ts`, `geofencing.ts`, `current-position.ts` | Raw `expo-location` permission, geofencing, and current-position calls. |
 
-Backend fields these map to: `POST /auth/fcm-token` (raw token), `POST /notifications/geofence-enter` (`locationId`), `GET /locations` (`lat`/`lng`/`radius`), and the user-profile fields enforced server-side (`notification_enabled`, `quiet_start`, `quiet_end`, `interests`).
+Backend fields these map to: `POST /auth/fcm-token` (raw token), `POST /notifications/geofence-enter` (`locationId`), `GET /locations` (`lat`/`lng`/`radius`), and the user-profile fields enforced server-side (`notificationEnabled`, `quietStart`, `quietEnd`, `interests`).
+
+The `GET /locations` response carries `id`, `name`, `lat`, `lng`, `radiusMeters`, `category` (free-form text), and `distanceMeters`, ordered nearest-first. The app maps all but `distanceMeters`, because it re-derives distance against its own resolved position when it selects the regions to monitor. The response has **no notification-copy template**: the arrival message is composed and sent entirely by the backend.
 
 ## Platform support
 

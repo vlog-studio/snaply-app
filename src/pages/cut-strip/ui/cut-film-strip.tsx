@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
+import { formatDuration } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { formatReelLength } from '@/widgets/roll-shelf';
 
 import type { CutDay, StripCut } from '../model/use-cut-strip';
 import { CutFrame, CutFrameSlot, CutFrameWidth } from './cut-frame';
@@ -43,7 +43,7 @@ function dayBadge(day: CutDay): { text: string; color: 'primary' | 'lumen' | 'te
     case 'ready':
       return { text: '현상 준비됨', color: 'lumen' };
     case 'developed':
-      return { text: formatReelLength(day.totalSec), color: 'textSecondary' };
+      return { text: formatDuration(day.totalSec), color: 'textSecondary' };
   }
 }
 

@@ -13,7 +13,7 @@ This document defines how to author automated tests in this project. For the com
 
 Prioritize modules that hold decision logic or a user-facing contract. In rough priority order:
 
-1. **Pure functions** — normalizers, formatters, validators, and mappers (for example `entities/capture-session/model/capture-options.ts`, `features/manage-recordings/lib/format-recording.ts`). Highest value, lowest cost; always test these.
+1. **Pure functions** — normalizers, formatters, validators, and mappers (for example `entities/capture-session/model/capture-options.ts`, `shared/lib/datetime/datetime.ts`). Highest value, lowest cost; always test these.
 2. **Data-safety and adapter logic** — code that filters, sorts, or guards side effects (for example the "only Snaply recordings can be deleted" guard in `shared/lib/recording-files`). Test the branch logic even when the underlying native API must be mocked.
 3. **Hooks and stores** — state machines, optimistic updates, and the exact user-facing messages they surface (for example `features/manage-recordings/model/use-local-recordings.ts`, `shared/ui/theme/theme-mode.ts`).
 4. **Component interaction contracts** — the accessibility role, the rendered label, and the callback wiring that a consumer depends on (for example `shared/ui/snaply-button`). Assert behavior, not styling.
@@ -29,11 +29,11 @@ Do **not** write JavaScript tests for:
 Co-locate every test with the module it verifies, inside the same FSD segment, using the `.test.ts`/`.test.tsx` suffix:
 
 ```text
-src/features/manage-recordings/lib/format-recording.ts
-src/features/manage-recordings/lib/format-recording.test.ts
+src/shared/lib/datetime/datetime.ts
+src/shared/lib/datetime/datetime.test.ts
 ```
 
-Co-location keeps FSD ownership explicit and lets a slice move as one unit. A test imports the module under test through a **relative path** (`./format-recording`), exactly as sibling files inside the slice do. It imports anything from another slice through that slice's `@/…` Public API, never a deep path — the module-boundary rules in [`module-boundaries.md`](../conventions/module-boundaries.md) apply to test files too. Do not add a test to the slice's `index.ts` barrel.
+Co-location keeps FSD ownership explicit and lets a slice move as one unit. A test imports the module under test through a **relative path** (`./datetime`), exactly as sibling files inside the slice do. It imports anything from another slice through that slice's `@/…` Public API, never a deep path — the module-boundary rules in [`module-boundaries.md`](../conventions/module-boundaries.md) apply to test files too. Do not add a test to the slice's `index.ts` barrel.
 
 ## Conventions
 

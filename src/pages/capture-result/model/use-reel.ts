@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useClips } from '@/entities/clip';
+import { useClipsByRefs } from '@/entities/clip';
 import { useRollById, type Reel, type Roll } from '@/entities/roll';
 
 export type ReelView = {
@@ -12,23 +12,16 @@ export type ReelView = {
 
 /**
  * Resolves a developed roll's reel into an ordered list of clip source URIs for
- * the sequential reel player. Reads from the reel's own clip references (the
- * developed order), joining to the clip archive for URIs — cross-entity
- * composition that belongs at the page layer. Missing clips are skipped.
+ * the sequential reel player. It reads the reel's own references — the developed
+ * order — rather than the roll's current membership, so the reel plays what was
+ * developed even if the roll has changed since.
  */
 export function useReel(rollId: string | undefined): ReelView {
   const roll = useRollById(rollId);
-  const clips = useClips();
   const reel = roll?.reel;
+  const clips = useClipsByRefs(reel?.clipRefs);
 
-  const uris = useMemo(() => {
-    if (!reel) return [];
-    const byId = new Map(clips.map((clip) => [clip.id, clip]));
-    return [...reel.clipRefs]
-      .sort((left, right) => left.order - right.order)
-      .map((ref) => byId.get(ref.clipId)?.uri)
-      .filter((uri): uri is string => uri !== undefined);
-  }, [reel, clips]);
+  const uris = useMemo(() => clips.map((clip) => clip.uri), [clips]);
 
   return { roll, reel, uris };
 }

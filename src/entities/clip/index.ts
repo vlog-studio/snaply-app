@@ -1,3 +1,4 @@
+export { clipsByRefs, useClipIndex, useClipsByRefs, type ClipIndex } from './model/clip-refs';
 export {
   getClipsByIds,
   useAddClip,

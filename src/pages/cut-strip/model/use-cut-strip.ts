@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { useClips, useClipsHydrated, type Clip } from '@/entities/clip';
 import { DailyRollTarget, toDayKey, useTodayRoll, type RollTint } from '@/entities/roll';
-import { formatRecordingDay, relativeDayLabel } from '@/features/manage-recordings';
+import { formatDayHeading, relativeDayLabel } from '@/shared/lib/datetime';
 import { useClipMembership, type ClipRollBadge } from '@/widgets/clip-membership';
 
 /**
@@ -152,7 +152,7 @@ export function useCutStrip(filter: CutFilter): CutStrip {
         const isToday = entry.dayKey === todayDayKey;
         day = {
           dayKey: entry.dayKey,
-          label: formatRecordingDay(entry.clip.capturedAt),
+          label: formatDayHeading(entry.clip.capturedAt),
           relativeLabel: relativeDayLabel(entry.clip.capturedAt),
           cuts: [],
           status: isToday ? 'collecting' : developedDays.has(entry.dayKey) ? 'developed' : 'ready',

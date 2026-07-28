@@ -76,7 +76,7 @@ MVP honesty (see mvp-implementation-plan.md §5): the reel is a sequential playl
 - `src/features/develop-roll` owns the 현상 action: rules-based reel composition (`compose-reel`) and the `undeveloped → developing → developed` transition with reel persistence.
 - `src/pages/capture-editing` (develop ceremony) drives the animation and triggers develop on completion; `src/pages/capture-result` (reel player) resolves the roll's reel to clip URIs (`use-reel`) and plays them sequentially (`reel-player`).
 - `src/entities/capture-session` owns capture option types, labels, and route-value normalization.
-- `src/features/manage-recordings` owns reusable local-recording state/actions and formatting (the recording library and archive).
+- `src/features/manage-recordings` owns reusable local-recording state and actions (the recording library and archive). The library's date lines are formatted by `shared/lib/datetime`, not by this slice.
 - `src/shared/ui/video-preview` owns the business-agnostic looping video player used in the recorder review step.
 - `src/shared/lib/recording-files` adapts Expo FileSystem and supplies the web fallback; `src/shared/lib/local-store` persists clip/roll metadata as document-directory JSON.
 

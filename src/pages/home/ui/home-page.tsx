@@ -2,8 +2,9 @@ import { Link } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useClips, type Clip } from '@/entities/clip';
-import { useRolls, useTodayRoll } from '@/entities/roll';
+import { useClipsByRefs } from '@/entities/clip';
+import { rollDate, useRolls, useTodayRoll } from '@/entities/roll';
+import { formatDuration } from '@/shared/lib/datetime';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { NegativeFrame } from '@/shared/ui/negative-frame';
@@ -16,7 +17,6 @@ import {
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { formatReelLength } from '@/widgets/roll-shelf';
 
 // A daily roll shows its captures against a soft target of empty frames so the
 // gaps invite more collecting (concept §4, "빈칸을 보여준다"). This is a display
@@ -30,32 +30,22 @@ export function HomePage() {
   const [developInfoOpen, setDevelopInfoOpen] = useState(false);
   const todayRoll = useTodayRoll();
   const rolls = useRolls();
-  const clips = useClips();
   const captured = todayRoll?.clipRefs.length ?? 0;
 
   // Every real clip of today's roll, ordered, so each frame can sample its own
   // negative. The strip scrolls horizontally, so it holds the whole roll rather
-  // than a capped preview — no clip past the sixth goes unseen. Cross-entity join
-  // (roll refs + clip archive) belongs at the page layer — neither entity imports
-  // the other (mirrors useRollDetail).
-  const rollClips = useMemo<Clip[]>(() => {
-    if (!todayRoll) return [];
-    const byId = new Map(clips.map((clip) => [clip.id, clip]));
-    return [...todayRoll.clipRefs]
-      .sort((left, right) => left.order - right.order)
-      .map((ref) => byId.get(ref.clipId))
-      .filter((clip): clip is Clip => clip !== undefined);
-  }, [todayRoll, clips]);
+  // than a capped preview — no clip past the sixth goes unseen.
+  const rollClips = useClipsByRefs(todayRoll?.clipRefs);
   const emptySlots = Math.max(ROLL_SIZE - rollClips.length, 0);
   // Perforations tile across the whole film so they travel with the frames as it
   // scrolls; roughly two holes per frame keeps the sprocket cadence steady no
   // matter how long the strip grows.
   const perfHoleCount = (rollClips.length + emptySlots) * 2;
-  const rollDate = new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
+  // The day the roll stands for, from the roll itself rather than the clock: the
+  // edge print has to name the roll on screen, and a render that reads
+  // `new Date()` would disagree with it the moment the app is left open past
+  // midnight.
+  const dateStamp = todayRoll ? rollDate(todayRoll) : undefined;
 
   // The roll's real ordinal among daily rolls, so the edge print is honest
   // rather than a fixed mock number.
@@ -101,7 +91,7 @@ export function HomePage() {
           <View style={styles.rollHeader}>
             <ThemedText type="edge" themeColor="amber">
               {rollNumber ? `ROLL ${String(rollNumber).padStart(3, '0')} · ` : ''}
-              {rollDate}
+              {dateStamp}
             </ThemedText>
             <View style={styles.titleRow}>
               <ThemedText type="heading">오늘의 롤</ThemedText>
@@ -228,7 +218,7 @@ export function HomePage() {
         </ThemedText>
         <View style={[styles.sheetMeta, { borderTopColor: theme.border }]}>
           <ThemedText type="edge" themeColor="amber">
-            {captured}컷 · 예상 릴 {formatReelLength(captured * 5)}
+            {captured}컷 · 예상 릴 {formatDuration(captured * 5)}
           </ThemedText>
         </View>
       </BottomSheet>

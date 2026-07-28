@@ -1,6 +1,6 @@
 import { getCaptureMoodLabel } from '@/entities/capture-session';
 import type { Clip } from '@/entities/clip';
-import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatDateTime } from '@/shared/lib/datetime';
 import { VideoPlayerModal } from '@/shared/ui/video-player-modal';
 
 export type PlayingCut = {
@@ -35,9 +35,7 @@ export function ClipPlayerModal({ playing, onClose }: ClipPlayerModalProps) {
             (mood ? ` · ${getCaptureMoodLabel(mood)}` : '')
           : undefined
       }
-      caption={
-        playing ? `${formatRecordingDate(playing.clip.capturedAt)}에 담은 원본 컷` : undefined
-      }
+      caption={playing ? `${formatDateTime(playing.clip.capturedAt)}에 담은 원본 컷` : undefined}
     />
   );
 }

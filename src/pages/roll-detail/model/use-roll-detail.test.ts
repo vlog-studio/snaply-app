@@ -8,9 +8,27 @@ import { useRollDetail } from './use-roll-detail';
 let mockRoll: Roll | undefined;
 let mockClips: Clip[];
 
-jest.mock('@/entities/clip', () => ({
-  useClips: () => mockClips,
+jest.mock('@/shared/lib/local-store', () => ({
+  localStore: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  },
 }));
+// The archive is stubbed, but the reference-resolving rule is the real one from
+// `entities/clip` — this suite asserts on what that rule produces, not on a
+// re-implementation of it (its own unit test covers the rule directly).
+jest.mock('@/entities/clip', () => {
+  const actual = jest.requireActual('@/entities/clip');
+  const clipIndex = () => new Map(mockClips.map((clip) => [clip.id, clip]));
+  return {
+    ...actual,
+    useClips: () => mockClips,
+    useClipIndex: clipIndex,
+    useClipsByRefs: (refs: { clipId: string; order: number }[] | undefined) =>
+      actual.clipsByRefs(refs, clipIndex()),
+  };
+});
 // The date helpers are pure derivations this hook composes, so the real ones
 // are kept; only the store read is stubbed.
 jest.mock('@/entities/roll', () => ({

@@ -8,7 +8,7 @@ import type { Clip } from '@/entities/clip';
 import { manualRollTitle, rollTint } from '@/entities/roll';
 import { useCollectClips, useCollectTargets, type CollectOutcome } from '@/features/collect-clips';
 import { useDeleteClips } from '@/features/delete-clip';
-import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatDateTime } from '@/shared/lib/datetime';
 import { localRecordingExists } from '@/shared/lib/recording-files';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -530,7 +530,7 @@ export function CutStripPage() {
         uri={playingClip?.uri}
         onClose={() => setPlayingClip(undefined)}
         closeLabel="컷 재생 닫기"
-        edgeLabel={playingClip ? formatRecordingDate(playingClip.capturedAt) : undefined}
+        edgeLabel={playingClip ? formatDateTime(playingClip.capturedAt) : undefined}
         caption={playingClip ? `${playingClip.durationSec}초 · 앱에 저장된 원본 컷` : undefined}
       />
     </>

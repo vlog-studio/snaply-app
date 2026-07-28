@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatDateTime } from '@/shared/lib/datetime';
 import { useVideoThumbnail } from '@/shared/lib/video-thumbnails';
 import { Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -53,7 +53,7 @@ function CutFrameComponent({
   return (
     <Pressable
       accessibilityHint={selectionMode ? '선택을 켜거나 꺼요' : '컷 정보를 열어요'}
-      accessibilityLabel={`${formatRecordingDate(cut.clip.capturedAt)} 컷 · ${
+      accessibilityLabel={`${formatDateTime(cut.clip.capturedAt)} 컷 · ${
         isLoose ? '롤 없음' : `롤 ${cut.rolls.length}개`
       }`}
       accessibilityRole={selectionMode ? 'checkbox' : 'button'}

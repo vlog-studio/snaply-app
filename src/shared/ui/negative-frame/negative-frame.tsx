@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useVideoThumbnail } from '@/shared/lib/video-thumbnails';
@@ -38,6 +39,11 @@ export type NegativeFrameProps = {
 export function NegativeFrame({ uri, blurRadius = DEFAULT_BLUR, style }: NegativeFrameProps) {
   const theme = useTheme();
   const thumbnailUri = useVideoThumbnail(uri);
+  // Whether the frame was already known when this component mounted (the hook
+  // answers synchronously for frames resolved earlier this session). A remount
+  // — the roll sheet swaps its whole grid entering/leaving reorder mode — must
+  // repaint instantly; only a frame extracted just now gets the surface fade.
+  const [hadFrameAtMount] = useState(() => thumbnailUri !== undefined);
 
   return (
     <View style={[styles.fill, { backgroundColor: theme.film }, style]}>
@@ -48,8 +54,12 @@ export function NegativeFrame({ uri, blurRadius = DEFAULT_BLUR, style }: Negativ
           contentFit="cover"
           blurRadius={blurRadius}
           style={StyleSheet.absoluteFill}
+          // Keep the decoded bitmap in memory (the default 'disk' policy
+          // re-reads and re-decodes on every remount, so a grid swap — the
+          // roll sheet entering/leaving reorder mode — blinks every frame).
+          cachePolicy="memory-disk"
           // A gentle fade so the negative "surfaces" rather than pops in.
-          transition={280}
+          transition={hadFrameAtMount ? 0 : 280}
         />
       ) : null}
       {/* Dark scrim keeps the blurred frame dim and unreadable; the amber wash

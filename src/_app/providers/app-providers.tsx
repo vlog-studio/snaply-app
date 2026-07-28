@@ -3,6 +3,8 @@ import { NavigationBar } from 'expo-navigation-bar';
 import { DarkTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors } from '@/shared/ui/theme';
@@ -38,8 +40,14 @@ export function AppProviders({ children }: PropsWithChildren) {
         <PushTokenRegistrar />
         <GeofenceGate />
         <DailyRollGate />
-        {children}
+        {/* Gesture-handler gestures (the roll-detail drag reorder) need this
+            ancestor; expo-router's native stack does not provide one. */}
+        <GestureHandlerRootView style={styles.root}>{children}</GestureHandlerRootView>
       </ThemeProvider>
     </QueryClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

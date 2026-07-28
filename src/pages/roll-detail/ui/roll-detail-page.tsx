@@ -1,6 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import {
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
@@ -14,7 +21,7 @@ import { useAddableClips } from '../model/use-addable-clips';
 import { useRollDetail } from '../model/use-roll-detail';
 import { AddClipsSheet } from './add-clips-sheet';
 import { ClipPlayerModal, type PlayingCut } from './clip-player-modal';
-import { RollCutCell, type RollGridMode } from './roll-cut-cell';
+import { CutSheetGrid, type CutSheetMode } from './cut-sheet-grid';
 
 type RollDetailPageProps = {
   rollId?: string;
@@ -37,17 +44,28 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
   const { addClipsToRoll, removeClipsFromRoll } = useCollectClips();
   const reorderRollClips = useReorderRollClips();
 
-  const [mode, setMode] = useState<RollGridMode>('view');
+  const { width: windowWidth } = useWindowDimensions();
+
+  const [mode, setMode] = useState<CutSheetMode>('view');
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
-  // Reorder taps in order — the array order becomes the cuts' new roll order.
+  // The reorder grid's working order — dragging keeps it current; 적용 commits it.
   const [sequence, setSequence] = useState<string[]>([]);
+  // Lock the sheet's scroll while a cut is being dragged so the two gestures
+  // never fight over the same finger.
+  const [dragActive, setDragActive] = useState(false);
   const [playing, setPlaying] = useState<PlayingCut>();
   const [addSheetVisible, setAddSheetVisible] = useState(false);
+
+  // The grid's content width, derived instead of measured (the content column
+  // is centered, capped at MaxContentWidth, and padded) so the absolute-
+  // positioned contact sheet can lay out on its very first frame.
+  const gridWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
 
   const exitEditing = useCallback(() => {
     setMode('view');
     setSelectedIds(new Set());
     setSequence([]);
+    setDragActive(false);
   }, []);
 
   // Android hardware back leaves the edit mode instead of popping the screen.
@@ -86,23 +104,19 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
     router.push({ pathname: '/capture/result', params: { rollId: roll.id } });
   };
 
+  // The grid disables cut presses in reorder mode, so this only ever runs in
+  // view or select mode.
   const handleCutPress = (clip: Clip, index: number) => {
     if (mode === 'view') {
       setPlaying({ clip, index });
       return;
     }
-    if (mode === 'select') {
-      setSelectedIds((current) => {
-        const next = new Set(current);
-        if (next.has(clip.id)) next.delete(clip.id);
-        else next.add(clip.id);
-        return next;
-      });
-      return;
-    }
-    setSequence((current) =>
-      current.includes(clip.id) ? current.filter((id) => id !== clip.id) : [...current, clip.id],
-    );
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(clip.id)) next.delete(clip.id);
+      else next.add(clip.id);
+      return next;
+    });
   };
 
   const enterSelection = (clip: Clip) => {
@@ -121,9 +135,16 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
     if (!getRollById(roll.id)) router.back();
   };
 
+  const enterReorder = () => {
+    setMode('reorder');
+    // Seed the working order with the current one; dragging rewrites it.
+    setSequence(clips.map((clip) => clip.id));
+  };
+
+  const orderChanged =
+    mode === 'reorder' && sequence.some((clipId, index) => clips[index]?.id !== clipId);
+
   const applyReorder = () => {
-    // Cuts left unnumbered keep their relative order after the numbered ones
-    // (the store guarantees this), so a partial renumbering is safe to apply.
     reorderRollClips(roll.id, sequence);
     exitEditing();
   };
@@ -137,6 +158,7 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <ScrollView
         style={styles.screen}
+        scrollEnabled={!dragActive}
         contentContainerStyle={[
           styles.content,
           { paddingTop: Spacing.five + topInset, paddingBottom: Spacing.seven },
@@ -164,14 +186,14 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
                 ? '길게 눌러 선택'
                 : mode === 'select'
                   ? '탭해서 선택'
-                  : '탭한 순서대로 번호를 매겨요'}
+                  : '길게 눌러 들어 올린 뒤 끌어서 옮겨요'}
             </ThemedText>
             {mode === 'view' && clips.length >= 2 ? (
               <Pressable
                 accessibilityLabel="컷 순서 바꾸기"
                 accessibilityRole="button"
                 hitSlop={8}
-                onPress={() => setMode('reorder')}
+                onPress={enterReorder}
                 style={[styles.reorderChip, { borderColor: theme.border }]}
               >
                 <ThemedText selectable={false} type="edge" themeColor="textSecondary">
@@ -184,47 +206,23 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
 
         {/* Grid contact sheet — frosted negatives (the film look stays even
             though tapping now plays the original) plus the empty slots that
-            invite more captures, or — on an undeveloped roll — adding cuts. */}
-        <View style={styles.grid}>
-          {clips.map((clip, index) => (
-            <RollCutCell
-              key={clip.id}
-              clip={clip}
-              index={index}
-              mode={mode}
-              selected={selectedIds.has(clip.id)}
-              sequenceNo={mode === 'reorder' ? indexOrUndefined(sequence, clip.id) : undefined}
-              canEdit={canEdit}
-              onPress={() => handleCutPress(clip, index)}
-              onLongPress={() => enterSelection(clip)}
-            />
-          ))}
-          {Array.from({ length: emptySlots }).map((_, index) => {
-            const addable = canEdit && mode === 'view';
-            return (
-              <Pressable
-                key={`empty-${index}`}
-                accessibilityLabel={addable ? '컷 추가' : '빈 슬롯'}
-                accessibilityRole={addable ? 'button' : undefined}
-                disabled={!addable}
-                onPress={addable ? () => setAddSheetVisible(true) : undefined}
-                style={[styles.frameCell, styles.frameEmpty, { borderColor: theme.border }]}
-              >
-                {/* Same in-flow anchor as a filled cell so the empty slot keeps its
-                  aspectRatio height even in an all-empty row (with no filled sibling
-                  to stretch it); it also centers the ghost glyph. */}
-                <View style={styles.frameFill}>
-                  <ThemedText
-                    selectable={false}
-                    style={[styles.frameGhost, { color: addable ? theme.amber : theme.border }]}
-                  >
-                    {addable ? '＋' : '?'}
-                  </ThemedText>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+            invite more captures, or — on an undeveloped roll — adding cuts.
+            One grid serves every mode so the cells (and their thumbnails)
+            never remount when the mode changes. */}
+        <CutSheetGrid
+          clips={clips}
+          emptySlotCount={emptySlots}
+          width={gridWidth}
+          mode={mode}
+          selectedIds={selectedIds}
+          canEdit={canEdit}
+          workingOrder={mode === 'reorder' ? sequence : undefined}
+          onPressCut={handleCutPress}
+          onLongPressCut={enterSelection}
+          onPressEmptySlot={() => setAddSheetVisible(true)}
+          onOrderChange={setSequence}
+          onDragActiveChange={setDragActive}
+        />
       </ScrollView>
 
       <View
@@ -290,27 +288,27 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
                 </ThemedText>
               </Pressable>
               <ThemedText type="smallBold" style={styles.editCount}>
-                {sequence.length}/{clips.length} 지정
+                {orderChanged ? '순서가 바뀌었어요' : '끌어서 정렬'}
               </ThemedText>
               <Pressable
                 accessibilityLabel="새 순서 적용"
                 accessibilityRole="button"
-                accessibilityState={{ disabled: sequence.length === 0 }}
-                disabled={sequence.length === 0}
+                accessibilityState={{ disabled: !orderChanged }}
+                disabled={!orderChanged}
                 hitSlop={8}
                 onPress={applyReorder}
                 style={styles.editAction}
               >
                 <ThemedText
                   type="smallBold"
-                  style={{ color: sequence.length > 0 ? theme.primary : theme.textSecondary }}
+                  style={{ color: orderChanged ? theme.primary : theme.textSecondary }}
                 >
                   적용
                 </ThemedText>
               </Pressable>
             </View>
             <ThemedText type="small" themeColor="textSecondary" style={styles.footerHint}>
-              번호를 매기지 않은 컷은 매긴 컷 뒤로 순서를 지켜 따라와요.
+              컷을 길게 눌러 들어 올린 뒤 원하는 자리에 놓아요. 적용해야 저장돼요.
             </ThemedText>
           </>
         ) : (
@@ -342,11 +340,6 @@ export function RollDetailPage({ rollId }: RollDetailPageProps) {
       />
     </View>
   );
-}
-
-function indexOrUndefined(sequence: string[], clipId: string): number | undefined {
-  const index = sequence.indexOf(clipId);
-  return index === -1 ? undefined : index;
 }
 
 const styles = StyleSheet.create({
@@ -383,25 +376,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
-  // In-flow anchor shared with `RollCutCell`: a `flex: 1` child is what makes
-  // the percentage-width + aspectRatio cell actually take its aspectRatio
-  // height in the wrapping grid (empty cells put their ghost glyph inside it).
-  frameFill: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  // Same geometry as RollCutCell so filled and empty frames read as one
-  // regular contact sheet.
-  frameCell: {
-    width: '30%',
-    aspectRatio: 0.72,
-    borderRadius: Radius.small,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  frameEmpty: {
-    borderStyle: 'dashed',
-  },
-  frameGhost: { fontSize: 18, fontWeight: '700' },
   footer: {
     width: '100%',
     maxWidth: MaxContentWidth,

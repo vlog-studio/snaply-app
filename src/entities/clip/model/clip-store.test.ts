@@ -4,10 +4,8 @@ import type { Clip } from './clip';
 import {
   getClipsByIds,
   useAddClip,
-  useClipById,
   useClips,
   useClipStore,
-  useRemoveClip,
   useRemoveClips,
   useSetClipTags,
 } from './clip-store';
@@ -64,35 +62,6 @@ describe('clip store', () => {
 
     expect(result.current.clips).toHaveLength(1);
     expect(result.current.clips[0].durationSec).toBe(3);
-  });
-
-  it('removes a clip by id', async () => {
-    const { result } = await renderHook(() => ({
-      clips: useClips(),
-      addClip: useAddClip(),
-      removeClip: useRemoveClip(),
-    }));
-
-    await act(async () => result.current.addClip(makeClip({ id: 'clip-1' })));
-    await act(async () => result.current.addClip(makeClip({ id: 'clip-2' })));
-    await act(async () => result.current.removeClip('clip-1'));
-
-    expect(result.current.clips.map((clip) => clip.id)).toEqual(['clip-2']);
-  });
-
-  it('looks up a clip by id and returns undefined for an unknown id', async () => {
-    const { result } = await renderHook(() => ({
-      addClip: useAddClip(),
-      found: useClipById('clip-1'),
-      missing: useClipById('nope'),
-    }));
-
-    await act(async () => {
-      result.current.addClip(makeClip({ id: 'clip-1' }));
-    });
-
-    expect(result.current.found?.id).toBe('clip-1');
-    expect(result.current.missing).toBeUndefined();
   });
 
   it('replaces the tags of a clip', async () => {

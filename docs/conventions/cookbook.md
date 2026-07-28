@@ -729,11 +729,11 @@ await waitFor(() => expect(result.current.isLoading).toBe(false));
 **When:** a store is a module-level singleton — exercise it through its exported hooks,
 and mock the persistence backend so no native storage is touched.
 
-**Canonical:** [`theme-mode.test.ts`](../../src/shared/ui/theme/theme-mode.test.ts).
+**Canonical:** [`clip-store.test.ts`](../../src/entities/clip/model/clip-store.test.ts).
 
 ```ts
-jest.mock('@/shared/lib/secure-storage', () => ({
-  secureStorage: {
+jest.mock('@/shared/lib/local-store', () => ({
+  localStore: {
     getItem: jest.fn().mockResolvedValue(null),
     setItem: jest.fn().mockResolvedValue(undefined),
     removeItem: jest.fn().mockResolvedValue(undefined),
@@ -741,9 +741,14 @@ jest.mock('@/shared/lib/secure-storage', () => ({
 }));
 ```
 
+Mock whichever backend the store persists through — `local-store` for the growing
+clip/roll data, `secure-storage` for small preference stores.
+
 **Rules**
 - Drive the store through `renderHook` + `act` on its exported hooks.
-- Reset the store to its default in `afterEach` so test ordering never matters.
+- Reset the store to its default in `beforeEach`/`afterEach` so ordering never matters.
+  A store exported for its co-located test only (`useClipStore`) is reset directly with
+  `setState`; nothing outside the slice may import it.
 
 ### 15e. Mocking native modules and `react-native`
 

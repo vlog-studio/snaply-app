@@ -15,7 +15,7 @@ Prioritize modules that hold decision logic or a user-facing contract. In rough 
 
 1. **Pure functions** — normalizers, formatters, validators, and mappers (for example `entities/capture-session/model/capture-options.ts`, `shared/lib/datetime/datetime.ts`). Highest value, lowest cost; always test these.
 2. **Data-safety and adapter logic** — code that filters, sorts, or guards side effects (for example the "only Snaply recordings can be deleted" guard in `shared/lib/recording-files`). Test the branch logic even when the underlying native API must be mocked.
-3. **Hooks and stores** — state machines, optimistic updates, and the exact user-facing messages they surface (for example `features/manage-recordings/model/use-local-recordings.ts`, `shared/ui/theme/theme-mode.ts`).
+3. **Hooks and stores** — state machines, optimistic updates, and the exact user-facing messages they surface (for example `features/manage-recordings/model/use-local-recordings.ts`, `entities/clip/model/clip-store.ts`).
 4. **Component interaction contracts** — the accessibility role, the rendered label, and the callback wiring that a consumer depends on (for example `shared/ui/snaply-button`). Assert behavior, not styling.
 
 Do **not** write JavaScript tests for:

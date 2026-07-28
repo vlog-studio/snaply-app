@@ -1,7 +1,6 @@
 export { toDayKey } from './model/day-key';
 export { DailyRollTarget } from './model/roll';
 export {
-  daysInMonth,
   elapsedDaysInMonth,
   formatDayRange,
   formatMonthKey,

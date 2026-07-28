@@ -24,23 +24,7 @@ This project's standard tools are TanStack Query v5, Zustand, React Hook Form, Z
 - If a request retrieves one business entity, put it in `entities/<entity>/api`.
 - If it is a composite endpoint meaningful to only one screen, it may live in `pages/<page>/api`.
 - If no business entity exists yet and only an external API controller boundary is needed, put it in `shared/api/<controller>`.
-- Keep query keys and query functions together in a `queryOptions`-based factory rather than scattering them.
-
-```ts
-// entities/photo/api/photo.queries.ts
-import { queryOptions } from '@tanstack/react-query';
-
-import { getPhoto } from './get-photo';
-
-export const photoQueries = {
-  all: () => ['photo'] as const,
-  detail: (photoId: string) =>
-    queryOptions({
-      queryKey: [...photoQueries.all(), 'detail', photoId] as const,
-      queryFn: () => getPhoto(photoId),
-    }),
-};
-```
+- Keep query keys and query functions together in a `queryOptions`-based factory rather than scattering them. The skeleton is [cookbook §4 (query key + options factory)](../conventions/cookbook.md#4-query-key--options-factory).
 
 Reuse query keys through the factory for invalidation. Do not repeat raw key arrays in UI code.
 

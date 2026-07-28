@@ -2,7 +2,7 @@
 
 > 이 문서는 사람 개발자를 위한 한글 계획 문서입니다. 에이전트용 문서가 아니므로 `AGENTS.md` 색인에 포함하지 않습니다.
 > 상위 기획은 [`concept.md`](concept.md)를 따릅니다. 이 문서는 그중 **MVP로 먼저 만들 범위**의 FSD 슬라이스 설계와 마일스톤만 다룹니다.
-> 실제 슬라이스 배치는 착수 시 `docs/architecture/feature-sliced-design.md`, `docs/conventions/module-boundaries.md`, `docs/conventions/implementation-patterns.md`를 재확인해 확정합니다.
+> 실제 슬라이스 배치는 착수 시 `docs/architecture/feature-sliced-design.md`, `docs/conventions/module-boundaries.md`, `docs/conventions/cookbook.md`를 재확인해 확정합니다.
 > 최초 작성: 2026-07-23.
 
 ---

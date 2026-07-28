@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BackHandler, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
@@ -14,7 +14,7 @@ import { FadeInView } from '@/shared/ui/fade-in-view';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { VideoPreview } from '@/shared/ui/video-preview';
+import { VideoPlayerModal } from '@/shared/ui/video-player-modal';
 import { useRollDeleteImpact, useRollsForClip } from '@/widgets/clip-membership';
 
 import {
@@ -524,44 +524,15 @@ export function CutStripPage() {
         onClose={() => setRollPickerVisible(false)}
       />
 
-      <Modal
-        animationType="fade"
-        onRequestClose={() => setPlayingClip(undefined)}
-        presentationStyle="fullScreen"
-        visible={Boolean(playingClip)}
-      >
-        <View style={styles.previewScreen}>
-          {playingClip ? (
-            <VideoPreview
-              key={playingClip.id}
-              contentFit="contain"
-              muted={false}
-              nativeControls
-              uri={playingClip.uri}
-            />
-          ) : null}
-          <Pressable
-            accessibilityLabel="컷 재생 닫기"
-            accessibilityRole="button"
-            onPress={() => setPlayingClip(undefined)}
-            style={[styles.previewClose, { top: insets.top + Spacing.three }]}
-          >
-            <ThemedText selectable={false} style={styles.previewCloseText}>
-              ×
-            </ThemedText>
-          </Pressable>
-          {playingClip ? (
-            <View style={[styles.previewMeta, { bottom: insets.bottom + Spacing.four }]}>
-              <ThemedText type="edge" style={styles.previewMetaEdge}>
-                {formatRecordingDate(playingClip.capturedAt)}
-              </ThemedText>
-              <ThemedText type="small" style={styles.mutedWhite}>
-                {playingClip.durationSec}초 · 앱에 저장된 원본 컷
-              </ThemedText>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+      {/* The strip has no sequence to identify a cut by, so the edge print
+          leads with the day it was taken — the inverse of roll detail's. */}
+      <VideoPlayerModal
+        uri={playingClip?.uri}
+        onClose={() => setPlayingClip(undefined)}
+        closeLabel="컷 재생 닫기"
+        edgeLabel={playingClip ? formatRecordingDate(playingClip.capturedAt) : undefined}
+        caption={playingClip ? `${playingClip.durationSec}초 · 앱에 저장된 원본 컷` : undefined}
+      />
     </>
   );
 }
@@ -605,26 +576,4 @@ const styles = StyleSheet.create({
   },
   toolbarAction: { minHeight: 32, justifyContent: 'center' },
   storageNote: { textAlign: 'center', paddingTop: Spacing.two },
-  previewScreen: { flex: 1, backgroundColor: '#000000' },
-  previewClose: {
-    position: 'absolute',
-    left: Spacing.four,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(0,0,0,0.56)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewCloseText: { color: '#FFFFFF', fontSize: 30, lineHeight: 32 },
-  previewMeta: {
-    position: 'absolute',
-    left: Spacing.five,
-    right: Spacing.five,
-    alignItems: 'center',
-    gap: Spacing.one,
-    pointerEvents: 'none',
-  },
-  previewMetaEdge: { color: '#F1E6DA' },
-  mutedWhite: { color: 'rgba(255,255,255,0.62)' },
 });

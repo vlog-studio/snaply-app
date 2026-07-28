@@ -1,10 +1,10 @@
 import { Image } from 'expo-image';
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { Clip } from '@/entities/clip';
-import { getVideoThumbnail } from '@/shared/lib/video-thumbnails';
+import { useVideoThumbnail } from '@/shared/lib/video-thumbnails';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -35,18 +35,12 @@ type ClipPickCellProps = {
  */
 function ClipPickCellComponent({ clip, pickNo, disabled, onPress }: ClipPickCellProps) {
   const theme = useTheme();
-  const [thumbnailUri, setThumbnailUri] = useState<string>();
+  // The shared hook, not a local effect: cells are recycled as the list scrolls,
+  // and it reports a frame only while its own URI is still the one being asked
+  // about, so a recycled cell falls back to the film-black placeholder instead
+  // of briefly showing the previous clip's frame.
+  const thumbnailUri = useVideoThumbnail(clip.uri);
   const selected = pickNo !== undefined;
-
-  useEffect(() => {
-    let cancelled = false;
-    void getVideoThumbnail(clip.uri).then((resolved) => {
-      if (!cancelled) setThumbnailUri(resolved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [clip.uri]);
 
   return (
     <Pressable

@@ -1,12 +1,7 @@
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { getCaptureMoodLabel } from '@/entities/capture-session';
 import type { Clip } from '@/entities/clip';
 import { formatRecordingDate } from '@/features/manage-recordings';
-import { Spacing } from '@/shared/ui/theme';
-import { ThemedText } from '@/shared/ui/themed-text';
-import { VideoPreview } from '@/shared/ui/video-preview';
+import { VideoPlayerModal } from '@/shared/ui/video-player-modal';
 
 export type PlayingCut = {
   clip: Clip;
@@ -21,76 +16,28 @@ type ClipPlayerModalProps = {
 
 /**
  * Full-screen single-cut playback, opened by tapping a cut on the contact
- * sheet. Same shape as the archive's clip preview modal: a looping native
- * player over black with a close button and a meta overlay.
+ * sheet. The chrome comes from the shared `video-player-modal`; what this owns
+ * is the wording. Inside a roll a cut is its place in the sequence, so the edge
+ * print leads with "3번째 컷" and the date is demoted to the caption — the
+ * contact strip, which has no sequence to speak of, inverts that.
  */
 export function ClipPlayerModal({ playing, onClose }: ClipPlayerModalProps) {
-  const insets = useSafeAreaInsets();
+  const mood = playing?.clip.mood;
 
   return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      presentationStyle="fullScreen"
-      visible={playing !== undefined}
-    >
-      <View style={styles.screen}>
-        {playing ? (
-          <VideoPreview
-            key={playing.clip.id}
-            contentFit="contain"
-            muted={false}
-            nativeControls
-            uri={playing.clip.uri}
-          />
-        ) : null}
-        <Pressable
-          accessibilityLabel="컷 재생 닫기"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={[styles.close, { top: insets.top + Spacing.three }]}
-        >
-          <ThemedText selectable={false} style={styles.closeText}>
-            ×
-          </ThemedText>
-        </Pressable>
-        {playing ? (
-          <View style={[styles.meta, { bottom: insets.bottom + Spacing.four }]}>
-            <ThemedText type="edge" style={styles.metaEdge}>
-              {playing.index + 1}번째 컷 · {playing.clip.durationSec}초
-              {playing.clip.mood ? ` · ${getCaptureMoodLabel(playing.clip.mood)}` : ''}
-            </ThemedText>
-            <ThemedText type="small" style={styles.metaMuted}>
-              {formatRecordingDate(playing.clip.capturedAt)}에 담은 원본 컷
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-    </Modal>
+    <VideoPlayerModal
+      uri={playing?.clip.uri}
+      onClose={onClose}
+      closeLabel="컷 재생 닫기"
+      edgeLabel={
+        playing
+          ? `${playing.index + 1}번째 컷 · ${playing.clip.durationSec}초` +
+            (mood ? ` · ${getCaptureMoodLabel(mood)}` : '')
+          : undefined
+      }
+      caption={
+        playing ? `${formatRecordingDate(playing.clip.capturedAt)}에 담은 원본 컷` : undefined
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000000' },
-  close: {
-    position: 'absolute',
-    left: Spacing.four,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(0,0,0,0.56)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeText: { color: '#FFFFFF', fontSize: 30, lineHeight: 32 },
-  meta: {
-    position: 'absolute',
-    left: Spacing.five,
-    right: Spacing.five,
-    alignItems: 'center',
-    gap: Spacing.one,
-    pointerEvents: 'none',
-  },
-  metaEdge: { color: '#F1E6DA' },
-  metaMuted: { color: 'rgba(255,255,255,0.62)' },
-});

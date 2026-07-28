@@ -1,6 +1,6 @@
 # State and data placement
 
-This project's standard tools are TanStack Query v5, Zustand, React Hook Form, Zod, and Expo SecureStore. Zustand, Expo SecureStore, TanStack Query, and Zod are wired up and in use: `QueryClientProvider` and the app-wide `queryClient` live in `_app/providers` (see [`query-client.ts`](../../src/_app/providers/query-client.ts) and [`app-providers.tsx`](../../src/_app/providers/app-providers.tsx)), and Zod validates DTOs at the transport boundary. React Hook Form is installed but not yet used — the form rules below are the placement standard to follow when introducing it. Do not create top-level directories for each tool. Place state according to the product responsibility it represents and its actual usage scope.
+This project's standard tools are TanStack Query v5, Zustand, React Hook Form, Zod, and Expo SecureStore. Zustand, Expo SecureStore, TanStack Query, and Zod are wired up and in use: `QueryClientProvider` and the app-wide `queryClient` live in `_app/providers` (see [`query-client.ts`](../../src/_app/providers/query-client.ts) and [`app-providers.tsx`](../../src/_app/providers/app-providers.tsx)), and Zod validates DTOs at the transport boundary. React Hook Form drives every form in the app (the four auth forms), each backed by a Zod schema in its owning feature's `model`. Do not create top-level directories for each tool. Place state according to the product responsibility it represents and its actual usage scope.
 
 ## Classify the state first
 
@@ -62,6 +62,22 @@ A store should expose domain actions rather than a bag of values and setters. Co
 - Infer the TypeScript type from the Zod schema instead of declaring it twice.
 - Put only business-agnostic primitives, such as a common adapter, in shared.
 - The owning feature or page coordinates submission mutations and post-success navigation; shared form controls must not know those details.
+
+The one shared piece is [`shared/ui/form-text-field`](../../src/shared/ui/form-text-field): `TextField`
+bound to a form field through `useController`. It knows how a controlled field
+works and nothing about what is submitted, which mutation runs, or where the
+screen goes next. The copyable skeleton is
+[cookbook §16](../conventions/cookbook.md#16-form-with-schema-validation).
+
+Reuse the existing validation primitives in `shared/lib/validation` from inside a
+schema (`z.string().refine(isValidEmail, …)`) rather than substituting Zod's own
+checks. The project's rules are deliberately shaped — the email pattern is
+permissive on purpose — and a schema is where the product's message for a failed
+rule belongs, not a second definition of the rule.
+
+Pending state belongs to the action hook that owns the request, not to
+`formState.isSubmitting`. A form reads `isPending` from its hook so there is one
+source of truth for "a request is in flight".
 
 ## SecureStore and device APIs
 

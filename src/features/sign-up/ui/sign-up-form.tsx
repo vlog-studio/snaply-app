@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
-import { isValidEmail, isValidPassword, PASSWORD_MIN_LENGTH } from '@/shared/lib/validation';
+import { PASSWORD_MIN_LENGTH } from '@/shared/lib/validation';
+import { FormTextField } from '@/shared/ui/form-text-field';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Spacing } from '@/shared/ui/theme';
-import { TextField } from '@/shared/ui/text-field';
 import { ThemedText } from '@/shared/ui/themed-text';
+
+import { signUpSchema, type SignUpValues } from '../model/sign-up-schema';
 
 type Props = {
   onSubmit: (email: string, password: string) => void;
@@ -13,34 +16,25 @@ type Props = {
   error: string | null;
 };
 
-type FieldErrors = { email?: string; password?: string; confirm?: string };
-
-/** Presentational account-creation form. Owns field validation only; the async
- *  sign-up and its pending/error state are owned by the flow hook via props. */
+/**
+ * Presentational account-creation form. Field validation is `signUpSchema`; the
+ * async sign-up and its pending/error state are owned by the flow hook and
+ * arrive as props.
+ */
 export function SignUpForm({ onSubmit, isPending, error }: Props) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const { control, handleSubmit } = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: { email: '', password: '', confirm: '' },
+  });
 
-  function handleSubmit(): void {
-    const next: FieldErrors = {};
-    if (!isValidEmail(email)) next.email = '올바른 이메일 주소를 입력해 주세요.';
-    if (!isValidPassword(password))
-      next.password = `비밀번호는 ${PASSWORD_MIN_LENGTH}자 이상이어야 해요.`;
-    if (confirm !== password) next.confirm = '비밀번호가 일치하지 않아요.';
-    setFieldErrors(next);
-    if (Object.keys(next).length > 0) return;
-    onSubmit(email, password);
-  }
+  const submit = handleSubmit((values) => onSubmit(values.email, values.password));
 
   return (
     <View style={styles.form}>
-      <TextField
+      <FormTextField
+        control={control}
+        name="email"
         label="이메일"
-        value={email}
-        onChangeText={setEmail}
-        error={fieldErrors.email}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -49,11 +43,10 @@ export function SignUpForm({ onSubmit, isPending, error }: Props) {
         textContentType="emailAddress"
         editable={!isPending}
       />
-      <TextField
+      <FormTextField
+        control={control}
+        name="password"
         label="비밀번호"
-        value={password}
-        onChangeText={setPassword}
-        error={fieldErrors.password}
         placeholder={`${PASSWORD_MIN_LENGTH}자 이상`}
         secureTextEntry
         autoCapitalize="none"
@@ -61,18 +54,17 @@ export function SignUpForm({ onSubmit, isPending, error }: Props) {
         textContentType="newPassword"
         editable={!isPending}
       />
-      <TextField
+      <FormTextField
+        control={control}
+        name="confirm"
         label="비밀번호 확인"
-        value={confirm}
-        onChangeText={setConfirm}
-        error={fieldErrors.confirm}
         placeholder="비밀번호 다시 입력"
         secureTextEntry
         autoCapitalize="none"
         autoComplete="new-password"
         textContentType="newPassword"
         editable={!isPending}
-        onSubmitEditing={handleSubmit}
+        onSubmitEditing={() => void submit()}
       />
       {error ? (
         <ThemedText type="small" themeColor="danger">
@@ -82,7 +74,7 @@ export function SignUpForm({ onSubmit, isPending, error }: Props) {
       <SnaplyButton
         title={isPending ? '가입 중…' : '가입하기'}
         disabled={isPending}
-        onPress={handleSubmit}
+        onPress={() => void submit()}
       />
     </View>
   );

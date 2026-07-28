@@ -1,10 +1,4 @@
-import {
-  formatDateTime,
-  formatDayHeading,
-  formatDuration,
-  formatTimeOfDay,
-  relativeDayLabel,
-} from './datetime';
+import { formatDateTime, formatDayHeading, formatDuration, relativeDayLabel } from './datetime';
 
 describe('formatDateTime', () => {
   it('formats a date using the Korean month, day, hour, and minute fields', () => {
@@ -14,16 +8,6 @@ describe('formatDateTime', () => {
     expect(formatted).toContain('7월');
     expect(formatted).toContain('20일');
     expect(formatted).toContain('3:04');
-  });
-});
-
-describe('formatTimeOfDay', () => {
-  it('formats only the time of day', () => {
-    const timestamp = new Date(2026, 6, 20, 15, 4).getTime();
-    const formatted = formatTimeOfDay(timestamp);
-
-    expect(formatted).toContain('3:04');
-    expect(formatted).not.toContain('7월');
   });
 });
 

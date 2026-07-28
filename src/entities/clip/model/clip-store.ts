@@ -69,20 +69,12 @@ export function useClips(): Clip[] {
   return useClipStore((state) => state.clips);
 }
 
-export function useClipById(id: string | undefined): Clip | undefined {
-  return useClipStore((state) => (id ? state.clips.find((clip) => clip.id === id) : undefined));
-}
-
 export function useClipsHydrated(): boolean {
   return useClipStore((state) => state.hasHydrated);
 }
 
 export function useAddClip(): (clip: Clip) => void {
   return useClipStore((state) => state.addClip);
-}
-
-export function useRemoveClip(): (id: string) => void {
-  return useClipStore((state) => state.removeClip);
 }
 
 /**

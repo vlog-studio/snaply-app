@@ -8,10 +8,6 @@ const dateTimeFormat = new Intl.DateTimeFormat('ko-KR', {
   hour: 'numeric',
   minute: '2-digit',
 });
-const timeOfDayFormat = new Intl.DateTimeFormat('ko-KR', {
-  hour: 'numeric',
-  minute: '2-digit',
-});
 const fullDateFormat = new Intl.DateTimeFormat('ko-KR', {
   year: 'numeric',
   month: 'long',
@@ -23,11 +19,6 @@ const DayMs = 24 * 60 * 60 * 1000;
 /** Month, day, and time of day: `7월 20일 오후 3:04`. */
 export function formatDateTime(epochMs: number): string {
   return dateTimeFormat.format(new Date(epochMs));
-}
-
-/** Time of day alone: `오후 3:04`. */
-export function formatTimeOfDay(epochMs: number): string {
-  return timeOfDayFormat.format(new Date(epochMs));
 }
 
 function startOfDay(date: Date): number {

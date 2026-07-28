@@ -8,16 +8,8 @@ import * as Location from 'expo-location';
  * Background (geofencing) permission requires foreground permission first, and
  * on iOS corresponds to the "Always" authorization.
  */
-export function getForegroundLocationPermission() {
-  return Location.getForegroundPermissionsAsync();
-}
-
 export function requestForegroundLocationPermission() {
   return Location.requestForegroundPermissionsAsync();
-}
-
-export function getBackgroundLocationPermission() {
-  return Location.getBackgroundPermissionsAsync();
 }
 
 export function requestBackgroundLocationPermission() {

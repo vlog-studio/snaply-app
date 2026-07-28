@@ -1,6 +1,6 @@
 # Writing unit tests
 
-This document defines how to author automated tests in this project. For the commands that run the suite on CI and locally, and for the boundary between JavaScript tests and on-device verification, read [`local-development-and-testing.md`](local-development-and-testing.md). This document covers what to test, where a test file lives, and which pattern to apply for each kind of module.
+This document defines how to author automated tests in this project. For the commands that run the suite on CI and locally, and for the boundary between JavaScript tests and on-device verification, read [`local-development-and-testing.md`](local-development-and-testing.md). This document covers what to test, where a test file lives, and the authoring conventions; the per-module-kind skeletons live in the [implementation cookbook §15](../conventions/cookbook.md#15-testing-patterns).
 
 ## Tooling
 
@@ -51,75 +51,22 @@ Co-location keeps FSD ownership explicit and lets a slice move as one unit. A te
 
 ## Patterns by module kind
 
-### Pure functions
+The copy-followable skeleton for each module kind lives in the
+[implementation cookbook §15](../conventions/cookbook.md#15-testing-patterns):
 
-Import the function and assert input/output directly. No React, no mocks.
-
-```ts
-import { normalizeCaptureDuration } from './capture-options';
-
-it.each([undefined, '', '3', '05'])('falls back to three seconds for %s', (value) => {
-  expect(normalizeCaptureDuration(value)).toBe(3);
-});
-```
-
-### Components (RNTL)
-
-Render, drive the interaction with `fireEvent`, and assert the observable result. Query by accessibility role and name.
-
-```tsx
-const onPress = jest.fn();
-await render(<SnaplyButton title={title} onPress={onPress} />);
-fireEvent.press(screen.getByRole('button', { name: title }));
-expect(onPress).toHaveBeenCalledTimes(1);
-```
-
-### Hooks
-
-Drive a hook with `await renderHook`; wrap state updates in `await act(async …)` and wait for asynchronous transitions with `waitFor`. Mock the hook's slice dependencies at their Public API so the test stays inside one slice.
-
-```ts
-jest.mock('@/shared/lib/recording-files', () => ({
-  listLocalRecordings: jest.fn(),
-  persistLocalRecording: jest.fn(),
-  deleteLocalRecording: jest.fn(),
-}));
-
-const { result } = await renderHook(() => useLocalRecordings());
-await waitFor(() => expect(result.current.isLoading).toBe(false));
-await act(async () => {
-  await result.current.saveRecording('file:///tmp/clip.mov');
-});
-```
-
-### Zustand stores
-
-A store is a module-level singleton. Exercise it through its exported hooks with `renderHook` + `act`, and reset it to its default in `afterEach` so tests stay independent. Mock the persistence backend so no native storage is touched.
-
-```ts
-jest.mock('@/shared/lib/secure-storage', () => ({
-  secureStorage: {
-    getItem: jest.fn().mockResolvedValue(null),
-    setItem: jest.fn().mockResolvedValue(undefined),
-    removeItem: jest.fn().mockResolvedValue(undefined),
-  },
-}));
-```
-
-### Mocking Expo and native modules
-
-The `jest-expo` preset mocks many Expo modules already; add a `jest.mock` factory only when a test needs to control return values or when the module exposes a class-based API the preset does not cover.
-
-- **Class-based APIs (e.g. `expo-file-system`).** Provide real mock classes so `instanceof` checks in the module under test still work, and back them with a shared in-memory registry each test seeds. See `shared/lib/recording-files/recording-files.test.ts` for the reference implementation.
-- **Slice dependencies.** Prefer mocking another slice's Public API (`@/shared/lib/…`) over reaching for its internal native module — it keeps the test at the boundary the production code uses.
-- **`react-native` exports.** Do **not** `jest.requireActual('react-native')` — under jest-expo it eagerly loads the full RN index and trips native TurboModule invariants. Instead provide a minimal manual factory listing only the exports the module graph under test actually touches:
-
-  ```ts
-  jest.mock('react-native', () => ({
-    useColorScheme: jest.fn(),
-    Platform: { OS: 'ios', select: (o: Record<string, unknown>) => o.ios ?? o.default },
-  }));
-  ```
+- **Pure functions** — input/output assertions with `it.each`, no React, no mocks:
+  [cookbook §15a](../conventions/cookbook.md#15a-pure-function-table-driven).
+- **Components (RNTL)** — render, drive with `fireEvent`, query by accessibility role
+  and name: [cookbook §15b](../conventions/cookbook.md#15b-component-interaction-rntl).
+- **Hooks** — `await renderHook`, `act`/`waitFor`, slice dependencies mocked at their
+  Public API: [cookbook §15c](../conventions/cookbook.md#15c-hook-with-mocked-slice-boundaries).
+- **Zustand stores** — exercise through exported hooks, mock the persistence backend,
+  reset in `afterEach`: [cookbook §15d](../conventions/cookbook.md#15d-zustand-store).
+- **Expo and native modules** — the `jest-expo` preset mocks most Expo modules already;
+  add a `jest.mock` factory only when a test needs to control return values or the
+  module exposes a class-based API the preset does not cover. Minimal `react-native`
+  factory and class-based mock guidance:
+  [cookbook §15e](../conventions/cookbook.md#15e-mocking-native-modules-and-react-native).
 
 ## Before you finish
 

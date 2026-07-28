@@ -1,4 +1,4 @@
-# Implementation patterns
+# Implementation cookbook
 
 A cookbook of the recurring, copy-followable patterns already implemented in this
 codebase. Where the other convention documents state *rules*
@@ -9,6 +9,19 @@ looks like the existing ones.
 
 Each pattern lists **when to use it**, the **canonical file(s)** to read first, a
 **skeleton** to adapt, and **rules** (including what not to do).
+
+## Scope: which code lives here
+
+- **Copy-followable skeletons live only in this document.** Other documents link to a
+  section anchor here instead of carrying their own copy of the code.
+- **Rule-illustrating snippets stay with the rule** they illustrate — the ✅/❌ import
+  contrasts belong to [module boundaries](./module-boundaries.md), the props-contract
+  contrast to [SOLID](./solid-react-native.md).
+- **Shell procedures, directory trees, and config contents stay in their workflow and
+  architecture documents** — they are steps and structure, not patterns to copy.
+
+When a new recurring skeleton emerges elsewhere in the docs, move it here and link back,
+rather than letting two copies drift apart.
 
 ## How to use this document
 
@@ -74,11 +87,15 @@ bypass.
 **When:** every file under `src/app`. Routes wire a URL to a page; they hold no logic.
 
 **Canonical:** [`src/app/(tabs)/index.tsx`](../../src/app/(tabs)/index.tsx),
-[`src/app/roll/[id].tsx`](../../src/app/roll/[id].tsx).
+[`src/app/roll/[id].tsx`](../../src/app/roll/[id].tsx),
+[`src/app/_layout.tsx`](../../src/app/_layout.tsx).
 
 ```ts
 // src/app/(tabs)/index.tsx — the common case: re-export the page Public API
 export { HomePage as default } from '@/pages/home';
+
+// src/app/_layout.tsx — same shape for the root layout: implementation lives in _app
+export { RootLayout as default } from '@/_app/routes';
 ```
 
 ```tsx
@@ -609,14 +626,62 @@ export function XPage() {
 
 ## 15. Testing patterns
 
-**When:** any function, component, hook, or store. See
-[writing unit tests](../workflows/writing-unit-tests.md) for full guidance; this is the
-boundary-mocking pattern to imitate.
+**When:** any function, component, hook, or store. These are the per-module-kind
+skeletons; [writing unit tests](../workflows/writing-unit-tests.md) owns what to test,
+where a test file lives, and the naming/assertion conventions.
 
-**Canonical:** [`use-sign-in.test.ts`](../../src/features/sign-in/model/use-sign-in.test.ts).
+Shared rules across all of §15:
+- Co-locate the test next to the unit (`*.test.ts` / `*.test.tsx`).
+- Mock a dependency at its **slice Public API** (`jest.mock('@/entities/session')`), not
+  at deep internal paths.
+- `render` and `renderHook` are asynchronous in RNTL v14 — always `await` them.
+
+### 15a. Pure function (table-driven)
+
+**When:** normalizers, formatters, validators, mappers. No React, no mocks.
+
+**Canonical:** [`capture-options.test.ts`](../../src/entities/capture-session/model/capture-options.test.ts).
 
 ```ts
-import { act, renderHook } from '@testing-library/react-native';
+import { normalizeCaptureDuration } from './capture-options';
+
+it.each([undefined, '', '3', '05'])('falls back to three seconds for %s', (value) => {
+  expect(normalizeCaptureDuration(value)).toBe(3);
+});
+```
+
+**Rules**
+- Use `it.each` for a family of inputs exercising the same rule, instead of
+  copy-pasting near-identical `it` blocks.
+
+### 15b. Component interaction (RNTL)
+
+**When:** a component's consumer-facing contract — role, accessible name, callback wiring.
+
+**Canonical:** [`snaply-button.test.tsx`](../../src/shared/ui/snaply-button/snaply-button.test.tsx).
+
+```tsx
+const onPress = jest.fn();
+await render(<SnaplyButton title={title} onPress={onPress} />);
+fireEvent.press(screen.getByRole('button', { name: title }));
+expect(onPress).toHaveBeenCalledTimes(1);
+```
+
+**Rules**
+- Query by accessibility role and name (`screen.getByRole('button', { name })`).
+- Assert behavior, not styling — style values are verified on-device.
+
+### 15c. Hook with mocked slice boundaries
+
+**When:** any `use-*` hook. Mock its slice dependencies at their Public API so the test
+stays inside one slice.
+
+**Canonical:** [`use-sign-in.test.ts`](../../src/features/sign-in/model/use-sign-in.test.ts)
+(action hook), [`use-local-recordings.test.ts`](../../src/features/manage-recordings/model/use-local-recordings.test.ts)
+(async resource hook with loading state).
+
+```ts
+import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 const mockCommit = jest.fn();
 jest.mock('@/entities/session', () => ({ useSetSession: () => mockCommit })); // mock at the Public API
@@ -636,12 +701,62 @@ describe('useDoAction', () => {
 });
 ```
 
+For a hook that loads on mount, wait for the asynchronous transition before asserting:
+
+```ts
+const { result } = await renderHook(() => useLocalRecordings());
+await waitFor(() => expect(result.current.isLoading).toBe(false));
+```
+
 **Rules**
-- Mock a dependency at its **slice Public API** (`jest.mock('@/entities/session')`), not
-  at deep internal paths.
+- Wrap state updates in `await act(async …)`; wait for async transitions with `waitFor`.
 - Test the observable contract across branches — for an action hook: success, cancel
   (silent), failure (error surfaced).
-- Co-locate the test next to the unit (`*.test.ts` / `*.test.tsx`).
+
+### 15d. Zustand store
+
+**When:** a store is a module-level singleton — exercise it through its exported hooks,
+and mock the persistence backend so no native storage is touched.
+
+**Canonical:** [`theme-mode.test.ts`](../../src/shared/ui/theme/theme-mode.test.ts).
+
+```ts
+jest.mock('@/shared/lib/secure-storage', () => ({
+  secureStorage: {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+```
+
+**Rules**
+- Drive the store through `renderHook` + `act` on its exported hooks.
+- Reset the store to its default in `afterEach` so test ordering never matters.
+
+### 15e. Mocking native modules and `react-native`
+
+**When:** the `jest-expo` preset does not cover a module, or a test must control return
+values.
+
+**Canonical:** [`use-theme.test.tsx`](../../src/shared/ui/theme/use-theme.test.tsx)
+(minimal `react-native` factory);
+[`recording-files.test.ts`](../../src/shared/lib/recording-files/recording-files.test.ts)
+(class-based API — real mock classes so `instanceof` still works, backed by a shared
+in-memory registry each test seeds).
+
+```ts
+// Never jest.requireActual('react-native') — under jest-expo it eagerly loads the full
+// RN index and trips native TurboModule invariants. List only what the test touches:
+jest.mock('react-native', () => ({
+  useColorScheme: jest.fn(),
+  Platform: { OS: 'ios', select: (o: Record<string, unknown>) => o.ios ?? o.default },
+}));
+```
+
+**Rules**
+- Prefer mocking another slice's Public API over reaching for its internal native module.
+- Keep the manual factory minimal — only the exports the module graph under test uses.
 
 ---
 

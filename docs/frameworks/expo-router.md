@@ -21,33 +21,15 @@ A route file is responsible only for:
 - Re-exporting route-level static configuration when necessary
 - Performing a minimal conversion from route parameters to explicit page props
 
-```ts
-// src/app/index.tsx
-export { HomePage as default } from '@/pages/home';
-```
+The skeletons for both variants — the plain Public-API re-export and the
+`useLocalSearchParams` adapter — live in
+[cookbook §1 (thin route adapter)](../conventions/cookbook.md#1-thin-route-adapter).
 
-```ts
-// src/app/photo/[photoId].tsx
-import { useLocalSearchParams } from 'expo-router';
-
-import { PhotoDetailPage } from '@/pages/photo-detail';
-
-export default function PhotoDetailRoute() {
-  const { photoId } = useLocalSearchParams<{ photoId: string }>();
-  return <PhotoDetailPage photoId={photoId} />;
-}
-```
-
-Using a hook in a route adapter, as in the second example, is allowed when its purpose is parameter conversion. Move data fetching, validation, state, and UI into the page or a lower layer.
+Using a hook in a route adapter is allowed when its purpose is parameter conversion. Move data fetching, validation, state, and UI into the page or a lower layer.
 
 ## Root layout and providers
 
-`src/app/_layout.tsx` must exist because it is the Expo Router entry point, but its implementation comes from `_app`.
-
-```ts
-// src/app/_layout.tsx
-export { RootLayout as default } from '@/_app/routes';
-```
+`src/app/_layout.tsx` must exist because it is the Expo Router entry point, but its implementation comes from `_app` — it is the same one-line re-export shown in [cookbook §1](../conventions/cookbook.md#1-thin-route-adapter).
 
 ```text
 src/_app/

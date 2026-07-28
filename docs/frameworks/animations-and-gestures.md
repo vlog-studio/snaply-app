@@ -1,0 +1,120 @@
+# Animations and gestures
+
+How to implement motion and gesture-driven interactions in this project with
+`react-native-reanimated` 4 and `react-native-gesture-handler` (RNGH) 2. Like the
+other framework documents this records placement rules, the canonical files to
+imitate, and the pitfalls already paid for — read it before adding any animation
+or gesture code. Base API usage on the official
+[Reanimated](https://docs.swmansion.com/react-native-reanimated/docs/) and
+[Gesture Handler](https://docs.swmansion.com/react-native-gesture-handler/docs/)
+documentation for the installed versions; this document does not restate their APIs.
+
+## Setup facts (already done — do not repeat)
+
+- The worklets Babel plugin is applied automatically by `babel-preset-expo`
+  (`react-native-worklets/plugin`). There is no project `babel.config.js` to edit.
+- `GestureHandlerRootView` is mounted once in `src/_app/providers/app-providers.tsx`,
+  wrapping the whole authenticated tree. RNGH gestures anywhere in the app rely on
+  it; never mount a second one.
+- Reanimated and RNGH are already native dependencies in the dev builds — new
+  animation code needs no rebuild.
+
+## Canonical implementations
+
+Imitate the closest existing implementation instead of inventing a new shape.
+
+| Need | Canonical file | Shape |
+| --- | --- | --- |
+| Mount fade/slide-in | `src/shared/ui/fade-in-view/fade-in-view.tsx` | Shared value driven by `withTiming` in a mount effect; reusable wrapper with `delay`/`duration` props |
+| One-shot choreography with a completion callback | `src/pages/capture-record/ui/collect-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
+| Gesture/state-driven progress indicator | `src/pages/capture-record/ui/hold-ring.tsx` | Shared value + `useAnimatedProps` on an SVG element; fills while a prop is true, rewinds on release |
+| Drag-and-drop with items animating aside | `src/pages/roll-detail/ui/cut-sheet-grid.tsx` + `src/pages/roll-detail/model/reorder-layout.ts` | Absolute-positioned cells; order in a shared value; pan gesture with long-press lift; springs for reflow/settle |
+| Splash exit | `src/_app/routes/animated-splash-overlay.tsx` | The one `Keyframe`/`entering` usage in the app (see the Expo Go caveat below before adding another) |
+
+## Rules
+
+### Respect reduced motion
+
+Every signature animation reads `useReducedMotion()` from `@/shared/ui/theme` and
+presents the final state immediately (or a static equivalent, like `HoldRing`'s
+partial arc) instead of animating. This is a product rule (concept §7 저감 모션),
+not an optimization.
+
+### Prefer runtime shared-value animations over `entering`/`exiting` presets
+
+Reanimated entering presets (`FadeInDown`, `ZoomIn`, …) never start on iOS in Expo
+Go, leaving views stuck at opacity 0 (recorded in `fade-in-view.tsx`). Drive mount
+animations from a shared value in an effect instead. `AnimatedSplashOverlay`'s
+`Keyframe` is the lone exception; verify on iOS before adding another.
+
+### Keep per-frame state on the UI thread
+
+State that changes every frame (drag position, progress, the visual order of a
+drag grid) lives in shared values, mutated by worklets. Mirror it to React state
+via `runOnJS` only at meaningful boundaries (a slot swap, a completion) — for
+labels, badges, or commit payloads — never per frame. The commit itself stays a
+plain store/feature call made from the JS side (`cut-sheet-grid` reports the order;
+the page calls `reorderRollClips`).
+
+### Extract decision math into the `model` segment, worklet-marked, unit-tested
+
+Geometry and ordering rules a gesture evaluates ("which slot is the finger over",
+"what does the order become") are pure functions in the slice's `model/` with a
+`'worklet'` directive (`reorder-layout.ts`). The directive is inert under Jest, so
+the same functions get table-driven unit tests. Animation timing itself is not
+unit-testable — verify it on device and test the math instead.
+
+### Work around the React Compiler lint, structurally
+
+`eslint-plugin-react-hooks` (compiler-powered) rejects shared-value `.value` writes
+it thinks happen during render: inside `useMemo`, and inside gesture-builder
+callbacks (`Gesture.Pan().onStart(...)`) defined in the component body. `'use no
+memo'` does **not** silence it. The accepted fix is structural: build the gesture in
+a plain module-level factory that takes the shared values as arguments
+(`buildDragGesture` in `cut-sheet-grid.tsx`). Writes inside `useEffect`,
+`useAnimatedReaction`, and `useAnimatedStyle` are fine.
+
+### Gestures inside scrollables
+
+- Use `.activateAfterLongPress(...)` so the scroll gesture keeps working; on
+  activation give haptic feedback (`Haptics.impactAsync(Medium)` — the established
+  lift/collect cue) and lock the scroll (`scrollEnabled={!dragActive}` via a
+  `runOnJS` state flip) until the gesture settles.
+- Match the long-press delay to the sibling `Pressable`'s `delayLongPress` (260ms
+  today) so gesture entries feel like one family.
+- Build gestures inline in render (no memo): `GestureDetector` reconciles the
+  native handler on re-render without cancelling an active gesture, and the inline
+  build keeps worklet captures fresh.
+
+### Never let a mode change remount animated content
+
+Swapping component trees to change interaction modes causes a visible blink: a
+remounted `expo-image` cannot paint its first frame even from the memory cache, and
+a self-measuring (`onLayout`) container renders empty for a frame. The rules learned
+from the roll sheet:
+
+- One component tree for all modes; toggle behavior with props (`Pressable`
+  `disabled`, `Gesture.enabled(...)`), not by swapping components.
+- Derive layout width from `useWindowDimensions` + the known content constraints
+  instead of measuring, when the container's width is deterministic.
+- Thumbnails: `useVideoThumbnail` answers synchronously for frames already resolved
+  this session, and `NegativeFrame` uses `cachePolicy="memory-disk"` and skips its
+  fade when the frame was known at mount. Keep those properties intact.
+
+### Motion values
+
+The house style is fast and settled — film equipment, not rubber:
+
+- Fades/mount motion: `withTiming`, 280–600ms, `Easing.out(Easing.cubic)`.
+- Micro state changes (lift scale): ~120ms timing.
+- Positional reflow (drag grids): near-critically-damped springs — reference
+  `{ damping: 44, stiffness: 300 }` from `cut-sheet-grid.tsx`; items glide into
+  place with no visible bounce. Start from these values and tune on device.
+
+## Verification
+
+JS tests cover only the extracted pure math and any hook logic. The animation
+itself — timing, gesture feel, frame drops, haptics — needs on-device verification
+per [`local-development-and-testing.md`](../workflows/local-development-and-testing.md)
+and [`android-device-verification.md`](../workflows/android-device-verification.md).
+Verify reduced-motion behavior by toggling the OS setting, not by mocking.

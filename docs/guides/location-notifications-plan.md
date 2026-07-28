@@ -92,7 +92,7 @@ pages/
 
 | 용도 | 엔드포인트 | 요청 | 응답(data) |
 | --- | --- | --- | --- |
-| 주변 지오펜스 포인트 | `GET /locations?lat=&lng=&radius=` | 쿼리 파라미터 | `Location[]` (`id, name, lat, lng, radius_meters, message_template, category`) |
+| 주변 지오펜스 포인트 | `GET /locations?lat=&lng=&radius=` | 쿼리 파라미터 | `Location[]` (`id, name, lat, lng, radiusMeters, category, distanceMeters`) — 서버가 거리순 정렬. `category`는 자유 문자열이고, 알림 문구 템플릿은 응답에 없습니다(서버가 문구를 소유). |
 | 진입 이벤트 보고 | `POST /notifications/geofence-enter` | `{ locationId }` | 발송 결과(서버가 쿨다운/조용한시간/동의 판정) |
 | FCM 토큰 등록 | `POST /auth/fcm-token` | `{ fcmToken }` | 등록 결과 |
 | 알림 설정 편집 | `PATCH /auth/me` | `{ notification_enabled?, quiet_start?, quiet_end?, interests? }` | 갱신된 프로필 |

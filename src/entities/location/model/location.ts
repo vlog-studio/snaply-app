@@ -1,8 +1,9 @@
 /**
  * A geofence point the app monitors for arrival. Coordinates and radius drive
- * `expo-location` geofencing; `messageTemplate` is the copy the backend uses
- * when it decides to send the arrival push. This is the app's domain model
- * (camelCase); the wire DTO is mapped in the `api` segment.
+ * `expo-location` geofencing; the arrival notification copy is owned entirely by
+ * the backend, which decides and sends the push (the API exposes no message
+ * template). This is the app's domain model (camelCase); the wire DTO is mapped
+ * in the `api` segment.
  */
 export type Location = {
   id: string;
@@ -10,8 +11,6 @@ export type Location = {
   latitude: number;
   longitude: number;
   radiusMeters: number;
-  messageTemplate: string;
-  category: LocationCategory;
+  /** Backend-defined free-form label ('관광지', '카페', …), not a fixed set. */
+  category: string;
 };
-
-export type LocationCategory = '관광지' | '카페' | '여행지';

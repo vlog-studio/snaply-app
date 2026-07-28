@@ -1,43 +1,35 @@
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
+import { FormTextField } from '@/shared/ui/form-text-field';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { isValidEmail } from '@/shared/lib/validation';
 import { Spacing } from '@/shared/ui/theme';
-import { TextField } from '@/shared/ui/text-field';
 import { ThemedText } from '@/shared/ui/themed-text';
 
+import { emailSignInSchema, type EmailSignInValues } from '../model/email-sign-in-schema';
 import { useEmailSignIn } from '../model/use-email-sign-in';
 
-type FieldErrors = { email?: string; password?: string };
-
 /**
- * Email/password sign-in form. Owns per-field validation (format, presence) and
- * delegates the async sign-in and its pending/error state to `useEmailSignIn`.
+ * Email/password sign-in form. Field validation is `emailSignInSchema`; the
+ * async sign-in and its pending/error state belong to `useEmailSignIn`.
  * Cross-screen navigation (sign-up, password reset) is composed by the page.
  */
 export function EmailSignInForm() {
   const { signIn, isPending, error } = useEmailSignIn();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const { control, handleSubmit } = useForm<EmailSignInValues>({
+    resolver: zodResolver(emailSignInSchema),
+    defaultValues: { email: '', password: '' },
+  });
 
-  async function handleSubmit(): Promise<void> {
-    const next: FieldErrors = {};
-    if (!isValidEmail(email)) next.email = '올바른 이메일 주소를 입력해 주세요.';
-    if (password.length === 0) next.password = '비밀번호를 입력해 주세요.';
-    setFieldErrors(next);
-    if (Object.keys(next).length > 0) return;
-    await signIn(email, password);
-  }
+  const submit = handleSubmit((values) => signIn(values.email, values.password));
 
   return (
     <View style={styles.form}>
-      <TextField
+      <FormTextField
+        control={control}
+        name="email"
         label="이메일"
-        value={email}
-        onChangeText={setEmail}
-        error={fieldErrors.email}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -47,11 +39,10 @@ export function EmailSignInForm() {
         editable={!isPending}
         returnKeyType="next"
       />
-      <TextField
+      <FormTextField
+        control={control}
+        name="password"
         label="비밀번호"
-        value={password}
-        onChangeText={setPassword}
-        error={fieldErrors.password}
         placeholder="비밀번호"
         secureTextEntry
         autoCapitalize="none"
@@ -59,7 +50,7 @@ export function EmailSignInForm() {
         textContentType="password"
         editable={!isPending}
         returnKeyType="done"
-        onSubmitEditing={handleSubmit}
+        onSubmitEditing={() => void submit()}
       />
       {error ? (
         <ThemedText type="small" themeColor="danger">
@@ -69,7 +60,7 @@ export function EmailSignInForm() {
       <SnaplyButton
         title={isPending ? '로그인 중…' : '로그인'}
         disabled={isPending}
-        onPress={handleSubmit}
+        onPress={() => void submit()}
       />
     </View>
   );

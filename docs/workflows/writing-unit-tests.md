@@ -62,6 +62,10 @@ The copy-followable skeleton for each module kind lives in the
   Public API: [cookbook §15c](../conventions/cookbook.md#15c-hook-with-mocked-slice-boundaries).
 - **Zustand stores** — exercise through exported hooks, mock the persistence backend,
   reset in `afterEach`: [cookbook §15d](../conventions/cookbook.md#15d-zustand-store).
+- **Forms** — cover the rules in the schema's own table-driven test, and the wiring in a
+  component test whose every interaction is awaited inside `act` (async validation that
+  escapes a test breaks the *next* one):
+  [cookbook §16a](../conventions/cookbook.md#16a-testing-an-async-validated-form).
 - **Expo and native modules** — the `jest-expo` preset mocks most Expo modules already;
   add a `jest.mock` factory only when a test needs to control return values or the
   module exposes a class-based API the preset does not cover. Minimal `react-native`

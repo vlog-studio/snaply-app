@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 
-import { isValidEmail } from '@/shared/lib/validation';
+import { FormTextField } from '@/shared/ui/form-text-field';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Spacing } from '@/shared/ui/theme';
-import { TextField } from '@/shared/ui/text-field';
 import { ThemedText } from '@/shared/ui/themed-text';
+
+import { requestResetSchema, type RequestResetValues } from '../model/request-reset-schema';
 
 type Props = {
   onSubmit: (email: string) => void;
@@ -13,30 +15,24 @@ type Props = {
   error: string | null;
 };
 
-/** Step 1: enter the account email to receive a recovery code. */
+/** Step 1: enter the account email to receive a recovery link. */
 export function RequestResetForm({ onSubmit, isPending, error }: Props) {
-  const [email, setEmail] = useState('');
-  const [fieldError, setFieldError] = useState<string>();
+  const { control, handleSubmit } = useForm<RequestResetValues>({
+    resolver: zodResolver(requestResetSchema),
+    defaultValues: { email: '' },
+  });
 
-  function handleSubmit(): void {
-    if (!isValidEmail(email)) {
-      setFieldError('올바른 이메일 주소를 입력해 주세요.');
-      return;
-    }
-    setFieldError(undefined);
-    onSubmit(email);
-  }
+  const submit = handleSubmit((values) => onSubmit(values.email));
 
   return (
     <View style={styles.form}>
       <ThemedText type="small" themeColor="textSecondary">
         가입한 이메일 주소로 인증 코드를 보내드려요.
       </ThemedText>
-      <TextField
+      <FormTextField
+        control={control}
+        name="email"
         label="이메일"
-        value={email}
-        onChangeText={setEmail}
-        error={fieldError ?? undefined}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -44,7 +40,7 @@ export function RequestResetForm({ onSubmit, isPending, error }: Props) {
         autoComplete="email"
         textContentType="emailAddress"
         editable={!isPending}
-        onSubmitEditing={handleSubmit}
+        onSubmitEditing={() => void submit()}
       />
       {error ? (
         <ThemedText type="small" themeColor="danger">
@@ -54,7 +50,7 @@ export function RequestResetForm({ onSubmit, isPending, error }: Props) {
       <SnaplyButton
         title={isPending ? '전송 중…' : '인증 코드 받기'}
         disabled={isPending}
-        onPress={handleSubmit}
+        onPress={() => void submit()}
       />
     </View>
   );

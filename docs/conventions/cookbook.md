@@ -34,6 +34,7 @@ rather than letting two copies drift apart.
 - Loading/mutating a device-local resource → §11.
 - Wrapping a device/native API or supporting web → §12, §13.
 - Consuming the design system in UI → §14.
+- Building a form → §16 (and §16a for its test).
 - Testing any of the above → §15.
 
 ## Reading the skeletons: they are starting points, not contracts
@@ -773,6 +774,87 @@ jest.mock('react-native', () => ({
 **Rules**
 - Prefer mocking another slice's Public API over reaching for its internal native module.
 - Keep the manual factory minimal — only the exports the module graph under test uses.
+
+---
+
+## 16. Form with schema validation
+
+**When:** any form. React Hook Form owns the field state, a Zod schema in the owning
+slice's `model` owns the rules, and the action hook owns the request.
+
+**Canonical:** [`email-sign-in-form.tsx`](../../src/features/sign-in/ui/email-sign-in-form.tsx)
++ [`email-sign-in-schema.ts`](../../src/features/sign-in/model/email-sign-in-schema.ts).
+
+```ts
+// features/<action>/model/<action>-schema.ts — rules + product copy, no React
+export const signUpSchema = z
+  .object({
+    // Reuse the shared primitive; do not restate the rule with z.string().email().
+    email: z.string().refine(isValidEmail, '올바른 이메일 주소를 입력해 주세요.'),
+    password: z.string().refine(isValidPassword, `비밀번호는 ${PASSWORD_MIN_LENGTH}자 이상이어야 해요.`),
+    confirm: z.string(),
+  })
+  // A whole-object rule needs an explicit `path`, or the message attaches to the
+  // form instead of the field the user has to fix.
+  .refine((values) => values.confirm === values.password, {
+    message: '비밀번호가 일치하지 않아요.',
+    path: ['confirm'],
+  });
+
+export type SignUpValues = z.infer<typeof signUpSchema>;
+```
+
+```tsx
+// features/<action>/ui/<action>-form.tsx
+const { signIn, isPending, error } = useEmailSignIn();   // request state lives here
+const { control, handleSubmit } = useForm<EmailSignInValues>({
+  resolver: zodResolver(emailSignInSchema),
+  defaultValues: { email: '', password: '' },            // never leave a field undefined
+});
+
+const submit = handleSubmit((values) => signIn(values.email, values.password));
+
+<FormTextField control={control} name="email" label="이메일" editable={!isPending} />
+<SnaplyButton title={isPending ? '로그인 중…' : '로그인'} disabled={isPending}
+              onPress={() => void submit()} />
+```
+
+**Rules**
+- Bind inputs with [`FormTextField`](../../src/shared/ui/form-text-field); never hand a
+  raw `TextField` a `field` object at the call site. RN inputs are controlled, so an
+  uncontrolled/`register` approach does not apply.
+- Always pass `defaultValues`. A missing key makes the input uncontrolled on first
+  render and RHF warns.
+- `handleSubmit` returns a promise-returning function: call it as
+  `onPress={() => void submit()}` rather than passing it directly, so the press event
+  is not mistaken for a form event.
+- Read `isPending` from the action hook, not `formState.isSubmitting` — one source of
+  truth for a request in flight.
+- Do not forward `field.ref`. It serves focus management no screen here uses, and
+  reading it during render trips the `react-hooks/refs` lint rule.
+
+### 16a. Testing an async-validated form
+
+`zodResolver` validates asynchronously, so an interaction that is not awaited inside
+`act` resolves *after* the test — leaking a state update that makes the **next** test in
+the file render nothing. The failure looks like an unrelated
+"Unable to find an element with role: button" two tests later.
+
+**Canonical:** [`email-sign-in-form.test.tsx`](../../src/features/sign-in/ui/email-sign-in-form.test.tsx).
+
+```ts
+async function press(name: string): Promise<void> {
+  await act(async () => {
+    fireEvent.press(screen.getByRole('button', { name }));
+  });
+}
+```
+
+**Rules**
+- Wrap every `fireEvent` that can trigger validation in `await act(async () => …)`.
+- Keep rule coverage in the schema's own table-driven test ([§15a](#15a-pure-function-table-driven));
+  the component test proves wiring — typing reaches state, the error reaches the right
+  input, a valid submit reaches the action hook.
 
 ---
 

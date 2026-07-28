@@ -19,9 +19,11 @@ adb -s "$DEVICE" shell dumpsys window | grep mCurrentFocus              # app in
 Resolve the serial at run time and target it explicitly; never hardcode it. A wireless device appears either as `<ip>:<port>` (after `adb connect`) or as `adb-…-_adb-tls-connect._tcp` (mDNS pairing), and the address changes between sessions.
 
 ```bash
-DEVICE=$(adb devices -l | awk '/model:SM_S908N/ {print $1}')
+DEVICE=$(adb devices -l | awk '/model:SM_S908N/ {print $1; exit}')
 PKG=com.anonymous.snaplyapp
 ```
+
+The **one** device can hold **both** transports at once — `adb connect` and mDNS pairing each register a serial, so `adb devices` lists two entries for the same phone. Hence the `exit`: without it the variable holds two serials and every `adb -s` call fails. Either transport works; take the first.
 
 With multiple devices attached, a bare `adb shell` fails with "more than one device" — always pass `-s "$DEVICE"` (or export `ANDROID_SERIAL`).
 

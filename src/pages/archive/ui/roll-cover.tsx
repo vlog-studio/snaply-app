@@ -2,10 +2,11 @@ import { Image } from 'expo-image';
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { formatDuration } from '@/shared/lib/datetime';
 import { useVideoThumbnail } from '@/shared/lib/video-thumbnails';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { formatReelLength, type RollSummary } from '@/widgets/roll-shelf';
+import type { RollSummary } from '@/widgets/roll-shelf';
 
 /** A cover always draws four tiles, repeating the roll's frames if it has fewer. */
 const MosaicTiles = 4;
@@ -56,7 +57,7 @@ function RollCoverComponent({ roll, onPress }: RollCoverProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${roll.title} 릴 재생`}
-      accessibilityHint={`${roll.clipCount}컷 · ${formatReelLength(roll.totalSec)}`}
+      accessibilityHint={`${roll.clipCount}컷 · ${formatDuration(roll.totalSec)}`}
       onPress={onPress}
       style={[styles.cover, { backgroundColor: theme.film }]}
     >
@@ -79,7 +80,7 @@ function RollCoverComponent({ roll, onPress }: RollCoverProps) {
           </ThemedText>
           <View style={styles.lengthBadge}>
             <ThemedText selectable={false} style={[styles.lengthText, { color: theme.lumen }]}>
-              {formatReelLength(roll.totalSec)}
+              {formatDuration(roll.totalSec)}
             </ThemedText>
           </View>
         </View>

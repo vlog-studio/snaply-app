@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { useClips, type Clip } from '@/entities/clip';
+import { clipsByRefs, useClipIndex, type ClipIndex } from '@/entities/clip';
 import {
   TodayRollTint,
   elapsedDaysInMonth,
@@ -75,17 +75,11 @@ function isDeveloped(roll: Roll): roll is DevelopedRoll {
   return roll.status === 'developed' && roll.reel !== undefined;
 }
 
-function inOrder(clipRefs: Roll['clipRefs']): string[] {
-  return [...clipRefs].sort((left, right) => left.order - right.order).map((ref) => ref.clipId);
-}
-
-function summarize(roll: Roll, clipsById: Map<string, Clip>, todayRollId?: string): RollSummary {
+function summarize(roll: Roll, clipIndex: ClipIndex, todayRollId?: string): RollSummary {
   // A developed roll is summarized from its reel — the finished artifact — and
   // an unfinished one from its current membership.
-  const clipIds = isDeveloped(roll) ? inOrder(roll.reel.clipRefs) : inOrder(roll.clipRefs);
-  const clips = clipIds
-    .map((id) => clipsById.get(id))
-    .filter((clip): clip is Clip => Boolean(clip));
+  const refs = isDeveloped(roll) ? roll.reel.clipRefs : roll.clipRefs;
+  const clips = clipsByRefs(refs, clipIndex);
   const isToday = roll.id === todayRollId;
 
   return {
@@ -95,17 +89,15 @@ function summarize(roll: Roll, clipsById: Map<string, Clip>, todayRollId?: strin
     date: rollDate(roll),
     dayRange: formatDayRange(clips.map((clip) => toDayKey(clip.capturedAt))),
     status: roll.status,
-    clipCount: clipIds.length,
+    // Counted from the references, not the resolved clips: how full a roll is is
+    // a fact about the roll, and a cover whose original was deleted still
+    // occupied a frame of it.
+    clipCount: refs.length,
     totalSec: clips.reduce((sum, clip) => sum + clip.durationSec, 0),
     tint: isToday ? TodayRollTint : rollTint(roll.id),
     isToday,
     coverUris: clips.slice(0, CoverFrameCount).map((clip) => clip.uri),
   };
-}
-
-function useClipsById(): Map<string, Clip> {
-  const clips = useClips();
-  return useMemo(() => new Map(clips.map((clip) => [clip.id, clip])), [clips]);
 }
 
 /**
@@ -125,7 +117,7 @@ function useClipsById(): Map<string, Clip> {
 export function useRollsAwaitingDevelop(): RollSummary[] {
   const rolls = useRolls();
   const todayRoll = useTodayRoll();
-  const clipsById = useClipsById();
+  const clipIndex = useClipIndex();
 
   return useMemo(() => {
     const todayRollId = todayRoll?.id;
@@ -136,8 +128,8 @@ export function useRollsAwaitingDevelop(): RollSummary[] {
         if (right.id === todayRollId) return 1;
         return right.createdAt - left.createdAt;
       })
-      .map((roll) => summarize(roll, clipsById, todayRollId));
-  }, [rolls, todayRoll, clipsById]);
+      .map((roll) => summarize(roll, clipIndex, todayRollId));
+  }, [rolls, todayRoll, clipIndex]);
 }
 
 function countEmptyDays(
@@ -166,7 +158,7 @@ function countEmptyDays(
 export function useDevelopedRollMonths(): DevelopedRollMonth[] {
   const rolls = useRolls();
   const todayRoll = useTodayRoll();
-  const clipsById = useClipsById();
+  const clipIndex = useClipIndex();
 
   return useMemo(() => {
     const todayDayKey = todayRoll?.dayKey;
@@ -182,7 +174,7 @@ export function useDevelopedRollMonths(): DevelopedRollMonth[] {
     for (const roll of rolls) {
       if (!isDeveloped(roll)) continue;
       const monthKey = rollMonthKey(roll);
-      const summary = summarize(roll, clipsById, todayRoll?.id);
+      const summary = summarize(roll, clipIndex, todayRoll?.id);
       const existing = sections.get(monthKey);
       if (existing) existing.push(summary);
       else sections.set(monthKey, [summary]);
@@ -199,12 +191,5 @@ export function useDevelopedRollMonths(): DevelopedRollMonth[] {
         rolls: monthRolls.sort((left, right) => right.date.localeCompare(left.date)),
         emptyDayCount: todayDayKey ? countEmptyDays(key, todayDayKey, collectedDays) : 0,
       }));
-  }, [rolls, todayRoll, clipsById]);
-}
-
-/** Formats a reel length in seconds as `m:ss` for a cover's edge print. */
-export function formatReelLength(totalSec: number): string {
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }, [rolls, todayRoll, clipIndex]);
 }

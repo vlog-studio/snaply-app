@@ -3,11 +3,7 @@ import { renderHook } from '@testing-library/react-native';
 import type { Clip } from '@/entities/clip';
 import type { Reel, Roll } from '@/entities/roll';
 
-import {
-  formatReelLength,
-  useDevelopedRollMonths,
-  useRollsAwaitingDevelop,
-} from './use-roll-shelf';
+import { useDevelopedRollMonths, useRollsAwaitingDevelop } from './use-roll-shelf';
 
 let mockRolls: Roll[];
 let mockClips: Clip[];
@@ -22,9 +18,20 @@ jest.mock('@/shared/lib/local-store', () => ({
     removeItem: jest.fn().mockResolvedValue(undefined),
   },
 }));
-jest.mock('@/entities/clip', () => ({
-  useClips: () => mockClips,
-}));
+// The archive is stubbed, but the reference-resolving rule is the real one from
+// `entities/clip` — this suite asserts on what that rule produces, not on a
+// re-implementation of it (its own unit test covers the rule directly).
+jest.mock('@/entities/clip', () => {
+  const actual = jest.requireActual('@/entities/clip');
+  const clipIndex = () => new Map(mockClips.map((clip) => [clip.id, clip]));
+  return {
+    ...actual,
+    useClips: () => mockClips,
+    useClipIndex: clipIndex,
+    useClipsByRefs: (refs: { clipId: string; order: number }[] | undefined) =>
+      actual.clipsByRefs(refs, clipIndex()),
+  };
+});
 jest.mock('@/entities/roll', () => ({
   ...jest.requireActual('@/entities/roll'),
   useRolls: () => mockRolls,
@@ -317,15 +324,5 @@ describe('useDevelopedRollMonths', () => {
     const { result } = await renderHook(() => useDevelopedRollMonths());
 
     expect(result.current[0].emptyDayCount).toBe(0);
-  });
-});
-
-describe('formatReelLength', () => {
-  it.each([
-    [0, '0:00'],
-    [9, '0:09'],
-    [72, '1:12'],
-  ])('formats %i seconds as %s', (totalSec, expected) => {
-    expect(formatReelLength(totalSec)).toBe(expected);
   });
 });

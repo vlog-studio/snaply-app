@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getCaptureMoodLabel } from '@/entities/capture-session';
 import type { ClipOrientation } from '@/entities/clip';
-import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatDateTime } from '@/shared/lib/datetime';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -68,7 +68,7 @@ export function CutSheet({
               원본
               {cut.clip.mood ? ` · ${getCaptureMoodLabel(cut.clip.mood)}` : ''}
             </ThemedText>
-            <ThemedText type="heading">{formatRecordingDate(cut.clip.capturedAt)}</ThemedText>
+            <ThemedText type="heading">{formatDateTime(cut.clip.capturedAt)}</ThemedText>
           </View>
 
           <View style={styles.section}>

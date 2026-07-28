@@ -1,7 +1,7 @@
 import { Alert, FlatList, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { formatRecordingDate } from '@/features/manage-recordings';
+import { formatDateTime } from '@/shared/lib/datetime';
 import { formatFileSize } from '@/shared/lib/format-file-size';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -111,7 +111,7 @@ export function RecordingLibrary({
               >
                 <Pressable
                   accessibilityHint="영상을 재생하고 사용할 수 있어요"
-                  accessibilityLabel={`${formatRecordingDate(item.createdAt)} 촬영 영상`}
+                  accessibilityLabel={`${formatDateTime(item.createdAt)} 촬영 영상`}
                   accessibilityRole="button"
                   disabled={isDeleting}
                   onPress={() => onSelect(item)}
@@ -123,14 +123,14 @@ export function RecordingLibrary({
                     </ThemedText>
                   </View>
                   <View style={styles.recordingCopy}>
-                    <ThemedText type="smallBold">{formatRecordingDate(item.createdAt)}</ThemedText>
+                    <ThemedText type="smallBold">{formatDateTime(item.createdAt)}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {formatFileSize(item.size)} · 앱에 저장됨
                     </ThemedText>
                   </View>
                 </Pressable>
                 <Pressable
-                  accessibilityLabel={`${formatRecordingDate(item.createdAt)} 영상 삭제`}
+                  accessibilityLabel={`${formatDateTime(item.createdAt)} 영상 삭제`}
                   accessibilityRole="button"
                   disabled={isDeleting}
                   onPress={() => confirmDelete(item)}

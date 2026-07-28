@@ -19,6 +19,7 @@ jest.mock('@/shared/lib/local-store', () => ({
   },
 }));
 jest.mock('@/entities/clip', () => ({
+  ...jest.requireActual('@/entities/clip'),
   useClips: () => mockClips,
   useClipsHydrated: () => true,
 }));
@@ -29,8 +30,8 @@ jest.mock('@/entities/roll', () => ({
 }));
 // Only the day heading comes from here, and its own suite covers the wording.
 // A stable key keeps this suite's assertions about grouping, not formatting.
-jest.mock('@/features/manage-recordings', () => ({
-  formatRecordingDay: (timestamp: number) => `day:${timestamp}`,
+jest.mock('@/shared/lib/datetime', () => ({
+  formatDayHeading: (timestamp: number) => `day:${timestamp}`,
   relativeDayLabel: () => undefined,
 }));
 

@@ -2,84 +2,64 @@
 
 ## User goal and screen flow
 
-Users open capture from the center safelight button, land directly in the darkroom viewfinder, tune the mood and clip duration inline, and capture short clips. Capture is **continuous**: each collected moment is added to **today's roll** as an undeveloped clip and the recorder stays on the viewfinder, ready for the next hold, so the user is never bounced Home mid-session. Feedback stays in-camera — the just-captured clip flies up into the roll counter, which then bumps and pops. Leaving is explicit: the ✕ dismisses to Home (no special landing animation — the roll simply reflects the new clips). The completed reel is deliberately not shown at capture time; developing a roll into a reel happens later, from the roll's detail screen ([Roll detail](roll-detail.md)).
+Users open capture from the center button of the tab bar, land directly in the viewfinder, choose a 3- or 5-second length inline, and shoot. Capture is **continuous**: each snap is saved and the recorder stays on the viewfinder, ready for the next hold, so the user is never bounced away mid-session. Feedback stays in-camera — the just-captured frame flies up into the snap counter, which then bumps and pops. Leaving is explicit: the ✕ dismisses to the Studio.
 
 ```text
-/ (tab bar center safelight button)
-  -- open capture --> /capture   (root-stack full-screen modal, darkroom viewfinder with inline mood/duration options)
-  -- press-and-hold --> clip flies into the "오늘의 롤 · N컷" counter, which bumps + pops; stay in the viewfinder --> press-and-hold again ...
-  -- ✕ (explicit leave) --> / (Home)   (roll reflects the collected clips; they stay undeveloped)
-
-/roll/[id] (Roll detail)
-  -- 현상하기 --> /capture/editing   (develop ceremony; composes and persists the reel)
-  -- 릴 공개 --> /capture/result     (sequential reel player)
+(tab bar center button, from any tab)
+  -- open capture --> /capture   (root-stack full-screen modal, viewfinder with an inline 3초/5초 toggle)
+  -- press-and-hold --> the frame flies into the "스냅 N개" counter, which bumps + pops; stay in the viewfinder --> hold again ...
+  -- ✕ (explicit leave) --> / (Studio)
 ```
 
-There is no longer a separate mood/duration setup screen: the options are tuned inline in the viewfinder (see [Capture options](#capture-options)). The develop ceremony (`/capture/editing`) and reel player (`/capture/result`) are driven by real roll data (`rollId`), not the capture flow. They are reached from Roll detail, not from the recorder; the recorder's library is browse/preview/delete only.
+**A snap is filed into nothing.** Capturing used to add the clip to today's roll under an "all-day" collection rule; the daily roll and automatic collection are both gone. A snap sits in the library until the user picks it into the tray ([Snap library](snaps.md), [Studio and movies](studio.md)), which is now the one place material is chosen.
 
 The supported capture options are owned by `entities/capture-session`:
 
-- Moods: `hip`, `lovely`, and `energy`
-- Durations: 3 or 5 seconds
-- Invalid or missing values normalize to `hip` and 3 seconds; these defaults seed the recorder's initial option state
+- Durations: 3 or 5 seconds; an invalid or missing value normalizes to 3, which seeds the recorder's initial state
+- Mood (`hip` / `lovely` / `energy`) was **removed**: the look belongs to the finished movie, chosen once in the editor with the whole cut list in view, rather than to each fragment as it is shot (concept §8)
 
 ## Capture options
 
-The mood and duration are tuned inline in the viewfinder, not on a separate setup screen. `/capture` opens straight into the recorder (`pages/capture-record`), which owns the selected mood and duration as local React state, seeded with the `entities/capture-session` defaults (`hip`, 3s).
+The duration is tuned inline in the viewfinder, not on a separate setup screen. `/capture` opens straight into the recorder (`pages/capture-record`), which owns the selected duration as local React state.
 
-While the recorder is `idle`, an options bar sits above the shutter: three mood chips (🔥 힙하게 / 💕 러블리하게 / ⚡ 신나게, accented with the darkroom ember / warm rose / lumen palette) and a `3초 / 5초` segment toggle. Selecting either triggers selection haptics on iOS and, for duration, resets the on-screen countdown. The options bar is hidden once a hold starts (`recording`/`saving`) and in the `review` stage, keeping the darkroom viewfinder clean; the top pill reads just "오늘의 롤". Because options can only change while idle, each collected clip is committed with the mood and duration shown at the moment the hold began.
-
-The former `context=cafe` recommendation banner was removed with the setup screen; context detection was never implemented.
+While the recorder is `idle`, a `3초 / 5초` segment toggle sits above the shutter. Selecting one triggers selection haptics on iOS and resets the on-screen countdown. The toggle is hidden once a hold starts (`recording`/`saving`) and in the `review` stage. Because the option can only change while idle, each snap is committed with the duration shown at the moment the hold began.
 
 ## Camera recording and review
 
 | Capability | Status | Platform and behavior |
 | --- | --- | --- |
 | Camera and microphone permission flow | `Functional` | iOS and Android request missing permissions and can open system settings after denial. |
-| Press-and-hold 3- or 5-second video recording | `Functional` | iOS and Android record at 720p while the shutter is held. Releasing the finger stops the recording early; the native `maxDuration` ends it automatically when the ring completes. Holds of 250ms or less are treated as accidental taps: the temp recording is discarded (never collected) and the screen silently returns to idle. |
+| Press-and-hold 3- or 5-second video recording | `Functional` | iOS and Android record at 720p while the shutter is held. Releasing the finger stops the recording early; the native `maxDuration` ends it automatically when the ring completes. Holds of 250ms or less are treated as accidental taps: the temp recording is discarded (never saved) and the screen silently returns to idle. |
 | Sound toggle | `Functional` | Recording can be muted; enabling sound requires microphone permission. During review the toggle mutes/unmutes the looping playback without restarting it. |
 | Front/back camera toggle | `Functional` | Available while the recorder is idle. |
-| 담기 (collect into today's roll) | `Functional` | On capture completion the temporary recording is moved into the app document directory, a clip is created from it, and the clip is added to today's daily roll (auto-created on the first capture of the day). Owned by `features/capture-moment`. |
-| Continuous collect | `Functional` | On a successful collect the recorder returns to `idle` and stays on the viewfinder — it never auto-navigates. Feedback is in-camera: a paused frame of the just-captured clip (`ui/collect-flight.tsx`) flies up from the viewfinder and is pulled into the top "오늘의 롤 · N컷" counter (~480ms, rendered beneath the top bar so it tucks in behind the pill); on arrival the displayed count bumps, the counter pops, and a "담김 · 오늘의 롤 N컷" badge shows for ~1.1s (plus a success haptic). The count shown in the pill trails the store until the clip lands, so the number rises as the clip arrives. The user can immediately hold again. Reduced motion skips the flight and pop (the count updates and the badge/haptic remain). |
-| Leave → Home | `Functional` | Leaving is explicit: the ✕ dismisses to **Home** (not the tab that opened capture) and selects the Home tab. There is no landing animation on Home — the contact sheet simply reflects the clips collected this session. |
-| Select a previous recording | `Functional` | The in-screen recording library can select (enters a preview/review stage) or delete a locally stored original. Deleting goes through `features/delete-clip`, so an original that was already collected into a roll is removed from that roll too (see [Recording archive](recording-archive.md#deleting-an-original)). |
+| Saving a snap | `Functional` | On capture completion the temporary recording is moved into the app document directory and a snap is created from it. Owned by `features/capture-moment`. Nothing else happens — the snap joins no movie and no tray. |
+| Continuous capture | `Functional` | On success the recorder returns to `idle` and stays on the viewfinder — it never auto-navigates. Feedback is in-camera: a paused frame of the just-captured snap (`ui/capture-flight.tsx`) flies up from the viewfinder into the top "스냅 N개" counter (~480ms, rendered beneath the top bar so it tucks in behind the pill); on arrival the displayed count bumps, the counter pops, and a "담김 · 스냅 N개" badge shows for ~1.1s (plus a success haptic). The count in the pill trails the store until the frame lands, so the number rises as it arrives. Reduced motion skips the flight and pop (the count updates and the badge/haptic remain). |
+| Leave → Studio | `Functional` | Leaving is explicit: the ✕ dismisses to the **Studio** (not the tab that opened capture), which is where the next step lives. |
+| Select a previous recording | `Functional` | The in-screen recording library can select (enters a preview/review stage) or delete a locally stored original. Deleting goes through `features/delete-snap`, so an original already used by a movie or sitting in the tray is removed from those too (see [Snap library](snaps.md#deleting-an-original)). |
 | Web recording | `Prototype` | The shutter is disabled and the UI explains that recording requires iOS or Android. |
 
-The page uses four explicit stages: `idle`, `recording`, `saving`, and `review`, presented as a darkroom viewfinder — a film-black surface with mono edge-print overlays (a live "오늘의 롤 · N컷" counter, the "꾹 눌러 담기" film-gate hint, an ember REC dot, a "컷을 담는 중…" badge while saving, and a brief "담김 · 오늘의 롤 N컷" badge after each collect) and an ember safelight shutter. Capture is the concept's press-and-hold ring gesture (concept §7): recording runs only while the shutter is held, and a safelight progress ring around the shutter (`ui/hold-ring.tsx`, react-native-svg stroke-dashoffset driven by Reanimated) fills linearly over the selected duration, rewinding over 250ms on release. When the OS "reduce motion" setting is on, the ring shows a static partial arc as the holding indicator instead of a continuous fill. The accidental-tap threshold is owned by `model/hold-gesture.ts`. On successful capture the recorder returns to `idle` and stays on the viewfinder for continuous collecting; leaving is explicit via ✕, which dismisses to Home (the arrival motion plays there). The `review` stage is reached only by selecting a recording from the library, not by capturing. Capture, 담기, and recording-library failures are displayed inside the camera screen and can be dismissed.
+The page uses four explicit stages: `idle`, `recording`, `saving`, and `review`, presented over a near-black surface with mono overlays (a live "스냅 N개" counter, the "꾹 눌러 촬영" hint, an ember REC dot, a "스냅을 저장하는 중…" badge while saving, and a brief "담김 · 스냅 N개" badge after each capture) and an ember shutter. Recording runs only while the shutter is held, and a progress ring around it (`ui/hold-ring.tsx`, react-native-svg stroke-dashoffset driven by Reanimated) fills linearly over the selected duration, rewinding over 250ms on release. When the OS "reduce motion" setting is on, the ring shows a static partial arc instead of a continuous fill. The accidental-tap threshold is owned by `model/hold-gesture.ts`. The `review` stage is reached only by selecting a recording from the library, not by capturing. Capture, save, and recording-library failures are displayed inside the camera screen and can be dismissed.
 
-Closing the recorder mid-recording stops the camera and discards the in-flight clip; nothing is persisted. The on-screen countdown is display-only — the actual stop is driven by the native `maxDuration`, so after the counter reaches zero the badge shows a finishing state until the recording completes.
+Closing the recorder mid-recording stops the camera and discards the in-flight snap; nothing is persisted. The on-screen countdown is display-only — the actual stop is driven by the native `maxDuration`, so after the counter reaches zero the badge shows a finishing state until the recording completes.
 
 The camera-permission-denied screen still exposes the recording library, so users can browse, select (which enters the review stage), and delete saved originals without camera permission.
 
-## Develop ceremony and reel presentation
-
-This flow operates on a real roll (`rollId`), reached from [Roll detail](roll-detail.md)'s 현상하기.
-
-| Capability | Status | Actual behavior |
-| --- | --- | --- |
-| Develop ceremony | `Partial` | `pages/capture-editing` runs a 0→100 progress animation (film-black frames blooming under a cold lumen scan line and deepening amber glow). On completion it composes and persists the roll's reel via `features/develop-roll` and moves the roll `undeveloped → developing → developed`. The animation itself is a timed presentation, not media processing, but the develop effect (reel composition + status) is real. Honors reduced motion: when the OS "reduce motion" setting is on, the scan/bloom is skipped and the ceremony jumps straight to the completed state (concept §7). |
-| Auto-combine (reel composition) | `Functional` | `features/develop-roll` builds the reel deterministically: clips ordered by their reference order, BGM chosen from the dominant clip mood, and a cut/fade transition chosen by clip count. This is the MVP rules-based combine (not AI). |
-| Reel playback | `Functional` | The reel (`pages/capture-result`) plays the roll's clips back-to-back using **double-buffered** `expo-video` players: while one clip plays, the next is preloaded and paused on its first frame, so each `playToEnd` swap is seam-free (no black flash). Play/pause and replay are supported; per-clip progress segments show position. It is a sequential playlist, not a single rendered file. |
-| Reel edit summary | `Partial` | The "이 릴에 들어간 것" tags show the reel's real transition and clip count; a generic BGM tag stands in for the (not-yet-audible) track. |
-| Persisted developed reel | `Functional` | The composed reel and the `developed` status are persisted on the roll (via `shared/lib/local-store`), so Roll detail shows 현상됨 and offers "릴 보기". |
-| Reel navigation | `Functional` | Users can replace the route with Archive or return to Capture Setup. |
-
-MVP honesty (see mvp-implementation-plan.md §5): the reel is a sequential playlist rather than a single exported MP4; there is no real BGM audio or AI editing. The final combined video is intended to be produced separately (AI-merged, downloadable), so the in-app reel is a preview; double buffering keeps its clip transitions seam-free. If the roll has no clips or no reel yet, the result screen shows an empty state instead of a player.
-
 ## Ownership and dependencies
 
-- `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, the inline mood/duration option state (idle-only), the in-camera collect feedback (roll counter pulse + "담김" badge), and its internal recording-library modal.
-- `src/features/capture-moment` owns the 담기 action: persisting the clip file, building clip metadata, and adding the clip to today's roll (creating the daily roll on first capture). It owns its own pending/error state and does not navigate.
-- `src/pages/capture-record/ui/collect-flight.tsx` owns the in-camera "clip flies into the roll counter" animation; the recorder page owns the trailing count, counter pop, and "담김" badge.
-- `src/entities/clip` owns clip metadata and its persisted store; `src/entities/roll` owns rolls, today's-roll selection/creation, and clip membership.
-- `src/_app/providers/daily-roll-gate.tsx` ensures today's roll exists on app entry (after the roll store hydrates).
-- `src/features/develop-roll` owns the 현상 action: rules-based reel composition (`compose-reel`) and the `undeveloped → developing → developed` transition with reel persistence.
-- `src/pages/capture-editing` (develop ceremony) drives the animation and triggers develop on completion; `src/pages/capture-result` (reel player) resolves the roll's reel to clip URIs (`use-reel`) and plays them sequentially (`reel-player`).
-- `src/entities/capture-session` owns capture option types, labels, and route-value normalization.
-- `src/features/manage-recordings` owns reusable local-recording state and actions (the recording library and archive). The library's date lines are formatted by `shared/lib/datetime`, not by this slice.
-- `src/shared/ui/video-preview` owns the business-agnostic looping video player used in the recorder review step.
-- `src/shared/lib/recording-files` adapts Expo FileSystem and supplies the web fallback; `src/shared/lib/local-store` persists clip/roll metadata as document-directory JSON.
+- `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, the inline duration state (idle-only), the in-camera feedback (counter pulse + "담김" badge), and its internal recording-library modal.
+- `src/features/capture-moment` owns saving a snap: persisting the file and building snap metadata. It owns its own pending/error state and does not navigate.
+- `src/pages/capture-record/ui/capture-flight.tsx` owns the "frame flies into the counter" animation; the recorder page owns the trailing count, counter pop, and badge.
+- `src/entities/snap` owns snap metadata and its persisted store.
+- `src/entities/capture-session` owns the capture duration type and its route-value normalization.
+- `src/features/manage-recordings` owns reusable local-recording state and actions. The library's date lines are formatted by `shared/lib/datetime`, not by this slice.
+- `src/shared/ui/video-preview` owns the business-agnostic looping video player used in the review step.
+- `src/shared/lib/recording-files` adapts Expo FileSystem and supplies the web fallback; `src/shared/lib/local-store` persists snap metadata as document-directory JSON.
 
 ## Persistence and privacy
 
-Original recordings are stored only in the Snaply app's document directory. They are not exported to the system media library, uploaded, shared, or synchronized. Removing the app also removes its recordings. See [Recording archive](recording-archive.md) for file behavior and management surfaces.
+Original recordings are stored only in the Snaply app's document directory. They are not exported to the system media library, uploaded, shared, or synchronized. Removing the app also removes its recordings. See [Snap library](snaps.md) for file behavior and management surfaces.
+
+## Known limitations
+
+- The counter shows the whole library's snap count, not a per-session count, so it never resets between capture sessions.
+- Nothing turns a snap into a movie yet; movie generation lands in later stages of the rebuild (`docs/guides/ai-vlog-studio/refactor-plan.md`).

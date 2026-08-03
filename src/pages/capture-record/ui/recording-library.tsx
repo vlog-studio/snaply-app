@@ -65,7 +65,7 @@ export function RecordingLibrary({
             </ThemedText>
           </View>
           <Pressable
-            accessibilityLabel="영상 보관함 닫기"
+            accessibilityLabel="스냅 목록 닫기"
             accessibilityRole="button"
             onPress={onClose}
             style={[styles.closeButton, { backgroundColor: theme.backgroundElement }]}

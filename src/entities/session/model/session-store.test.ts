@@ -94,7 +94,9 @@ describe('session store', () => {
     expect(mockAuthCallback).toBeDefined();
 
     await act(async () => mockAuthCallback!('SIGNED_IN', supabaseSession));
-    expect(result.current.currentUser).toEqual(expect.objectContaining({ id: 'user-1', provider: 'google' }));
+    expect(result.current.currentUser).toEqual(
+      expect.objectContaining({ id: 'user-1', provider: 'google' }),
+    );
     expect(result.current.hydrated).toBe(true);
 
     await act(async () => mockAuthCallback!('SIGNED_OUT', null));

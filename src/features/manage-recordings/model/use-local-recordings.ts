@@ -10,8 +10,8 @@ import {
  * Lists and saves the recording files on this device.
  *
  * Deletion deliberately does not live here. An original is more than its file —
- * it also has clip metadata and references held by rolls — so removing one is a
- * cross-entity action owned by `features/delete-clip`. Callers of this hook
+ * it also has snap metadata and references held by movies — so removing one is a
+ * cross-entity action owned by `features/delete-snap`. Callers of this hook
  * reload the list after that action reports what it deleted.
  */
 export function useLocalRecordings() {

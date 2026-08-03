@@ -70,9 +70,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  // Edge print — the signature type device: a mono frame-code stamped along a
-  // film's edge (e.g. "ROLL 019 · 2026-07-23 · 03/12"). Pair with an amber or
-  // ember themeColor.
+  // Mono micro-label — the app's signature small type, used for counts, states,
+  // and durations (e.g. "3 / 10 · 약 24초"). Pair with a muted or accent
+  // themeColor.
   edge: {
     fontFamily: Fonts.mono,
     fontSize: 11,

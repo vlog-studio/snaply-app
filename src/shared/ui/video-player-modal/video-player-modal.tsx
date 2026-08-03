@@ -26,11 +26,11 @@ export type VideoPlayerModalProps = {
  * Full-screen video playback over black: a looping native player with a close
  * control and a two-line edge-print overlay along the bottom.
  *
- * Business-agnostic — it takes a bare URI and two strings rather than a `Clip`,
- * like `NegativeFrame` does. That split is what lets the screens that play a cut
- * keep their own wording (the same cut reads as "3번째 컷" inside a roll and as
- * the day it was taken in the contact strip) while sharing one implementation of
- * the chrome around it.
+ * Business-agnostic — it takes a bare URI and two strings rather than a `Snap`,
+ * like `VideoFrame` does. That split is what lets the screens that play a video
+ * keep their own wording (the same snap reads as "3번째 컷" inside the editor and
+ * as its length in the library) while sharing one implementation of the chrome
+ * around it.
  *
  * The overlay text is drawn against arbitrary video rather than an app surface,
  * so the muted line is a white wash instead of `textSecondary` — the palette's
@@ -84,7 +84,7 @@ export function VideoPlayerModal({
 }
 
 const styles = StyleSheet.create({
-  // Pure black, not the darkroom ground: this is a letterbox around a frame.
+  // Pure black, not the app ground: this is a letterbox around a frame.
   screen: { flex: 1, backgroundColor: '#000000' },
   close: {
     position: 'absolute',

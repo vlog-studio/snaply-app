@@ -28,12 +28,7 @@ export function SocialLoginList() {
         />
       ))}
       {error ? (
-        <ThemedText
-          type="small"
-          themeColor="danger"
-          style={styles.error}
-          accessibilityRole="alert"
-        >
+        <ThemedText type="small" themeColor="danger" style={styles.error} accessibilityRole="alert">
           {error}
         </ThemedText>
       ) : null}

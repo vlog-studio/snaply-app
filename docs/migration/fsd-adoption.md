@@ -38,11 +38,11 @@ The stages below record how the starter structure was migrated. They remain usef
 Move the actual UI from `src/app/index.tsx` and `src/app/explore.tsx` into their respective page slices, leaving only re-exports in the route files.
 
 ```text
-src/pages/home/
-├── ui/home-page.tsx
+src/pages/studio/
+├── ui/studio-page.tsx
 └── index.ts
 
-src/app/index.tsx
+src/app/(tabs)/index.tsx
 ```
 
 Do not allow pages to import one another. If common code emerges, reclassify it by its actual meaning and usage scope.

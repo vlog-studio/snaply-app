@@ -1,0 +1,83 @@
+import { useMemo } from 'react';
+
+import { useMovies, type Movie, type MovieStatus, type MovieStyle } from '@/entities/movie';
+import { snapsByRefs, useSnapIndex, type SnapIndex } from '@/entities/snap';
+import { formatDayHeading } from '@/shared/lib/datetime';
+
+/** How many snap frames a movie card samples for its cover. */
+const CoverFrameCount = 3;
+
+/**
+ * A movie reduced to what a card draws: its identity, how much material it
+ * holds, how long it runs, and the first frames its cover samples.
+ */
+export type MovieSummary = {
+  id: string;
+  title: string;
+  status: MovieStatus;
+  style: MovieStyle;
+  /** Cuts the movie holds, counted from its references. */
+  snapCount: number;
+  /** Total length in seconds, summed from the resolved snaps. */
+  totalSec: number;
+  /** `오늘` / `어제` / `2026년 7월 20일` — when the movie was last worked on. */
+  dateLabel: string;
+  /** Up to three snap URIs, in cut order, for the cover. */
+  coverUris: string[];
+};
+
+function summarize(movie: Movie, snapIndex: SnapIndex): MovieSummary {
+  const snaps = snapsByRefs(movie.snapRefs, snapIndex);
+
+  return {
+    id: movie.id,
+    title: movie.title,
+    status: movie.status,
+    style: movie.style,
+    // Counted from the references, not the resolved snaps: how full a movie is
+    // is a fact about the movie, and a cut whose original was deleted still
+    // occupied a slot in it.
+    snapCount: movie.snapRefs.length,
+    totalSec: snaps.reduce((sum, snap) => sum + snap.durationSec, 0),
+    dateLabel: formatDayHeading(movie.updatedAt),
+    coverUris: snaps.slice(0, CoverFrameCount).map((snap) => snap.uri),
+  };
+}
+
+/**
+ * Every movie as a card, most recently worked on first.
+ *
+ * The movie↔snap join is cross-entity composition neither entity may own, and
+ * both the studio board and the movie grid need it, which is what makes this a
+ * widget rather than page code. The whole library is indexed once here and
+ * shared across every movie, rather than resolved per movie.
+ */
+export function useMovieSummaries(): MovieSummary[] {
+  const movies = useMovies();
+  const snapIndex = useSnapIndex();
+
+  return useMemo(
+    () =>
+      [...movies]
+        .sort((left, right) => right.updatedAt - left.updatedAt)
+        .map((movie) => summarize(movie, snapIndex)),
+    [movies, snapIndex],
+  );
+}
+
+/**
+ * The studio board's lane: everything still being worked on — drafts, jobs in
+ * flight, and failures. "Not finished" rather than "draft", so a movie whose
+ * generation broke surfaces here instead of falling between the board and the
+ * finished grid.
+ */
+export function useInProgressMovies(): MovieSummary[] {
+  const summaries = useMovieSummaries();
+  return useMemo(() => summaries.filter((movie) => movie.status !== 'ready'), [summaries]);
+}
+
+/** Finished movies, most recent first. */
+export function useReadyMovies(): MovieSummary[] {
+  const summaries = useMovieSummaries();
+  return useMemo(() => summaries.filter((movie) => movie.status === 'ready'), [summaries]);
+}

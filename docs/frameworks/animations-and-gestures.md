@@ -26,10 +26,15 @@ Imitate the closest existing implementation instead of inventing a new shape.
 | Need | Canonical file | Shape |
 | --- | --- | --- |
 | Mount fade/slide-in | `src/shared/ui/fade-in-view/fade-in-view.tsx` | Shared value driven by `withTiming` in a mount effect; reusable wrapper with `delay`/`duration` props |
-| One-shot choreography with a completion callback | `src/pages/capture-record/ui/collect-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
+| One-shot choreography with a completion callback | `src/pages/capture-record/ui/capture-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
 | Gesture/state-driven progress indicator | `src/pages/capture-record/ui/hold-ring.tsx` | Shared value + `useAnimatedProps` on an SVG element; fills while a prop is true, rewinds on release |
-| Drag-and-drop with items animating aside | `src/pages/roll-detail/ui/cut-sheet-grid.tsx` + `src/pages/roll-detail/model/reorder-layout.ts` | Absolute-positioned cells; order in a shared value; pan gesture with long-press lift; springs for reflow/settle |
 | Splash exit | `src/_app/routes/animated-splash-overlay.tsx` | The one `Keyframe`/`entering` usage in the app (see the Expo Go caveat below before adding another) |
+
+> The drag-reorder grid (`cut-sheet-grid.tsx` + `reorder-layout.ts`) was removed with
+> the roll sheet in the studio rebuild. The rules it taught are kept below, because the
+> movie editor's cut list is the same problem; recover the implementation from git
+> history (`git show f3324b1:src/pages/roll-detail/ui/cut-sheet-grid.tsx`) rather than
+> reinventing it.
 
 ## Rules
 
@@ -53,14 +58,14 @@ State that changes every frame (drag position, progress, the visual order of a
 drag grid) lives in shared values, mutated by worklets. Mirror it to React state
 via `runOnJS` only at meaningful boundaries (a slot swap, a completion) — for
 labels, badges, or commit payloads — never per frame. The commit itself stays a
-plain store/feature call made from the JS side (`cut-sheet-grid` reports the order;
-the page calls `reorderRollClips`).
+plain store/feature call made from the JS side (the grid reports the order; the page
+commits it).
 
 ### Extract decision math into the `model` segment, worklet-marked, unit-tested
 
 Geometry and ordering rules a gesture evaluates ("which slot is the finger over",
 "what does the order become") are pure functions in the slice's `model/` with a
-`'worklet'` directive (`reorder-layout.ts`). The directive is inert under Jest, so
+`'worklet'` directive (`reorder-layout.ts` did this). The directive is inert under Jest, so
 the same functions get table-driven unit tests. Animation timing itself is not
 unit-testable — verify it on device and test the math instead.
 
@@ -71,7 +76,7 @@ it thinks happen during render: inside `useMemo`, and inside gesture-builder
 callbacks (`Gesture.Pan().onStart(...)`) defined in the component body. `'use no
 memo'` does **not** silence it. The accepted fix is structural: build the gesture in
 a plain module-level factory that takes the shared values as arguments
-(`buildDragGesture` in `cut-sheet-grid.tsx`). Writes inside `useEffect`,
+(`buildDragGesture` did this). Writes inside `useEffect`,
 `useAnimatedReaction`, and `useAnimatedStyle` are fine.
 
 ### Gestures inside scrollables
@@ -98,7 +103,7 @@ from the roll sheet:
 - Derive layout width from `useWindowDimensions` + the known content constraints
   instead of measuring, when the container's width is deterministic.
 - Thumbnails: `useVideoThumbnail` answers synchronously for frames already resolved
-  this session, and `NegativeFrame` uses `cachePolicy="memory-disk"` and skips its
+  this session, and `VideoFrame` uses `cachePolicy="memory-disk"` and skips its
   fade when the frame was known at mount. Keep those properties intact.
 
 ### Motion values

@@ -4,7 +4,7 @@ import { Directory, File, Paths } from 'expo-file-system';
  * File-based JSON key-value adapter over the app's document directory. It fills
  * the "local metadata store" gap for general, growing data (clips, rolls) that
  * does not belong in SecureStore — SecureStore is for small secrets and has a
- * per-value size limit, whereas clip/roll collections grow without bound.
+ * per-value size limit, whereas snap/movie collections grow without bound.
  *
  * Shaped as a zustand `StateStorage`, so a persisted store can back its
  * `persist(...)` middleware with `createJSONStorage(() => localStore)`. Each key

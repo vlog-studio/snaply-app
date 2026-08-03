@@ -1,21 +1,12 @@
-export type CaptureMood = 'hip' | 'lovely' | 'energy';
+/**
+ * How long one snap runs. Short by design — a snap is raw material, not a take.
+ *
+ * Mood used to live here too. It moved to the movie: the look belongs to the
+ * finished vlog, chosen once in the editor with the whole cut list in view,
+ * rather than to each fragment as it is shot (concept §8).
+ */
 export type CaptureDuration = 3 | 5;
-
-const moodLabels: Record<CaptureMood, string> = {
-  hip: '힙하게',
-  lovely: '러블리하게',
-  energy: '신나게',
-};
-
-export function normalizeCaptureMood(value: string | undefined): CaptureMood {
-  if (value === 'lovely' || value === 'energy') return value;
-  return 'hip';
-}
 
 export function normalizeCaptureDuration(value: string | undefined): CaptureDuration {
   return value === '5' ? 5 : 3;
-}
-
-export function getCaptureMoodLabel(mood: CaptureMood) {
-  return moodLabels[mood];
 }

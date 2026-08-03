@@ -1,35 +1,30 @@
 import { Platform } from 'react-native';
 
-// Darkroom palette — the app is a single world (the darkroom). Colors are drawn
-// from film's real workspace: a warm near-black ground under an amber
-// safelight, with a cold cyan (lightbox) as the temperature counter-axis.
-// The app is dark-fixed (concept §5), so both scheme keys resolve to the same
-// darkroom values; `useTheme` always returns this palette.
-const darkroom = {
+// The app's one palette. A warm near-black ground with an ember accent and a
+// cold cyan counter-axis; video reads better against near-black than against a
+// bright surface, which is why the app is dark-fixed rather than theme-aware.
+// Both scheme keys resolve to the same values; `useTheme` always returns this.
+const palette = {
   text: '#F1E6DA', // ink — warm off-white
   background: '#16110D', // ground — warm black-brown, not pure black
   backgroundElement: '#211910', // surface
   backgroundSelected: '#2C2118', // surface raised
   textSecondary: '#A8927E', // ink dim
   border: '#3A2C20', // line
-  primary: '#EA5E38', // ember — safelight, main accent / capture
+  primary: '#EA5E38', // ember — main accent, capture
   primaryPressed: '#F2734E',
   onPrimary: '#1A0F0A', // ink on ember (dark, high contrast)
-  ai: '#82D6CE', // lumen — cold lightbox glow, used for AI/develop
-  aiSoft: '#16302E', // dark cyan surface
-  media: '#0E0B08', // film black — negatives, viewfinder
-  warmSurface: '#241A12',
-  success: '#82D6CE', // lumen reads as the "developed / cool" positive
-  successSoft: '#16302E',
+  ai: '#82D6CE', // lumen — cold glow, used for AI/generation
+  media: '#0E0B08', // near-black behind video: frames, viewfinder
+  warmSurface: '#241A12', // raised warm panel, for notices
   danger: '#F26D6D',
-  amber: '#E7A24A', // negative film base — edge-code prints
-  lumen: '#82D6CE', // lightbox cool — cold contrast axis
-  film: '#0E0B08', // film gate black
+  amber: '#E7A24A', // warm secondary accent
+  lumen: '#82D6CE', // cold contrast axis
 } as const;
 
 export const Colors = {
-  light: darkroom,
-  dark: darkroom,
+  light: palette,
+  dark: palette,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;

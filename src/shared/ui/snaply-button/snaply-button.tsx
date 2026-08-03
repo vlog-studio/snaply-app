@@ -39,8 +39,8 @@ export function SnaplyButton({
           borderColor: variant === 'secondary' ? theme.border : 'transparent',
           opacity: disabled ? 0.45 : state.pressed ? 0.78 : 1,
         },
-        // Safelight glow: the primary (capture) button reads as the amber
-        // safelight lamp in the darkroom.
+        // Ember glow, so the primary action reads as the warm lamp of the
+        // otherwise near-black UI.
         variant === 'primary' && !disabled && styles.glow,
         typeof style === 'function' ? style(state) : style,
       ]}

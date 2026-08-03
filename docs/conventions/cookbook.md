@@ -88,26 +88,26 @@ bypass.
 **When:** every file under `src/app`. Routes wire a URL to a page; they hold no logic.
 
 **Canonical:** [`src/app/(tabs)/index.tsx`](../../src/app/(tabs)/index.tsx),
-[`src/app/roll/[id].tsx`](../../src/app/roll/[id].tsx),
+[`src/app/(tabs)/snaps.tsx`](../../src/app/(tabs)/snaps.tsx),
 [`src/app/_layout.tsx`](../../src/app/_layout.tsx).
 
 ```ts
 // src/app/(tabs)/index.tsx — the common case: re-export the page Public API
-export { HomePage as default } from '@/pages/home';
+export { StudioPage as default } from '@/pages/studio';
 
 // src/app/_layout.tsx — same shape for the root layout: implementation lives in _app
 export { RootLayout as default } from '@/_app/routes';
 ```
 
 ```tsx
-// src/app/roll/[id].tsx — thin adapter variant: read params, pass as explicit props
+// src/app/(tabs)/snaps.tsx — thin adapter variant: read params, pass as explicit props
 import { useLocalSearchParams } from 'expo-router';
 
-import { RollDetailPage } from '@/pages/roll-detail';
+import { SnapsPage } from '@/pages/snaps';
 
-export default function RollDetailRoute() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  return <RollDetailPage rollId={typeof id === 'string' ? id : undefined} />;
+export default function SnapsRoute() {
+  const { select } = useLocalSearchParams<{ select?: string }>();
+  return <SnapsPage startSelecting={select === '1'} />;
 }
 ```
 
@@ -509,9 +509,9 @@ export function useLocalX() {
   Keep the file-system/native calls in a shared adapter (§12), not in the hook.
 - Keep only the mutations that stay inside this resource. The canonical hook lists and
   saves recording files but no longer deletes them: deleting an original also has to
-  reach clip metadata and every roll referencing it, so it became its own feature
-  ([`use-delete-clips.ts`](../../src/features/delete-clip/model/use-delete-clips.ts)) that
-  composes both entities. When a mutation spans entities, it outgrew this pattern — the
+  reach snap metadata, every movie referencing it, and the tray, so it became its own
+  feature ([`use-delete-snaps.ts`](../../src/features/delete-snap/model/use-delete-snaps.ts))
+  that composes all three entities. When a mutation spans entities, it outgrew this pattern — the
   caller then reloads the list from the ids that action reports.
 
 ---
@@ -602,7 +602,7 @@ if (Platform.OS !== 'web') {
 
 **When:** any `pages/*/ui` or component that renders.
 
-**Canonical:** [`home-page.tsx`](../../src/pages/home/ui/home-page.tsx); tokens/hooks in
+**Canonical:** [`studio-page.tsx`](../../src/pages/studio/ui/studio-page.tsx); tokens/hooks in
 [`shared/ui/theme`](../../src/shared/ui/theme); text via
 [`ThemedText`](../../src/shared/ui/themed-text);
 [`SnaplyButton`](../../src/shared/ui/snaply-button).
@@ -730,7 +730,7 @@ await waitFor(() => expect(result.current.isLoading).toBe(false));
 **When:** a store is a module-level singleton — exercise it through its exported hooks,
 and mock the persistence backend so no native storage is touched.
 
-**Canonical:** [`clip-store.test.ts`](../../src/entities/clip/model/clip-store.test.ts).
+**Canonical:** [`snap-store.test.ts`](../../src/entities/snap/model/snap-store.test.ts).
 
 ```ts
 jest.mock('@/shared/lib/local-store', () => ({

@@ -29,23 +29,42 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+/**
+ * The app's two families. `sans` is Pretendard GOV — the app's voice, and the
+ * only family for prose, headings, and controls; `mono` is the system
+ * monospace, kept for the `edge`/`code` micro-labels (counts, durations,
+ * states), since Pretendard ships no monospaced face.
+ *
+ * Pretendard GOV is embedded natively by the `expo-font` plugin in `app.json`,
+ * not loaded with `useFonts`, so it is there on the first frame: no gate in the
+ * root layout and no flash of a fallback face. One family name covers every
+ * weight on both platforms — iOS groups the faces by their typographic family
+ * (name ID 16, `Pretendard GOV` in every file), Android by the font-family XML
+ * the plugin generates from `fontDefinitions` — so `fontFamily` pairs with
+ * `fontWeight` and no style ever names a single face.
+ *
+ * `assets/fonts` holds exactly the four weights the type roles below use (400,
+ * 500, 700, 800) and nothing else, because each face is ~5MB of app binary. A
+ * weight outside that set resolves to the nearest embedded face, and **600
+ * lands exactly between 500 and 700** — a tie iOS breaks toward 500 — so treat
+ * the four as the whole set rather than reaching for a weight that only
+ * half-renders.
+ *
+ * The `web` branch is a courtesy for `npm run web`, not a product surface: the
+ * app ships to iOS and Android only, so no webfont is served and a browser
+ * falls back down the `--font-body` stack in `global.css`.
+ */
 export const Fonts = Platform.select({
   ios: {
-    sans: 'system-ui',
-    serif: 'ui-serif',
-    rounded: 'ui-rounded',
+    sans: 'Pretendard GOV',
     mono: 'ui-monospace',
   },
   default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
+    sans: 'Pretendard GOV',
     mono: 'monospace',
   },
   web: {
     sans: 'var(--font-body)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-display)',
     mono: 'var(--font-mono)',
   },
 });

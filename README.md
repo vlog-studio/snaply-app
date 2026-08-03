@@ -160,7 +160,7 @@ src/
 | `expo-glass-effect` | iOS 리퀴드 글래스 효과(예약). |
 | `expo-symbols` | iOS SF Symbols 아이콘(예약). |
 | `@expo/ui` | 네이티브 SwiftUI/Jetpack Compose 컴포넌트(예약). |
-| `expo-font` | 커스텀 폰트 로딩(예약). |
+| `expo-font` | 본문 폰트 Pretendard GOV를 네이티브에 내장. (app.json 플러그인) |
 
 ### 앱 셸과 시스템
 

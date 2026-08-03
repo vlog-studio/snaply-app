@@ -47,6 +47,32 @@
         }
       ],
       [
+        "expo-font",
+        {
+          "android": {
+            "fonts": [
+              {
+                "fontFamily": "Pretendard GOV",
+                "fontDefinitions": [
+                  { "path": "./assets/fonts/PretendardGOV-Regular.ttf", "weight": 400 },
+                  { "path": "./assets/fonts/PretendardGOV-Medium.ttf", "weight": 500 },
+                  { "path": "./assets/fonts/PretendardGOV-Bold.ttf", "weight": 700 },
+                  { "path": "./assets/fonts/PretendardGOV-ExtraBold.ttf", "weight": 800 }
+                ]
+              }
+            ]
+          },
+          "ios": {
+            "fonts": [
+              "./assets/fonts/PretendardGOV-Regular.ttf",
+              "./assets/fonts/PretendardGOV-Medium.ttf",
+              "./assets/fonts/PretendardGOV-Bold.ttf",
+              "./assets/fonts/PretendardGOV-ExtraBold.ttf"
+            ]
+          }
+        }
+      ],
+      [
         "expo-location",
         {
           "locationWhenInUsePermission": "찍은 스냅이 어디에서 촬영됐는지 기록해 같은 장소의 스냅을 한 편으로 묶고, 주변 촬영 스팟을 추천해 드리기 위해 위치 접근이 필요해요.",

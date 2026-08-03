@@ -34,6 +34,7 @@ export function ThemedText({
     <Text
       selectable={selectable}
       style={[
+        styles.base,
         { color: theme.text },
         type === 'default' && styles.default,
         type === 'display' && styles.display,
@@ -58,18 +59,23 @@ export function ThemedText({
 }
 
 // Each variant is a step of `Typography` plus the things that make it a role —
-// family, weight, letter spacing, casing. No variant writes a size or a leading
-// of its own: those belong to the scale, and a role that needs different ones
-// needs a new step there instead.
+// weight, letter spacing, casing. No variant writes a size or a leading of its
+// own: those belong to the scale, and a role that needs different ones needs a
+// new step there instead. The family comes from `base` and only the two
+// mono-voiced roles name one at all.
 const styles = StyleSheet.create({
+  // Pretendard GOV under every role, so a variant declares a family only to
+  // leave it — `edge` and `code` do, for the system monospace. Callers' `style`
+  // still lands after this, and after the variant.
+  base: { fontFamily: Fonts.sans },
   xsmall: { ...Typography.xsmall, fontWeight: 500 },
   small: { ...Typography.small, fontWeight: 500 },
   smallBold: { ...Typography.small, fontWeight: 700 },
   default: { ...Typography.body, fontWeight: 500 },
-  display: { ...Typography.display, fontFamily: Fonts.rounded, fontWeight: 800 },
-  title: { ...Typography.title, fontFamily: Fonts.rounded, fontWeight: 800 },
-  subtitle: { ...Typography.subtitle, fontFamily: Fonts.rounded, fontWeight: 700 },
-  heading: { ...Typography.heading, fontFamily: Fonts.rounded, fontWeight: 700 },
+  display: { ...Typography.display, fontWeight: 800 },
+  title: { ...Typography.title, fontWeight: 800 },
+  subtitle: { ...Typography.subtitle, fontWeight: 700 },
+  heading: { ...Typography.heading, fontWeight: 700 },
   eyebrow: {
     ...Typography.xsmall,
     fontWeight: 800,

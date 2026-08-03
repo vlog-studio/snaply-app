@@ -633,9 +633,16 @@ export function XPage() {
   tokens instead of magic numbers.
 - Render text with `ThemedText` (`type` + `themeColor`) rather than raw `Text`.
 - `Typography` owns the size steps and their leading; `ThemedText` variants add only
-  family, weight, letter spacing, and casing on top of a step. Text that cannot be a
+  weight, letter spacing, and casing on top of a step. Text that cannot be a
   `ThemedText` — a `TextInput`, a glyph drawn over video — still reads its size from
   `Typography` (`Typography.body.fontSize`) rather than a literal.
+- The family comes from `Fonts` (`Fonts.sans` is Pretendard GOV, embedded natively;
+  `Fonts.mono` is the system monospace for the `edge`/`code` micro-labels). `ThemedText`
+  applies it once for every variant, so only text outside `ThemedText` names a family —
+  and it names `Fonts.sans`, never a single face like `'PretendardGOV-Bold'`. Pair it
+  with `fontWeight` from the four embedded weights **400 / 500 / 700 / 800**; 600 is not
+  embedded and resolves down to 500 (see
+  [app branding and native config](../workflows/app-branding-and-native-config.md#app-font)).
 - Respect insets with `useTopContentInset()` / `useTabBarHeight()`.
 
 ---

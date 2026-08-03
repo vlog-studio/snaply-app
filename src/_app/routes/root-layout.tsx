@@ -10,7 +10,7 @@ import {
   useIsRecovering,
   useSessionHydrated,
 } from '@/entities/session';
-import { useTheme } from '@/shared/ui/theme';
+import { Fonts, useTheme } from '@/shared/ui/theme';
 
 import { AnimatedSplashOverlay } from './animated-splash-overlay';
 import './register-background-tasks';
@@ -48,6 +48,12 @@ function RootStack() {
         headerShadowVisible: false,
         headerStyle: { backgroundColor: theme.background },
         headerTintColor: theme.text,
+        // A header title is the one piece of app text React Navigation draws
+        // rather than `ThemedText`, so it names the family itself. The weight is
+        // explicit because the navigator's own default is 600 — the one weight
+        // that is not embedded (see `Fonts`) — which would resolve down to 500
+        // and leave every header lighter than the `heading` it stands in for.
+        headerTitleStyle: { fontFamily: Fonts.sans, fontWeight: 700 },
         contentStyle: { backgroundColor: theme.background },
       }}
     >

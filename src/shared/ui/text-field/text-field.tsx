@@ -1,7 +1,7 @@
 import { forwardRef, useState } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
-import { Radius, Spacing, Typography, useTheme } from '@/shared/ui/theme';
+import { Fonts, Radius, Spacing, Typography, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 export type TextFieldProps = TextInputProps & {
@@ -77,10 +77,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius.medium,
     borderCurve: 'continuous',
     paddingHorizontal: Spacing.four,
-    // Body size and weight, matching `ThemedText`'s default so a field reads as
-    // the same text as the screen around it. Only the size is taken from the
-    // scale: `lineHeight` on a `TextInput` shifts the text off the input's own
-    // vertical centering on Android, and `minHeight` already sets the height.
+    // Body family, size, and weight, matching `ThemedText`'s default so a field
+    // reads as the same text as the screen around it — a `TextInput` is outside
+    // `ThemedText`, so it names the family itself. Only the size is taken from
+    // the scale: `lineHeight` on a `TextInput` shifts the text off the input's
+    // own vertical centering on Android, and `minHeight` already sets the height.
+    fontFamily: Fonts.sans,
     fontSize: Typography.body.fontSize,
     fontWeight: '500',
   },

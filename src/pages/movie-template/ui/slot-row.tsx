@@ -1,38 +1,63 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { FilledSlot } from '@/features/fill-template';
-import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
+import { formatSeconds, formatTimestamp } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
 
 export type SlotRowProps = {
   filled: FilledSlot;
+  index: number;
   onShoot: (slotId: string) => void;
   onDrop: (slotId: string) => void;
   onRestore: (slotId: string) => void;
+  onMove: (index: number, direction: -1 | 1) => void;
 };
 
-const FrameWidth = 54;
-const FrameHeight = 96;
+/**
+ * Square on purpose, not 9:16 like the snap it samples. The frame is an
+ * identifying glance, and matching the source ratio only bought 32dp of row
+ * height that pushed the next scene off screen — the list has to be scannable as
+ * an *order* of scenes, which costs more than a full-height crop is worth.
+ * `VideoFrame` covers, so the middle of the shot survives.
+ */
+const FrameSize = 64;
+
+/** Icon buttons sit below the 44dp minimum, so every one of them carries hitSlop. */
+const ControlSize = 28;
+const ControlHitSlop = 10;
+const IconSize = 18;
 
 /**
- * One scene of the template: what to shoot, and what the match put there.
+ * One scene of the template: what to shoot, what the match put there, and the
+ * controls that reorder or clear it.
  *
- * The label is the instruction and the line under the frame is the evidence —
- * when the snap was taken, and how sure the app is it belongs to the same outing.
- * They are kept visibly separate on purpose: the app has not looked at the
- * picture and must not read as though it has, so it reports a time and a
- * percentage rather than claiming the snap *is* a 골목.
+ * The label is the instruction and the line under it is the evidence — when the
+ * snap was taken, and how sure the app is it belongs to the same outing. They are
+ * kept visibly separate on purpose: the app has not looked at the picture and
+ * must not read as though it has, so it reports a time and a percentage rather
+ * than claiming the snap *is* a 골목.
+ *
+ * The percentage is printed bare. It sat behind `같은 외출 확신 NN%` and that
+ * label, repeated down six rows that all score the same, cost more width than it
+ * bought — what the number measures belongs in the screen's copy once, not in
+ * every row. See `docs/features/movie-templates.md`.
  */
-export function SlotRow({ filled, onShoot, onDrop, onRestore }: SlotRowProps) {
+export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: SlotRowProps) {
   const theme = useTheme();
-  const { slot, snap, confidence } = filled;
+  const { slot, snap, confidence, canMoveUp, canMoveDown } = filled;
 
   return (
     <View style={[styles.row, { borderColor: theme.border }]}>
       {snap ? (
-        <VideoFrame uri={snap.uri} style={styles.frame} />
+        // `VideoFrame` absolute-fills its parent, so the frame's size has to live
+        // on a wrapper — handing it to the component directly takes the thumbnail
+        // out of the row's flow and the body then renders on top of it.
+        <View style={[styles.frame, { borderColor: theme.border }]}>
+          <VideoFrame uri={snap.uri} />
+        </View>
       ) : (
         <View
           style={[
@@ -51,87 +76,137 @@ export function SlotRow({ filled, onShoot, onDrop, onRestore }: SlotRowProps) {
           <ThemedText type="smallBold">{slot.label}</ThemedText>
           {confidence !== undefined ? (
             <ThemedText selectable={false} type="edge" themeColor="lumen">
-              같은 외출 확신 {Math.round(confidence * 100)}%
+              {Math.round(confidence * 100)}%
             </ThemedText>
           ) : null}
         </View>
 
         <ThemedText type="small" themeColor="textSecondary">
           {snap
-            ? `${formatDateTime(snap.capturedAt)} · ${formatSeconds(snap.durationSec)}`
+            ? `${formatTimestamp(snap.capturedAt)} · ${formatSeconds(snap.durationSec)}`
             : slot.hint}
         </ThemedText>
 
-        <View style={styles.actions}>
-          {snap ? (
-            confidence === undefined ? (
+        {snap === undefined || confidence === undefined ? (
+          <View style={styles.actions}>
+            {snap ? (
               <ThemedText selectable={false} type="edge" themeColor="primary">
                 방금 찍은 컷
               </ThemedText>
             ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${slot.label} 컷 빼기`}
-                hitSlop={8}
-                onPress={() => onDrop(slot.id)}
-              >
-                <ThemedText selectable={false} type="edge" themeColor="textSecondary">
-                  빼기
-                </ThemedText>
-              </Pressable>
-            )
-          ) : (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${slot.label} 지금 찍기`}
-                hitSlop={8}
-                onPress={() => onShoot(slot.id)}
-              >
-                <ThemedText selectable={false} type="edge" themeColor="primary">
-                  지금 찍기
-                </ThemedText>
-              </Pressable>
-              {filled.isDropped ? (
+              <>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${slot.label} 되돌리기`}
+                  accessibilityLabel={`${slot.label} 지금 찍기`}
                   hitSlop={8}
-                  onPress={() => onRestore(slot.id)}
+                  onPress={() => onShoot(slot.id)}
                 >
-                  <ThemedText selectable={false} type="edge" themeColor="textSecondary">
-                    되돌리기
+                  <ThemedText selectable={false} type="edge" themeColor="primary">
+                    지금 찍기
                   </ThemedText>
                 </Pressable>
-              ) : null}
-            </>
-          )}
-        </View>
+                {filled.isDropped ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${slot.label} 되돌리기`}
+                    hitSlop={8}
+                    onPress={() => onRestore(slot.id)}
+                  >
+                    <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+                      되돌리기
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
+        ) : null}
       </View>
+
+      {/* Order first, then removal — the two things done to a row that already has
+          a snap. An empty row has nothing to move or clear, so it gets neither. */}
+      {snap ? (
+        <View style={styles.controls}>
+          <View style={styles.arrows}>
+            <MoveButton
+              label={`${slot.label} 위로`}
+              icon="chevron-up"
+              enabled={canMoveUp}
+              onPress={() => onMove(index, -1)}
+            />
+            <MoveButton
+              label={`${slot.label} 아래로`}
+              icon="chevron-down"
+              enabled={canMoveDown}
+              onPress={() => onMove(index, 1)}
+            />
+          </View>
+
+          {confidence !== undefined ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${slot.label} 컷 빼기`}
+              hitSlop={ControlHitSlop}
+              onPress={() => onDrop(slot.id)}
+              style={styles.control}
+            >
+              <Ionicons color={theme.textSecondary} name="close" size={IconSize} />
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+type MoveButtonProps = {
+  label: string;
+  icon: 'chevron-up' | 'chevron-down';
+  enabled: boolean;
+  onPress: () => void;
+};
+
+/** Kept drawn but dimmed when it cannot fire, so the control column never reflows. */
+function MoveButton({ label, icon, enabled, onPress }: MoveButtonProps) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !enabled }}
+      disabled={!enabled}
+      hitSlop={ControlHitSlop}
+      onPress={onPress}
+      style={[styles.control, { opacity: enabled ? 1 : 0.3 }]}
+    >
+      <Ionicons color={theme.textSecondary} name={icon} size={IconSize} />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.three,
     borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.two,
-  },
-  frame: {
-    width: FrameWidth,
-    height: FrameHeight,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
+    padding: Spacing.one,
+  },
+  frame: {
+    width: FrameSize,
+    height: FrameSize,
+    borderRadius: Radius.xsmall,
+    borderCurve: 'continuous',
+    borderWidth: 1,
     overflow: 'hidden',
   },
   placeholder: {
-    width: FrameWidth,
-    height: FrameHeight,
-    borderRadius: Radius.small,
+    width: FrameSize,
+    height: FrameSize,
+    borderRadius: Radius.xsmall,
     borderCurve: 'continuous',
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -142,8 +217,19 @@ const styles = StyleSheet.create({
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    // The percentage stays pushed to the far edge even though it is now bare.
+    // Sitting flush against the label, `골목 70%` reads as "70% sure this is an
+    // alley" — the one claim the match cannot make.
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
   actions: { flexDirection: 'row', gap: Spacing.three, marginTop: Spacing.half },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
+  arrows: { gap: Spacing.half },
+  control: {
+    width: ControlSize,
+    height: ControlSize,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

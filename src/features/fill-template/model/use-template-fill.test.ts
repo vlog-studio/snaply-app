@@ -111,6 +111,77 @@ describe('useTemplateFill', () => {
     expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['a', 'b', undefined]);
   });
 
+  it('swaps two snaps without moving the slots they sit in', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.moveSnap(0, 1));
+
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['b', 'a', undefined]);
+    // The template's own scene order is not the user's to change.
+    expect(result.current.slots.map((slot) => slot.slot.label)).toEqual([
+      '출발',
+      '골목',
+      '돌아오는 길',
+    ]);
+    expect(result.current.snapIds).toEqual(['b', 'a']);
+  });
+
+  it('keeps each snap’s confidence with it across a swap', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+    const before = result.current.slots.map((slot) => slot.confidence);
+
+    await act(async () => result.current.moveSnap(0, 1));
+
+    expect(result.current.slots[0].confidence).toBe(before[1]);
+    expect(result.current.slots[1].confidence).toBe(before[0]);
+  });
+
+  it('counts a reorder as an edit and undoes it with the rest', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.moveSnap(0, 1));
+    expect(result.current.isEdited).toBe(true);
+
+    await act(async () => result.current.resetSlots());
+    expect(result.current.isEdited).toBe(false);
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['a', 'b', undefined]);
+  });
+
+  it('refuses to move a row off either end of the list', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    expect(result.current.slots[0].canMoveUp).toBe(false);
+    expect(result.current.slots[2].canMoveDown).toBe(false);
+
+    await act(async () => result.current.moveSnap(0, -1));
+    await act(async () => result.current.moveSnap(2, 1));
+
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['a', 'b', undefined]);
+    expect(result.current.isEdited).toBe(false);
+  });
+
+  it('pins a dropped row, and the arrows either side of it, rather than swapping nothing', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.dropSlot('alley'));
+
+    expect(result.current.slots[1].canMoveUp).toBe(false);
+    expect(result.current.slots[1].canMoveDown).toBe(false);
+    expect(result.current.slots[0].canMoveDown).toBe(false);
+    expect(result.current.slots[2].canMoveUp).toBe(false);
+  });
+
+  it('pins a row the user shot for, since its snap belongs to that slot', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.fillSlot('back', makeSnap('c', 20)));
+
+    expect(result.current.slots[2].canMoveUp).toBe(false);
+    expect(result.current.slots[1].canMoveDown).toBe(false);
+    // The row above the pinned one can still trade with the row above *it*.
+    expect(result.current.slots[1].canMoveUp).toBe(true);
+  });
+
   it('leaves every slot empty and says so when the library has no outing', async () => {
     mockSnaps.mockReturnValue([]);
     const { result } = await renderHook(() => useTemplateFill(template));

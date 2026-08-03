@@ -80,9 +80,10 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [notice, setNotice] = useState<string>();
 
-  const trayIds = new Set(traySnapIds);
   const impact = useMovieDeleteImpact(deleteOpen ? picked : EmptySelection);
-  const pickedInTray = picked.filter((snapId) => trayIds.has(snapId)).length;
+  // The delete sheet reports the tray specifically, whatever the picks are for:
+  // deleting a snap empties it out of the tray as well as out of every movie.
+  const pickedInTray = picked.filter((snapId) => traySnapIds.includes(snapId)).length;
 
   // The grid's cell width, derived instead of measured (the content column is
   // centered, capped at MaxContentWidth, and padded) so the cells lay out on
@@ -273,7 +274,7 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
                     width={cellWidth}
                     pickNumber={index >= 0 ? index + 1 : undefined}
                     selecting={selecting}
-                    inTray={trayIds.has(snap.id)}
+                    isHeld={heldIds.has(snap.id)}
                     onPress={handlePress}
                     onLongPress={handleLongPress}
                   />

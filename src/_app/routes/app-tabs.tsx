@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurTargetView, BlurView } from 'expo-blur';
+import * as Haptics from 'expo-haptics';
 import { Tabs, useIsFocused, useRouter } from 'expo-router';
 import {
   createContext,
@@ -13,6 +14,7 @@ import {
 } from 'react';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 
+import { useTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import { Radius, TabBarContentHeight, useResolvedColorScheme, useTheme } from '@/shared/ui/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -60,14 +62,20 @@ export function AppTabs() {
   // back explicitly — otherwise the bar overlaps the Android navigation bar.
   const inset = useSafeAreaInsets();
   const [blurTargetView, setBlurTargetView] = useState<View | null>(null);
+  // A screen can take the bottom of the shell over with an action bar of its
+  // own; while it does, the bar and the capture button step aside entirely
+  // rather than painting on top of it.
+  const tabBarHidden = useTabBarHidden();
 
   return (
     <SceneBlurTargetContext value={setBlurTargetView}>
       <Tabs
         // Four tabs with the capture button centered over them as an overlay
         // (CaptureButton below), not as a tab, because /capture is a modal in
-        // the root stack rather than a tab route. The tab items sit two to
-        // either side, so the button lands in the gap rather than on top of one.
+        // the root stack rather than a tab route. Four flex:1 items would put
+        // the button on top of the inner two, so those two give up half of
+        // `CaptureLane` as a margin: the bar reads and behaves as five slots,
+        // and the button owns the middle one outright.
         screenLayout={({ children }) => <SceneBlurTarget>{children}</SceneBlurTarget>}
         screenOptions={{
           headerShown: false,
@@ -90,13 +98,14 @@ export function AppTabs() {
           ),
           tabBarStyle: {
             position: 'absolute',
+            display: tabBarHidden ? 'none' : 'flex',
             backgroundColor: 'transparent',
             borderTopColor: theme.border,
             borderTopWidth: StyleSheet.hairlineWidth,
             height: inset.bottom + TabBarContentHeight,
             paddingBottom: inset.bottom,
           },
-          tabBarItemStyle: { borderRadius: Radius.pill },
+          tabBarItemStyle: styles.tabItem,
           tabBarButton: ({ ref, ...props }) => <Pressable {...props} android_ripple={null} />,
         }}
       >
@@ -115,6 +124,8 @@ export function AppTabs() {
           options={{
             title: '스냅',
             tabBarAccessibilityLabel: '스냅',
+            // Last item before the capture lane; see `CaptureLane`.
+            tabBarItemStyle: [styles.tabItem, styles.tabItemBeforeCapture],
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon color={color} name={focused ? 'grid' : 'grid-outline'} />
             ),
@@ -125,6 +136,8 @@ export function AppTabs() {
           options={{
             title: '무비',
             tabBarAccessibilityLabel: '무비',
+            // First item after the capture lane; see `CaptureLane`.
+            tabBarItemStyle: [styles.tabItem, styles.tabItemAfterCapture],
             tabBarIcon: ({ color, focused }) => (
               <TabBarIcon color={color} name={focused ? 'film' : 'film-outline'} />
             ),
@@ -142,29 +155,40 @@ export function AppTabs() {
         />
       </Tabs>
       {/* Capture is always one tap, centered over the bar on every tab. It opens
-          the /capture modal in the root stack. */}
-      <CaptureButton bottom={inset.bottom} />
+          the /capture modal in the root stack. It leaves with the bar: a screen
+          that owns the bottom is not offering to shoot. */}
+      {tabBarHidden ? null : <CaptureButton bottom={inset.bottom} />}
     </SceneBlurTargetContext>
   );
 }
 
-// Floating capture button straddling the top edge of the tab bar. Lives outside
-// <Tabs> because /capture is a root-stack modal, not a tab route; the container
-// is pointer-transparent so only the button itself is tappable.
+// Capture button, seated in the lane the two inner tab items keep clear for it
+// and lifted just clear of the bar's top edge. Lives outside <Tabs> because
+// /capture is a root-stack modal, not a tab route; the container is
+// pointer-transparent so only the button itself is tappable. Its touch area is
+// exactly the circle the user can see — no tab item's area is taken, and no
+// invisible margin around it opens the camera by surprise.
 function CaptureButton({ bottom }: { bottom: number }) {
   const theme = useTheme();
   const router = useRouter();
+
+  const openCapture = () => {
+    // A full-screen modal is a large jump for one small button, so the press
+    // is acknowledged in the hand as well as on screen.
+    if (process.env.EXPO_OS === 'ios') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/capture');
+  };
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <Pressable
         accessibilityLabel="촬영"
         accessibilityRole="button"
-        onPress={() => router.push('/capture')}
+        onPress={openCapture}
         style={[
           styles.capture,
           {
-            bottom: bottom + TabBarContentHeight - CaptureSize / 2,
+            bottom: bottom + TabBarContentHeight + CaptureLift - CaptureSize,
             backgroundColor: theme.primary,
             borderColor: theme.background,
           },
@@ -180,10 +204,25 @@ function TabBarIcon({ color, name }: { color: ColorValue; name: TabIconName }) {
   return <Ionicons color={color} name={name} size={24} />;
 }
 
-const CaptureSize = 62;
+/** Diameter of the capture button, its ring included. */
+const CaptureSize = 52;
+/** Clearance kept between the button and the nearest tab item on either side. */
+const CaptureGutter = 14;
+/**
+ * Width the bar reserves in its middle for the capture button. The two inner
+ * tab items each give up half of it, which is what turns four flex:1 items
+ * into a five-slot bar. Derived from `CaptureSize` so resizing the button
+ * cannot leave the lane behind.
+ */
+const CaptureLane = CaptureSize + CaptureGutter * 2;
+/** How far the button's top edge rises above the bar's top edge. */
+const CaptureLift = 10;
 
 const styles = StyleSheet.create({
   scene: { flex: 1 },
+  tabItem: { borderRadius: Radius.pill },
+  tabItemBeforeCapture: { marginEnd: CaptureLane / 2 },
+  tabItemAfterCapture: { marginStart: CaptureLane / 2 },
   capture: {
     position: 'absolute',
     alignSelf: 'center',
@@ -194,6 +233,8 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 0 20px rgba(234,94,56,0.45)',
+    // The button now nests into the bar rather than floating over it, so it
+    // casts elevation rather than the halo it used to bleed onto its neighbors.
+    boxShadow: '0 4px 12px rgba(234,94,56,0.35)',
   },
 });

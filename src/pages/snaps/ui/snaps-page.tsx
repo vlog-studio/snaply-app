@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   BackHandler,
@@ -15,6 +15,7 @@ import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray
 import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatDuration } from '@/shared/lib/datetime';
+import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
   Radius,
@@ -71,6 +72,8 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
   const { appendSnaps } = useComposeMovie();
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
   const { width: windowWidth } = useWindowDimensions();
+  const setTabBarHidden = useSetTabBarHidden();
+  const isFocused = useIsFocused();
 
   const [selecting, setSelecting] = useState(startSelecting);
   // Ordered, not a Set: the pick order is what becomes the tray order, and the
@@ -117,6 +120,24 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
     });
     return () => subscription.remove();
   }, [selecting, exitSelection]);
+
+  // Selection swaps the bottom chrome: the tab bar and the capture button out,
+  // the SnapSelectionBar in. The navigator paints its bar above every scene, so
+  // without this the tab items and the capture button cover the selection bar's
+  // actions and take the taps aimed at them.
+  //
+  // Derived from `selecting` rather than flipped at each enter and exit, since
+  // selection can also begin during render (the `?select=1` arrival below): one
+  // effect covers every path in and out, and its cleanup always puts the bar
+  // back. Focus belongs in the condition, not just the cleanup — this tab stays
+  // mounted if something navigates away mid-selection, and a hidden bar on a
+  // screen whose selection bar is not on display would leave the app with no
+  // bottom chrome at all. Returning re-hides it, so the picks survive the trip.
+  useEffect(() => {
+    if (!selecting || !isFocused) return;
+    setTabBarHidden(true);
+    return () => setTabBarHidden(false);
+  }, [selecting, isFocused, setTabBarHidden]);
 
   // Which container the picks are headed for decides both the room left and
   // what "already in it" means.

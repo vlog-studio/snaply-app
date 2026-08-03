@@ -154,7 +154,10 @@ export const useMovieStore = create<MovieState>()(
       movies: [],
       hasHydrated: false,
       createMovie: ({ snapIds, title, arranger, style, bgm, createdAt = Date.now() }) => {
-        const movie = createDraft({ snapIds, title, arranger, style, bgm, createdAt }, get().movies);
+        const movie = createDraft(
+          { snapIds, title, arranger, style, bgm, createdAt },
+          get().movies,
+        );
         set((state) => ({ movies: [...state.movies, movie] }));
         return movie;
       },

@@ -56,7 +56,11 @@ describe('groupIntoSessions', () => {
   });
 
   it('keeps a snap with no place inside the outing around it', () => {
-    const sessions = groupIntoSessions([snap('a', 0, seongsu), snap('b', 10), snap('c', 20, seongsu)]);
+    const sessions = groupIntoSessions([
+      snap('a', 0, seongsu),
+      snap('b', 10),
+      snap('c', 20, seongsu),
+    ]);
 
     expect(sessions).toHaveLength(1);
     expect(sessions[0].hasPlaces).toBe(true);

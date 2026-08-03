@@ -89,7 +89,8 @@ export function useTemplateFill(template: MovieTemplate | undefined): TemplateFi
 
       const isDropped = dropped.has(slot.id);
       const candidate = proposal[index];
-      const proposed = isDropped || (candidate && claimed.has(candidate.id)) ? undefined : candidate;
+      const proposed =
+        isDropped || (candidate && claimed.has(candidate.id)) ? undefined : candidate;
       return {
         slot,
         snap: proposed,

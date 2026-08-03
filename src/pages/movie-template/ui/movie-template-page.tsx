@@ -114,8 +114,8 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
             {fill.summary}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            고를 때 본 건 촬영 시각과 위치뿐이에요. 어떤 장면이 찍혔는지는 아직 읽지 못해서, 칸 이름은
-            &ldquo;이런 걸 찍어보세요&rdquo;라는 안내로만 씁니다.
+            고를 때 본 건 촬영 시각과 위치뿐이에요. 어떤 장면이 찍혔는지는 아직 읽지 못해서, 칸
+            이름은 &ldquo;이런 걸 찍어보세요&rdquo;라는 안내로만 씁니다.
           </ThemedText>
         </View>
 

@@ -65,7 +65,8 @@ export function groupIntoSessions<T extends MatchableSnap>(snaps: readonly T[]):
   for (const snap of ordered) {
     const current = sessions[sessions.length - 1];
     const previous = current?.snaps[current.snaps.length - 1];
-    const withinTime = previous !== undefined && snap.capturedAt - previous.capturedAt <= SessionGapMs;
+    const withinTime =
+      previous !== undefined && snap.capturedAt - previous.capturedAt <= SessionGapMs;
     const withinPlace =
       current?.anchor === undefined ||
       snap.place === undefined ||
@@ -123,10 +124,7 @@ export function pickBestSession<T extends MatchableSnap>(
  * from a long walk still starts where the walk started and ends where it ended,
  * rather than covering its first ten minutes.
  */
-export function spreadAcrossSlots<T>(
-  snaps: readonly T[],
-  slotCount: number,
-): (T | undefined)[] {
+export function spreadAcrossSlots<T>(snaps: readonly T[], slotCount: number): (T | undefined)[] {
   if (slotCount <= 0) return [];
   if (snaps.length <= slotCount) {
     return Array.from({ length: slotCount }, (_, index) => snaps[index]);

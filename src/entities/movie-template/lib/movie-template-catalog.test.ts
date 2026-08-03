@@ -38,10 +38,10 @@ describe('getMovieTemplateById', () => {
     expect(getMovieTemplateById('walk')?.name).toBe('동네 산책');
   });
 
-  it.each([['an unknown id', 'nope'], ['no id', undefined]] as const)(
-    'answers undefined for %s',
-    (_case, id) => {
-      expect(getMovieTemplateById(id)).toBeUndefined();
-    },
-  );
+  it.each([
+    ['an unknown id', 'nope'],
+    ['no id', undefined],
+  ] as const)('answers undefined for %s', (_case, id) => {
+    expect(getMovieTemplateById(id)).toBeUndefined();
+  });
 });

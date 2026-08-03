@@ -42,14 +42,24 @@ describe('withTrim', () => {
     ['snaps to the half second', 0.8, 3.1, { startSec: 1, endSec: 3 }],
     ['holds the start inside the snap', -2, 3, { startSec: 0, endSec: 3 }],
     ['holds the end inside the snap', 1, 9, { startSec: 1, endSec: 5 }],
-    ['keeps the minimum length when the end is dragged onto the start', 2, 2, {
-      startSec: 1,
-      endSec: 2,
-    }],
-    ['keeps the minimum length when the handles are given inverted', 4, 1, {
-      startSec: 0,
-      endSec: 1,
-    }],
+    [
+      'keeps the minimum length when the end is dragged onto the start',
+      2,
+      2,
+      {
+        startSec: 1,
+        endSec: 2,
+      },
+    ],
+    [
+      'keeps the minimum length when the handles are given inverted',
+      4,
+      1,
+      {
+        startSec: 0,
+        endSec: 1,
+      },
+    ],
   ])('%s', (_name, startSec, endSec, expected) => {
     expect(withTrim(ref('s1'), startSec, endSec, 5).trim).toEqual(expected);
   });

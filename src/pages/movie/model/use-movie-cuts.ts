@@ -54,7 +54,9 @@ function sameTrim(left: SnapRef, right: SnapRef): boolean {
 
 function sameRefs(left: readonly SnapRef[], right: readonly SnapRef[]): boolean {
   if (left.length !== right.length) return false;
-  return left.every((ref, index) => ref.snapId === right[index].snapId && sameTrim(ref, right[index]));
+  return left.every(
+    (ref, index) => ref.snapId === right[index].snapId && sameTrim(ref, right[index]),
+  );
 }
 
 /**

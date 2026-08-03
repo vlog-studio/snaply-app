@@ -70,24 +70,26 @@ function buildTrimGesture(
     runOnJS(report)(startSec, endSec, settled);
   };
 
-  return Gesture.Pan()
-    .enabled(enabled)
-    .minDistance(0)
-    .activeOffsetX([-4, 4])
-    .failOffsetY([-16, 16])
-    .onStart(() => {
-      handles.origin.value = moving.value;
-    })
-    .onUpdate((event) => {
-      const min = edge === 'start' ? 0 : handles.startX.value + gap;
-      const max = edge === 'start' ? handles.endX.value - gap : track.width;
-      moving.value = clampPx(handles.origin.value + event.translationX, min, max);
-      publish(false);
-    })
-    // `onFinalize` rather than `onEnd`: it also runs when the gesture is
-    // cancelled — the scroll view claiming the touch, say — which would otherwise
-    // leave the handle moved and the window never committed.
-    .onFinalize(() => publish(true));
+  return (
+    Gesture.Pan()
+      .enabled(enabled)
+      .minDistance(0)
+      .activeOffsetX([-4, 4])
+      .failOffsetY([-16, 16])
+      .onStart(() => {
+        handles.origin.value = moving.value;
+      })
+      .onUpdate((event) => {
+        const min = edge === 'start' ? 0 : handles.startX.value + gap;
+        const max = edge === 'start' ? handles.endX.value - gap : track.width;
+        moving.value = clampPx(handles.origin.value + event.translationX, min, max);
+        publish(false);
+      })
+      // `onFinalize` rather than `onEnd`: it also runs when the gesture is
+      // cancelled — the scroll view claiming the touch, say — which would otherwise
+      // leave the handle moved and the window never committed.
+      .onFinalize(() => publish(true))
+  );
 }
 
 export type TrimBarProps = {
@@ -118,14 +120,7 @@ export type TrimBarProps = {
  * full-width window back to "plays whole" — belong to `entities/movie` and are
  * applied by the cut list when it takes the reported value.
  */
-export function TrimBar({
-  durationSec,
-  startSec,
-  endSec,
-  width,
-  canEdit,
-  onChange,
-}: TrimBarProps) {
+export function TrimBar({ durationSec, startSec, endSec, width, canEdit, onChange }: TrimBarProps) {
   const theme = useTheme();
   const track: TrimTrack = { width, durationSec, stepSec: CutTrimStepSec };
 
@@ -172,10 +167,7 @@ export function TrimBar({
   return (
     <View style={styles.bar}>
       <View
-        style={[
-          styles.track,
-          { width, backgroundColor: theme.media, borderColor: theme.border },
-        ]}
+        style={[styles.track, { width, backgroundColor: theme.media, borderColor: theme.border }]}
       >
         <Animated.View
           style={[styles.window, windowStyle, { backgroundColor: theme.backgroundSelected }]}

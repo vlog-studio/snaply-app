@@ -13,7 +13,7 @@ const JVM_ARGS_PROPERTY = {
 module.exports = function withGradleJvmArgs(config) {
   return withGradleProperties(config, (config) => {
     config.modResults = config.modResults.filter(
-      (item) => !(item.type === 'property' && item.key === JVM_ARGS_PROPERTY.key)
+      (item) => !(item.type === 'property' && item.key === JVM_ARGS_PROPERTY.key),
     );
     config.modResults.push(JVM_ARGS_PROPERTY);
     return config;

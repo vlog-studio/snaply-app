@@ -21,6 +21,26 @@ export function formatDateTime(epochMs: number): string {
   return dateTimeFormat.format(new Date(epochMs));
 }
 
+/**
+ * A timestamp as `2026.07.28 13:35` — numeric, zero-padded, 24-hour.
+ *
+ * For a list row, where the capture time is a fact to compare against the row
+ * above rather than prose to read. Every field is fixed width, so the column
+ * lines up down the list and two rows shot a minute apart are distinguishable at
+ * a glance; {@link formatDateTime} cannot do either, because `7월 28일 오후 1:35`
+ * changes width with the date and buries the hour behind 오전/오후.
+ *
+ * Assembled from local `Date` parts rather than `Intl`, which for `ko-KR`
+ * numeric formats emits `2026. 07. 28.` — interior spaces and a trailing dot
+ * that no amount of option juggling removes.
+ */
+export function formatTimestamp(epochMs: number): string {
+  const date = new Date(epochMs);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  const day = `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(date.getDate())}`;
+  return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

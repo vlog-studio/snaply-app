@@ -3,5 +3,6 @@ export {
   formatDayHeading,
   formatDuration,
   formatSeconds,
+  formatTimestamp,
   relativeDayLabel,
 } from './datetime';

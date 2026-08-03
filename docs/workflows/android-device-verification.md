@@ -29,7 +29,17 @@ With multiple devices attached, a bare `adb shell` fails with "more than one dev
 
 ## The verification loop
 
-Edit source → Fast Refresh pushes it to the device automatically (owner-run Metro, Fast Refresh on) → observe → drive → observe again. No manual reload step is needed for JS changes; a native or config change requires a rebuild instead.
+Edit source → Fast Refresh pushes it to the device automatically (owner-run Metro, Fast Refresh on) → observe → drive → observe again. A native or config change requires a rebuild instead.
+
+**Fast Refresh does not deliver edits made while the app is backgrounded.** Send the app to the background — the owner opens another app, a call arrives — and edits saved in the meantime are simply missed; foregrounding it again does not fetch them, so the screen keeps rendering the stale bundle and reads as "the change did nothing". Confirm the change is actually on screen before diagnosing it, and force a reload when it is not:
+
+```bash
+adb -s "$DEVICE" shell input keyevent 82   # opens the RN dev menu
+adb -s "$DEVICE" exec-out uiautomator dump /dev/tty | tr '<' '\n' | grep 'text="Reload"'
+adb -s "$DEVICE" shell input tap <x> <y>   # centre of the Reload bounds
+```
+
+A reload restarts the app at its initial route, so re-enter the screen afterwards — a deep link (below) is the quickest way back.
 
 Observation is layered. Prefer the cheapest layer that answers the question, and cross-check when a result is surprising:
 

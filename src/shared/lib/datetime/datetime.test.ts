@@ -3,6 +3,7 @@ import {
   formatDayHeading,
   formatDuration,
   formatSeconds,
+  formatTimestamp,
   relativeDayLabel,
 } from './datetime';
 
@@ -14,6 +15,25 @@ describe('formatDateTime', () => {
     expect(formatted).toContain('7월');
     expect(formatted).toContain('20일');
     expect(formatted).toContain('3:04');
+  });
+});
+
+describe('formatTimestamp', () => {
+  it('prints the date and a 24-hour time joined by a space', () => {
+    expect(formatTimestamp(new Date(2026, 6, 28, 13, 35).getTime())).toBe('2026.07.28 13:35');
+  });
+
+  it.each([
+    [new Date(2026, 0, 3, 4, 5).getTime(), '2026.01.03 04:05'],
+    [new Date(2026, 11, 31, 23, 59).getTime(), '2026.12.31 23:59'],
+    [new Date(2026, 6, 28, 0, 0).getTime(), '2026.07.28 00:00'],
+  ])('pads every field to a fixed width: %s', (timestamp, expected) => {
+    expect(formatTimestamp(timestamp)).toBe(expected);
+  });
+
+  it('keeps afternoon distinct from morning without an 오전/오후 marker', () => {
+    expect(formatTimestamp(new Date(2026, 6, 28, 1, 35).getTime())).toBe('2026.07.28 01:35');
+    expect(formatTimestamp(new Date(2026, 6, 28, 13, 35).getTime())).toBe('2026.07.28 13:35');
   });
 });
 

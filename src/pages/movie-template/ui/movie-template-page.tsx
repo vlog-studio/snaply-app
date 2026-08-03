@@ -28,9 +28,9 @@ export type MovieTemplatePageProps = {
  * what to go and shoot, and `지금 찍기` walks them to the camera and puts the
  * result in that exact row on the way back.
  *
- * Making the movie starts generation straight away. There is nothing to arrange
- * first: the arranging is what just happened, and everything the user might want
- * to change is on the movie screen once there is something to change it against.
+ * Making the movie starts generation straight away. The cut list is settled here
+ * — dropped, shot, and reordered — so what is left to change is everything that
+ * needs a made movie to judge against, and that lives on the movie screen.
  */
 export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
   const theme = useTheme();
@@ -106,27 +106,16 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
           </ThemedText>
         </View>
 
-        <View style={[styles.summary, { borderColor: theme.border }]}>
-          <ThemedText type="edge" themeColor="lumen">
-            AI가 고른 이유
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {fill.summary}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            고를 때 본 건 촬영 시각과 위치뿐이에요. 어떤 장면이 찍혔는지는 아직 읽지 못해서, 칸
-            이름은 &ldquo;이런 걸 찍어보세요&rdquo;라는 안내로만 씁니다.
-          </ThemedText>
-        </View>
-
         <View style={styles.slots}>
-          {fill.slots.map((filled) => (
+          {fill.slots.map((filled, index) => (
             <SlotRow
               key={filled.slot.id}
               filled={filled}
+              index={index}
               onShoot={shootFor}
               onDrop={fill.dropSlot}
               onRestore={fill.restoreSlot}
+              onMove={fill.moveSnap}
             />
           ))}
         </View>
@@ -206,14 +195,7 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   header: { gap: Spacing.half },
-  summary: {
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
-  slots: { gap: Spacing.two },
+  slots: { gap: Spacing.one },
   reset: { alignSelf: 'center', paddingVertical: Spacing.one },
   notice: {
     borderWidth: 1,

@@ -6,6 +6,8 @@ import { useComposeMovie } from './use-compose-movie';
 
 const mockCreateMovie = jest.fn();
 const mockUpdateMovieCuts = jest.fn();
+const mockUpdateMovieStyle = jest.fn();
+const mockBeginMovieJob = jest.fn();
 const mockClearTray = jest.fn();
 const mockGetMovieById = jest.fn<Movie | undefined, [string]>();
 const mockTraySnapIds = jest.fn<string[], []>();
@@ -16,6 +18,8 @@ jest.mock('@/entities/movie', () => ({
   getMovieById: (id: string) => mockGetMovieById(id),
   useCreateMovie: () => mockCreateMovie,
   useUpdateMovieCuts: () => mockUpdateMovieCuts,
+  useUpdateMovieStyle: () => mockUpdateMovieStyle,
+  useBeginMovieJob: () => mockBeginMovieJob,
 }));
 jest.mock('@/entities/tray', () => ({
   useTraySnapIds: () => mockTraySnapIds(),
@@ -35,6 +39,7 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
     ],
     style: 'calm',
     bgm: 'lofi-walk',
+    captions: true,
     ratio: '9:16',
     ...overrides,
   };
@@ -190,5 +195,95 @@ describe('appendSnaps', () => {
 
     expect(outcome).toEqual({ cutCount: 9, refused: 'full' });
     expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveStyle', () => {
+  it('writes the settings it is given', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let applied;
+    await act(async () => {
+      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+    });
+
+    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'upbeat' });
+    expect(applied).toBe(true);
+  });
+
+  it.each(['generating', 'ready'] as const)('refuses a %s movie', async (status) => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let applied;
+    await act(async () => {
+      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+    });
+
+    expect(applied).toBe(false);
+    expect(mockUpdateMovieStyle).not.toHaveBeenCalled();
+  });
+});
+
+describe('startGeneration', () => {
+  it('hands a draft to a job', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = result.current.startGeneration('m1');
+    });
+
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
+    expect(outcome).toEqual({ started: true });
+  });
+
+  it('runs a failed movie again', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'failed', error: '터졌어요' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startGeneration('m1');
+    });
+
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
+  });
+
+  it('refuses a movie with nothing to generate from', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ snapRefs: [] }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = result.current.startGeneration('m1');
+    });
+
+    expect(outcome).toEqual({ started: false, refused: 'empty' });
+    expect(mockBeginMovieJob).not.toHaveBeenCalled();
+  });
+
+  it.each(['generating', 'ready'] as const)('refuses a %s movie', async (status) => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = result.current.startGeneration('m1');
+    });
+
+    expect(outcome).toEqual({ started: false, refused: 'frozen' });
+    expect(mockBeginMovieJob).not.toHaveBeenCalled();
+  });
+
+  it('refuses a movie that is gone', async () => {
+    mockGetMovieById.mockReturnValue(undefined);
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = result.current.startGeneration('gone');
+    });
+
+    expect(outcome).toEqual({ started: false, refused: 'frozen' });
   });
 });

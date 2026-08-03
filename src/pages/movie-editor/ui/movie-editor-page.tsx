@@ -1,43 +1,48 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { MovieSnapLimit } from '@/entities/movie';
+import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
+import { RenameMovieSheet } from '@/features/rename-movie';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { useMovieEditor } from '../model/use-movie-editor';
-import { CutRow } from './cut-row';
-import { WizardSteps } from './wizard-steps';
+import { AssembleStep } from './assemble-step';
+import { GenerateStep } from './generate-step';
+import { StyleStep } from './style-step';
+import { WizardSteps, type EditorStep } from './wizard-steps';
 
 export type MovieEditorPageProps = {
   movieId?: string;
 };
 
-const RefusalMessages = {
-  empty: '컷이 최소 1개는 있어야 해요.',
-  full: `한 편에는 스냅 ${MovieSnapLimit}개까지 들어가요.`,
-  frozen: '생성이 시작된 무비는 컷을 고칠 수 없어요.',
-} as const;
+/** Row padding plus its two hairline borders, taken off the content column. */
+const RowInset = Spacing.two * 2 + 2;
 
 /**
- * The movie editor — step ① of the three-step wizard: the cut list.
+ * The movie editor — the three-step wizard every movie passes through (concept §6).
  *
- * The order and trim decided here are kept exactly as they are; generation only
- * handles transitions, grading, and music (concept §6). That is the rule the
- * whole editor exists for, so the screen says it out loud.
- *
- * Steps ② (style) and ③ (generation) are not built yet. The header shows all
- * three so the flow is legible, and 다음 explains that rather than dead-ending.
+ * Leaving at any point keeps the movie as a draft on the studio board, so the
+ * footer's exit is an ordinary action rather than a warning. Steps stay reachable
+ * for a movie a job already owns: its cuts and settings become a read-out, and ③
+ * becomes the progress the user came back to see.
  */
 export function MovieEditorPage({ movieId }: MovieEditorPageProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const topInset = useTopContentInset();
-  const { movie, cuts, totalSec, isDirty, canEdit, refusal, moveCut, removeCut, save, discard } =
-    useMovieEditor(movieId);
+  const { width: windowWidth } = useWindowDimensions();
+  const { saveStyle, startGeneration } = useComposeMovie();
+  const editor = useMovieEditor(movieId);
+  const { movie, cuts, totalSec, isDirty, canEdit, refusal } = editor;
+
+  const [step, setStep] = useState<EditorStep>(0);
+  const [renaming, setRenaming] = useState(false);
+  const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
 
   if (!movie) {
     return (
@@ -48,10 +53,27 @@ export function MovieEditorPage({ movieId }: MovieEditorPageProps) {
     );
   }
 
-  const room = Math.max(MovieSnapLimit - cuts.length, 0);
+  // Derived rather than measured (the content column is centered, capped, and
+  // padded) so a trim bar lays out correctly on its first frame.
+  const trimWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2 - RowInset;
 
-  const addSnaps = () => {
+  const addSnaps = () =>
     router.push({ pathname: '/snaps', params: { select: '1', for: movie.id } });
+  const watchMovie = () =>
+    router.replace({ pathname: '/movie/[id]/play', params: { id: movie.id } });
+
+  const goToStep = (next: EditorStep) => {
+    // Moving off the cut list commits it: the working copy exists to keep "a movie
+    // keeps at least one cut" a disabled control, not to be something the user has
+    // to remember to save before walking away from it.
+    if (step === 0 && next > 0 && !editor.save()) return;
+    setGenerationRefusal(undefined);
+    setStep(next);
+  };
+
+  const runGeneration = () => {
+    const outcome = startGeneration(movie.id);
+    setGenerationRefusal(outcome.refused);
   };
 
   return (
@@ -63,78 +85,62 @@ export function MovieEditorPage({ movieId }: MovieEditorPageProps) {
         ]}
       >
         <View style={styles.header}>
-          <ThemedText type="title" numberOfLines={1}>
-            {movie.title}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {isDirty ? '저장하지 않은 변경이 있어요' : '초안으로 저장돼 있어요'}
-          </ThemedText>
-        </View>
-
-        <WizardSteps current={0} />
-
-        <View style={styles.sectionHead}>
-          <ThemedText type="smallBold">컷 순서</ThemedText>
-          <ThemedText type="edge" themeColor="textSecondary">
-            {cuts.length} / {MovieSnapLimit} · {totalSec}초
-          </ThemedText>
-        </View>
-
-        <View style={styles.cuts}>
-          {cuts.map((cut, index) => (
-            <CutRow
-              key={cut.ref.snapId}
-              cut={cut}
-              index={index}
-              isFirst={index === 0}
-              isLast={index === cuts.length - 1}
-              canEdit={canEdit}
-              canRemove={cuts.length > 1}
-              onMove={moveCut}
-              onRemove={removeCut}
-            />
-          ))}
-        </View>
-
-        {refusal ? (
-          <View
-            style={[
-              styles.notice,
-              { borderColor: theme.border, backgroundColor: theme.warmSurface },
-            ]}
-          >
-            <ThemedText type="small">{RefusalMessages[refusal]}</ThemedText>
+          <View style={styles.headerCopy}>
+            <ThemedText type="title" numberOfLines={1}>
+              {movie.title}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {isDirty ? '저장하지 않은 변경이 있어요' : '초안으로 저장돼 있어요'}
+            </ThemedText>
           </View>
-        ) : null}
-
-        {canEdit ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="스냅 더 넣기"
-            accessibilityState={{ disabled: room === 0 }}
-            disabled={room === 0}
-            onPress={addSnaps}
-            style={[styles.addCut, { borderColor: theme.border, opacity: room === 0 ? 0.45 : 1 }]}
+            accessibilityLabel="무비 이름 바꾸기"
+            hitSlop={8}
+            onPress={() => setRenaming(true)}
           >
             <ThemedText selectable={false} type="smallBold" themeColor="primary">
-              + 스냅 더 넣기{room > 0 ? ` (${room}개 더)` : ''}
+              이름
             </ThemedText>
           </Pressable>
+        </View>
+
+        <WizardSteps current={step} onSelect={goToStep} />
+
+        {step === 0 ? (
+          <AssembleStep
+            cuts={cuts}
+            totalSec={totalSec}
+            canEdit={canEdit}
+            refusal={refusal}
+            trimWidth={trimWidth}
+            onMove={editor.moveCut}
+            onRemove={editor.removeCut}
+            onTrim={editor.trimCut}
+            onResetTrim={editor.resetTrim}
+            onAddSnaps={addSnaps}
+          />
         ) : null}
 
-        <ThemedText type="small" themeColor="textSecondary">
-          여기서 정한 순서는 그대로 유지돼요. AI는 전환·색보정·음악만 맡습니다.
-        </ThemedText>
+        {step === 1 ? (
+          <StyleStep
+            movie={movie}
+            totalSec={totalSec}
+            canEdit={canEdit}
+            onChange={(patch) => saveStyle(movie.id, patch)}
+          />
+        ) : null}
 
-        <View style={[styles.comingUp, { borderColor: theme.border }]}>
-          <ThemedText type="edge" themeColor="lumen">
-            다음 단계
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            스타일·배경음악을 고르고 AI 생성을 돌리는 단계는 아직 준비 중이에요. 지금은 컷 구성까지
-            저장할 수 있어요.
-          </ThemedText>
-        </View>
+        {step === 2 ? (
+          <GenerateStep
+            movie={movie}
+            cutCount={cuts.length}
+            totalSec={totalSec}
+            refusal={generationRefusal}
+            onStart={runGeneration}
+            onWatch={watchMovie}
+          />
+        ) : null}
       </ScrollView>
 
       <View
@@ -147,28 +153,67 @@ export function MovieEditorPage({ movieId }: MovieEditorPageProps) {
           },
         ]}
       >
-        {isDirty ? (
+        {step === 0 && isDirty ? (
           <View style={styles.footerRow}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="변경 취소"
-              onPress={discard}
+              onPress={editor.discard}
               style={[styles.secondaryAction, { borderColor: theme.border }]}
             >
               <ThemedText selectable={false} type="button" themeColor="textSecondary">
                 되돌리기
               </ThemedText>
             </Pressable>
-            <SnaplyButton title="컷 구성 저장" onPress={save} style={styles.primaryAction} />
+            <SnaplyButton
+              title="컷 구성 저장"
+              onPress={() => editor.save()}
+              style={styles.primaryAction}
+            />
           </View>
         ) : (
-          <SnaplyButton
-            title="스튜디오로 돌아가기"
-            variant="secondary"
-            onPress={() => router.back()}
-          />
+          <View style={styles.footerRow}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="이전 단계"
+              accessibilityState={{ disabled: step === 0 }}
+              disabled={step === 0}
+              onPress={() => goToStep((step - 1) as EditorStep)}
+              style={[
+                styles.secondaryAction,
+                { borderColor: theme.border, opacity: step === 0 ? 0.45 : 1 },
+              ]}
+            >
+              <ThemedText selectable={false} type="button" themeColor="textSecondary">
+                이전
+              </ThemedText>
+            </Pressable>
+            {step < 2 ? (
+              <SnaplyButton
+                title={step === 1 ? '생성 단계로' : '다음'}
+                onPress={() => goToStep((step + 1) as EditorStep)}
+                style={styles.primaryAction}
+              />
+            ) : (
+              <SnaplyButton
+                title="나중에 하기"
+                variant="secondary"
+                onPress={() => router.back()}
+                style={styles.primaryAction}
+              />
+            )}
+          </View>
         )}
       </View>
+
+      {/* Keyed by the movie so the field opens on the name that is stored now. */}
+      <RenameMovieSheet
+        key={`${movie.id}:${movie.title}`}
+        visible={renaming}
+        movieId={movie.id}
+        title={movie.title}
+        onClose={() => setRenaming(false)}
+      />
     </View>
   );
 }
@@ -188,37 +233,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     gap: Spacing.four,
   },
-  header: { gap: Spacing.half },
-  sectionHead: {
-    minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  cuts: { gap: Spacing.two },
-  notice: {
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.three,
-  },
-  addCut: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  comingUp: {
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.three,
-    gap: Spacing.one,
-  },
+  header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
+  headerCopy: { flex: 1, gap: Spacing.half },
   footer: {
     width: '100%',
     maxWidth: MaxContentWidth,

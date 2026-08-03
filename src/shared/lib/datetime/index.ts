@@ -1,1 +1,7 @@
-export { formatDateTime, formatDayHeading, formatDuration, relativeDayLabel } from './datetime';
+export {
+  formatDateTime,
+  formatDayHeading,
+  formatDuration,
+  formatSeconds,
+  relativeDayLabel,
+} from './datetime';

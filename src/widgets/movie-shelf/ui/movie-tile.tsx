@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { formatSeconds } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
@@ -25,7 +26,7 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · ${movie.totalSec}초`}
+      accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · ${formatSeconds(movie.totalSec)}`}
       onPress={() => onPress(movie.id)}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.85 : 1 }, styles.tile]}
     >
@@ -38,9 +39,19 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
         </View>
         <View style={styles.duration}>
           <ThemedText selectable={false} type="edge" style={styles.durationText}>
-            {movie.totalSec}s
+            {formatSeconds(movie.totalSec)}
           </ThemedText>
         </View>
+        {movie.progress !== undefined ? (
+          <View style={[styles.track, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+            <View
+              style={[
+                styles.fill,
+                { backgroundColor: theme.ai, width: `${Math.round(movie.progress * 100)}%` },
+              ]}
+            />
+          </View>
+        ) : null}
       </View>
       <ThemedText type="smallBold" numberOfLines={1}>
         {movie.title}
@@ -72,4 +83,6 @@ const styles = StyleSheet.create({
   },
   // Drawn over arbitrary video, so plain white rather than a palette color.
   durationText: { color: '#FFFFFF' },
+  track: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 3 },
+  fill: { height: '100%' },
 });

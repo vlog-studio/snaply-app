@@ -51,7 +51,19 @@ export function formatDayHeading(epochMs: number, now: number = Date.now()): str
   return relativeDayLabel(epochMs, now) ?? fullDateFormat.format(new Date(epochMs));
 }
 
-/** A duration in seconds as `m:ss`, for a reel length or an edge print. */
+/**
+ * A short length as a label: `4초`, `4.5초`.
+ *
+ * Trims are set at half seconds, so a cut's or a movie's length is not always
+ * whole — but most are, and `4.0초` reads as a measurement rather than a
+ * duration. For anything that can pass a minute, use {@link formatDuration}.
+ */
+export function formatSeconds(totalSec: number): string {
+  const rounded = Math.round(totalSec * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}초`;
+}
+
+/** A duration in seconds as `m:ss`, for a movie length or a badge. */
 export function formatDuration(totalSec: number): string {
   const minutes = Math.floor(totalSec / 60);
   const seconds = totalSec % 60;

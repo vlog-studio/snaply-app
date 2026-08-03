@@ -6,6 +6,7 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { MovieGenerationGate } from '@/features/compose-movie';
 import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors } from '@/shared/ui/theme';
 
@@ -38,6 +39,10 @@ export function AppProviders({ children }: PropsWithChildren) {
         <NavigationBar style="dark" />
         <PushTokenRegistrar />
         <GeofenceGate />
+        {/* Movie generation runs here rather than in the editor: a job is meant
+            to keep going after the user leaves the screen, and to be picked back
+            up on the next app start if they left before it finished. */}
+        <MovieGenerationGate />
         {/* Gesture-handler gestures need this ancestor; expo-router's native
             stack does not provide one. */}
         <GestureHandlerRootView style={styles.root}>{children}</GestureHandlerRootView>

@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 
-import { MovieSnapLimit, useMovieById, type Movie, type SnapRef } from '@/entities/movie';
+import {
+  MovieSnapLimit,
+  cutDurationSec,
+  cutsDurationSec,
+  useMovieById,
+  withTrim,
+  withoutTrim,
+  type Movie,
+  type SnapRef,
+} from '@/entities/movie';
 import { useComposeMovie, type CutsRefusal } from '@/features/compose-movie';
 import { useSnapIndex, type Snap } from '@/entities/snap';
 
@@ -12,13 +21,15 @@ export type Cut = {
    * still exists — the user has to be able to see and remove a dead cut.
    */
   snap: Snap | undefined;
+  /** How long this cut plays: its trim window, or the whole snap. */
+  usedSec: number;
 };
 
 export type MovieEditor = {
   movie: Movie | undefined;
   /** The working cut list; edits are local until `save` commits them. */
   cuts: Cut[];
-  /** Total length of the resolved cuts, in seconds. */
+  /** How long the working cut list plays, in seconds. */
   totalSec: number;
   /** Whether the working list differs from what is stored. */
   isDirty: boolean;
@@ -28,20 +39,22 @@ export type MovieEditor = {
   refusal: CutsRefusal | undefined;
   moveCut: (index: number, direction: -1 | 1) => void;
   removeCut: (index: number) => void;
-  save: () => void;
+  /** Sets a cut's trim window. The rules are the entity's; this only stores. */
+  trimCut: (index: number, startSec: number, endSec: number) => void;
+  /** Puts a cut back to playing whole. */
+  resetTrim: (index: number) => void;
+  /** Commits the working list. Answers whether the editor may move on. */
+  save: () => boolean;
   discard: () => void;
 };
 
+function sameTrim(left: SnapRef, right: SnapRef): boolean {
+  return left.trim?.startSec === right.trim?.startSec && left.trim?.endSec === right.trim?.endSec;
+}
+
 function sameRefs(left: readonly SnapRef[], right: readonly SnapRef[]): boolean {
   if (left.length !== right.length) return false;
-  return left.every((ref, index) => {
-    const other = right[index];
-    return (
-      ref.snapId === other.snapId &&
-      ref.trim?.startSec === other.trim?.startSec &&
-      ref.trim?.endSec === other.trim?.endSec
-    );
-  });
+  return left.every((ref, index) => ref.snapId === right[index].snapId && sameTrim(ref, right[index]));
 }
 
 /**
@@ -84,12 +97,16 @@ export function useMovieEditor(movieId: string | undefined): MovieEditor {
   const canEdit = movie?.status === 'draft' || movie?.status === 'failed';
 
   const cuts = useMemo(
-    () => refs.map((ref) => ({ ref, snap: snapIndex.get(ref.snapId) })),
+    () =>
+      refs.map((ref) => {
+        const snap = snapIndex.get(ref.snapId);
+        return { ref, snap, usedSec: snap ? cutDurationSec(ref, snap.durationSec) : 0 };
+      }),
     [refs, snapIndex],
   );
   const totalSec = useMemo(
-    () => cuts.reduce((sum, cut) => sum + (cut.snap?.durationSec ?? 0), 0),
-    [cuts],
+    () => cutsDurationSec(refs, (snapId) => snapIndex.get(snapId)?.durationSec),
+    [refs, snapIndex],
   );
 
   const moveCut = (index: number, direction: -1 | 1) => {
@@ -110,13 +127,36 @@ export function useMovieEditor(movieId: string | undefined): MovieEditor {
     setWorkingRefs(refs.filter((_, position) => position !== index));
   };
 
-  const save = () => {
-    if (!movieId || !workingRefs) return;
+  const replaceCut = (index: number, change: (ref: SnapRef, snap: Snap) => SnapRef) => {
+    const snap = snapIndex.get(refs[index]?.snapId ?? '');
+    if (!snap) return;
+    const next = [...refs];
+    next[index] = change(next[index], snap);
+    if (next[index] === refs[index]) return;
+    setRefusal(undefined);
+    setWorkingRefs(next);
+  };
+
+  const trimCut = (index: number, startSec: number, endSec: number) =>
+    replaceCut(index, (ref, snap) => {
+      const trimmed = withTrim(ref, startSec, endSec, snap.durationSec);
+      // `withTrim` builds a new object even for an unchanged window; comparing the
+      // window keeps a settled drag that moved nothing from marking the editor
+      // dirty and offering to save the same list back.
+      return sameTrim(ref, trimmed) ? ref : trimmed;
+    });
+
+  const resetTrim = (index: number) => replaceCut(index, (ref) => withoutTrim(ref));
+
+  const save = (): boolean => {
+    if (!movieId) return false;
+    if (!workingRefs) return true;
     const outcome = saveCuts(movieId, workingRefs);
     setRefusal(outcome.refused);
     // On success the store write moves `storedRefs`, which abandons the branch
     // above; clearing here would race that. Only a refusal has to keep the
     // working copy so the user can fix it.
+    return outcome.refused === undefined;
   };
 
   const discard = () => {
@@ -133,6 +173,8 @@ export function useMovieEditor(movieId: string | undefined): MovieEditor {
     refusal,
     moveCut,
     removeCut,
+    trimCut,
+    resetTrim,
     save,
     discard,
   };

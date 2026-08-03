@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { formatSeconds } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
@@ -25,7 +26,14 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · 스냅 ${movie.snapCount}`}
+      accessibilityLabel={[
+        movie.title,
+        MovieStatusLabels[movie.status],
+        `스냅 ${movie.snapCount}`,
+        movie.progress === undefined ? undefined : `${Math.round(movie.progress * 100)}%`,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
       onPress={() => onPress(movie.id)}
       style={({ pressed }) => [
         styles.card,
@@ -53,7 +61,7 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
           {movie.title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          스냅 {movie.snapCount} · {movie.totalSec}초
+          스냅 {movie.snapCount} · {formatSeconds(movie.totalSec)}
         </ThemedText>
         <View style={styles.tags}>
           <MovieStatusBadge status={movie.status} />
@@ -61,6 +69,18 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
             {movie.dateLabel}
           </ThemedText>
         </View>
+        {movie.progress !== undefined ? (
+          // A job in flight is the one thing the board exists to show, so the row
+          // carries its own bar rather than only a status word.
+          <View style={[styles.track, { backgroundColor: theme.border }]}>
+            <View
+              style={[
+                styles.fill,
+                { backgroundColor: theme.ai, width: `${Math.round(movie.progress * 100)}%` },
+              ]}
+            />
+          </View>
+        ) : null}
       </View>
 
       <ThemedText selectable={false} themeColor="textSecondary">
@@ -94,4 +114,11 @@ const styles = StyleSheet.create({
   emptyThumb: { borderStyle: 'dashed' },
   info: { flex: 1, gap: Spacing.half },
   tags: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.half },
+  track: {
+    height: 3,
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: Spacing.half,
+  },
+  fill: { height: '100%', borderRadius: 2 },
 });

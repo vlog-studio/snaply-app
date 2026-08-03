@@ -1,4 +1,10 @@
-import { formatDateTime, formatDayHeading, formatDuration, relativeDayLabel } from './datetime';
+import {
+  formatDateTime,
+  formatDayHeading,
+  formatDuration,
+  formatSeconds,
+  relativeDayLabel,
+} from './datetime';
 
 describe('formatDateTime', () => {
   it('formats a date using the Korean month, day, hour, and minute fields', () => {
@@ -71,5 +77,19 @@ describe('formatDuration', () => {
     [72, '1:12'],
   ])('formats %i seconds as %s', (totalSec, expected) => {
     expect(formatDuration(totalSec)).toBe(expected);
+  });
+});
+
+describe('formatSeconds', () => {
+  const sec = '초'; // 초
+  it.each([
+    [0, `0${sec}`],
+    [4, `4${sec}`],
+    [4.5, `4.5${sec}`],
+    // A sum of half-second trims can drift; a label never shows the drift.
+    [4.499_999_9, `4.5${sec}`],
+    [12.04, `12${sec}`],
+  ])('formats %p as %s', (totalSec, expected) => {
+    expect(formatSeconds(totalSec)).toBe(expected);
   });
 });

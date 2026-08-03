@@ -45,6 +45,23 @@ export type MovieRender = {
 };
 
 /**
+ * A generation job in flight.
+ *
+ * Kept on the movie rather than in memory so a job outlives the screen that
+ * started it and the app session it started in: the user is expected to leave
+ * while a movie generates (concept §6 step ③), and progress that lived in a
+ * component would be lost the moment they did.
+ */
+export type MovieJob = {
+  /** Local identifier today; the server's `jobId` once one issues them. */
+  id: string;
+  /** Index into `MovieGenerationSteps` of the step running now. */
+  stepIndex: number;
+  /** Epoch milliseconds the job started — what its progress is measured from. */
+  startedAt: number;
+};
+
+/**
  * A movie — an ordered set of snap references plus the generation settings that
  * turn them into one short-form vlog.
  *
@@ -64,10 +81,12 @@ export type Movie = {
   style: MovieStyle;
   /** Track identifier from the BGM catalog. */
   bgm: string;
+  /** Whether generation should burn in automatic subtitles. */
+  captions: boolean;
   /** Only 9:16 for now; stored so a movie keeps its ratio when others arrive. */
   ratio: '9:16';
-  /** Set while a generation job is in flight, and kept for a retry afterwards. */
-  jobId?: string;
+  /** Present only while a job is in flight; cleared when it finishes. */
+  job?: MovieJob;
   render?: MovieRender;
   /** Why the last generation failed, for the recovery UI. */
   error?: string;

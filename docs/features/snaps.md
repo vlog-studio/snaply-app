@@ -17,6 +17,8 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 
 `/snaps?select=1` opens straight in selection mode; the studio's tray links here that way.
 
+`/snaps?select=1&for=<movieId>` is the editor's "스냅 더 넣기": the picks go into that movie's cut list instead of the tray, the bar measures room against the movie's ten-cut cap, and confirming returns to the editor. Routing those picks through the tray would make the user leave the editor, empty the tray, and come back.
+
 ## Browsing and playback
 
 | Capability | Status | Notes |
@@ -32,8 +34,9 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 | --- | --- | --- |
 | Enter selection | `Functional` | The header's `선택` control, a long-press on any cell, or arriving with `?select=1`. Android hardware back leaves selection mode instead of leaving the tab. |
 | Pick order | `Functional` | Selection is an ordered list, not a set: the number drawn on each cell is its position, and that order becomes the tray order. |
-| Cap enforcement | `Functional` | The bar shows `트레이 n/10` and the remaining room. A pick that would exceed the tray's remaining room is refused with an inline notice naming the room left; snaps already in the tray take no new room, so re-picking one is always allowed. |
+| Cap enforcement | `Functional` | The bar names the target and its room (`트레이 3/10 · 7개 더`, or the movie's title when picking for one). A pick past the remaining room is refused with an inline notice; snaps the target already holds take no new room, so re-picking one is always allowed. |
 | 트레이에 담기 | `Functional` | Hands the picked ids to `entities/tray` and navigates to the studio, where the tray lives, so the user sees what they collected. If the tray refused any (a concurrent change), the notice reports how many went in and how many were turned away. |
+| 이 무비에 넣기 | `Functional` | In `?for=<movieId>` mode, appends the picks to that movie through `features/compose-movie` and returns to the editor. A batch that would not fit is refused whole, with the room left named. |
 | 담김 badge | `Functional` | Outside selection mode, a snap already in the tray carries a `담김` badge. |
 | Delete | `Functional` | See below. |
 
@@ -100,6 +103,7 @@ Snaps are immutable originals. Per-movie edits (order, trim) live on the movie's
 - `src/pages/snaps` owns the screen, the day grouping (`model/use-snap-days.ts`), the delete-impact read model, the grid cell, the selection bar, and the delete dialog.
 - `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
 - `src/features/delete-snap` owns the cascading deletion across files, thumbnails, movies, the tray, and snap metadata.
+- `src/features/compose-movie` owns appending picks to a movie in `?for=` mode.
 - `src/features/manage-recordings` owns reusable local-recording listing for the capture library.
 - `src/shared/ui/video-frame`, `src/shared/ui/video-player-modal`, and `src/shared/lib/datetime` supply the frame, the player chrome, and the day/duration formatting.
 

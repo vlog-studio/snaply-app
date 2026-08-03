@@ -10,8 +10,6 @@ import { VideoFrame } from '@/shared/ui/video-frame';
 export type TrayPanelProps = {
   /** The tray's snaps, in pick order. */
   snaps: Snap[];
-  /** True until movie creation exists (stage 2 of the studio rebuild). */
-  startDisabled?: boolean;
   onPickMore: () => void;
   onRemove: (snapId: string) => void;
   onClear: () => void;
@@ -27,14 +25,7 @@ const ThumbWidth = 52;
  * to do about it rather than nothing at all, because a studio whose workbench is
  * blank gives the user nowhere to start (concept §7).
  */
-export function TrayPanel({
-  snaps,
-  startDisabled = false,
-  onPickMore,
-  onRemove,
-  onClear,
-  onStartMovie,
-}: TrayPanelProps) {
+export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }: TrayPanelProps) {
   const theme = useTheme();
   const totalSec = snaps.reduce((sum, snap) => sum + snap.durationSec, 0);
   const isEmpty = snaps.length === 0;
@@ -102,7 +93,6 @@ export function TrayPanel({
         <View style={styles.actions}>
           <SnaplyButton
             title="이 스냅으로 새 무비"
-            disabled={startDisabled}
             onPress={onStartMovie}
             style={styles.primaryAction}
           />

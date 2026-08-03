@@ -73,6 +73,9 @@ function RootStack() {
           name="capture/index"
           options={{ headerShown: false, presentation: 'fullScreenModal' }}
         />
+        {/* The movie editor is a pushed screen rather than a tab: it is a task
+            with a beginning and an end, and its own back affordance. */}
+        <Stack.Screen name="movie/[id]" options={{ title: '무비 편집' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>

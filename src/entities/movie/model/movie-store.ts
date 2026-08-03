@@ -3,8 +3,10 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
 
+import { DefaultMovieBgm } from '../lib/movie-bgm';
+import { DefaultMovieStyle } from '../lib/movie-style';
 import { movieTitle } from '../lib/movie-title';
-import type { Movie, SnapRef } from './movie';
+import type { Movie, MovieRender, MovieStyle, SnapRef } from './movie';
 
 /** What the caller gets to decide when a movie is started from picked snaps. */
 export type CreateMovieInput = {
@@ -14,6 +16,16 @@ export type CreateMovieInput = {
   title?: string;
   /** Injectable for tests; production callers use the default. */
   createdAt?: number;
+};
+
+/**
+ * The generation settings a style-step edit changes. Every field is optional so
+ * one control writes one setting without restating the others.
+ */
+export type MovieStylePatch = {
+  style?: MovieStyle;
+  bgm?: string;
+  captions?: boolean;
 };
 
 /**
@@ -34,11 +46,36 @@ type MovieState = {
   hasHydrated: boolean;
   createMovie: (input: CreateMovieInput) => Movie;
   updateMovieCuts: (movieId: string, snapRefs: SnapRef[], updatedAt?: number) => void;
+  updateMovieStyle: (movieId: string, patch: MovieStylePatch, updatedAt?: number) => void;
   renameMovie: (movieId: string, title: string, updatedAt?: number) => void;
   deleteMovie: (movieId: string) => void;
+  beginMovieJob: (movieId: string, startedAt?: number) => void;
+  advanceMovieJob: (movieId: string, stepIndex: number) => void;
+  finishMovieJob: (movieId: string, render: MovieRender, updatedAt?: number) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
   setHasHydrated: (value: boolean) => void;
 };
+
+/**
+ * Applies `change` to one movie, leaving the state object identical when the
+ * movie is unknown or the change is a no-op.
+ *
+ * Identity matters more here than the brevity: the generation runner re-checks
+ * every job on a timer and writes the step it finds, so a write that changed
+ * nothing must not produce a new `movies` array — that would re-render every
+ * movie surface, and re-run the runner's own effect, several times a second.
+ */
+function patchMovie(
+  state: MovieState,
+  movieId: string,
+  change: (movie: Movie) => Movie,
+): Pick<MovieState, 'movies'> | MovieState {
+  const current = state.movies.find((movie) => movie.id === movieId);
+  if (!current) return state;
+  const next = change(current);
+  if (next === current) return state;
+  return { movies: state.movies.map((movie) => (movie.id === movieId ? next : movie)) };
+}
 
 /**
  * Keeps a new movie's id off one already stored. Two movies started in the same
@@ -74,16 +111,10 @@ function createDraft(
     snapRefs: snapIds.map((snapId, order) => ({ snapId, order })),
     style: DefaultMovieStyle,
     bgm: DefaultMovieBgm,
+    captions: true,
     ratio: '9:16',
   };
 }
-
-/**
- * What a movie starts as. Both are placeholders until the style step lands and
- * the catalogs move to the server (`GET /styles`, `GET /bgms`).
- */
-const DefaultMovieStyle = 'calm';
-const DefaultMovieBgm = 'lofi-walk';
 
 /**
  * Strips every reference to the given snaps from a movie.
@@ -109,19 +140,63 @@ export const useMovieStore = create<MovieState>()(
         return movie;
       },
       updateMovieCuts: (movieId, snapRefs, updatedAt = Date.now()) =>
-        set((state) => ({
-          movies: state.movies.map((movie) =>
-            movie.id === movieId ? { ...movie, snapRefs, updatedAt } : movie,
-          ),
-        })),
+        set((state) => patchMovie(state, movieId, (movie) => ({ ...movie, snapRefs, updatedAt }))),
+      updateMovieStyle: (movieId, patch, updatedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) => {
+            const next = { ...movie, ...patch, updatedAt };
+            const changed =
+              next.style !== movie.style ||
+              next.bgm !== movie.bgm ||
+              next.captions !== movie.captions;
+            return changed ? next : movie;
+          }),
+        ),
       renameMovie: (movieId, title, updatedAt = Date.now()) =>
-        set((state) => ({
-          movies: state.movies.map((movie) =>
-            movie.id === movieId ? { ...movie, title, updatedAt } : movie,
-          ),
-        })),
+        set((state) =>
+          patchMovie(state, movieId, (movie) => {
+            // The naming rule lives in one place, so a rename lands under the
+            // same cap and the same blank-means-the-date default as a creation.
+            const taken = new Set(
+              state.movies.filter((other) => other.id !== movieId).map((other) => other.title),
+            );
+            const next = movieTitle(title, movie.createdAt, taken);
+            return next === movie.title ? movie : { ...movie, title: next, updatedAt };
+          }),
+        ),
       deleteMovie: (movieId) =>
         set((state) => ({ movies: state.movies.filter((movie) => movie.id !== movieId) })),
+      beginMovieJob: (movieId, startedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) => ({
+            ...movie,
+            status: 'generating',
+            // A retry replaces the previous attempt outright: its render is stale
+            // and its error is answered by running again.
+            job: { id: `job-${startedAt}`, stepIndex: 0, startedAt },
+            render: undefined,
+            error: undefined,
+            updatedAt: startedAt,
+          })),
+        ),
+      // Deliberately does not stamp `updatedAt`: the studio board sorts by it,
+      // and a job would otherwise reshuffle the board at every step.
+      advanceMovieJob: (movieId, stepIndex) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.job && movie.status === 'generating' && movie.job.stepIndex !== stepIndex
+              ? { ...movie, job: { ...movie.job, stepIndex } }
+              : movie,
+          ),
+        ),
+      finishMovieJob: (movieId, render, updatedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.status === 'generating'
+              ? { ...movie, status: 'ready', render, job: undefined, updatedAt }
+              : movie,
+          ),
+        ),
       removeSnapsEverywhere: (snapIds) =>
         set((state) => {
           const removed = new Set(snapIds);
@@ -182,8 +257,49 @@ export function useUpdateMovieCuts(): (
   return useMovieStore((state) => state.updateMovieCuts);
 }
 
+/**
+ * Writes one or more generation settings. Separate from the cut list because the
+ * two are edited on different steps of the wizard and a movie is legible with
+ * either one changed alone.
+ */
+export function useUpdateMovieStyle(): (
+  movieId: string,
+  patch: MovieStylePatch,
+  updatedAt?: number,
+) => void {
+  return useMovieStore((state) => state.updateMovieStyle);
+}
+
+/**
+ * Renames a movie, through the same rule that named it: over-long titles are cut
+ * and a blank one becomes the day the movie was started.
+ */
 export function useRenameMovie(): (movieId: string, title: string, updatedAt?: number) => void {
   return useMovieStore((state) => state.renameMovie);
+}
+
+/**
+ * Puts a movie into generation at its first step. The three job actions are the
+ * movie's generation lifecycle, and each is a distinct transition — starting
+ * discards a previous attempt, advancing is a progress report, and finishing is
+ * the only way out of `generating`.
+ */
+export function useBeginMovieJob(): (movieId: string, startedAt?: number) => void {
+  return useMovieStore((state) => state.beginMovieJob);
+}
+
+/** Records which step a running job has reached. A no-op if it is already there. */
+export function useAdvanceMovieJob(): (movieId: string, stepIndex: number) => void {
+  return useMovieStore((state) => state.advanceMovieJob);
+}
+
+/** Completes a running job: the render lands and the movie becomes `ready`. */
+export function useFinishMovieJob(): (
+  movieId: string,
+  render: MovieRender,
+  updatedAt?: number,
+) => void {
+  return useMovieStore((state) => state.finishMovieJob);
 }
 
 export function useDeleteMovie(): (movieId: string) => void {

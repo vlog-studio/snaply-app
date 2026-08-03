@@ -3,9 +3,12 @@ import { useCallback } from 'react';
 import {
   MovieSnapLimit,
   getMovieById,
+  useBeginMovieJob,
   useCreateMovie,
   useUpdateMovieCuts,
+  useUpdateMovieStyle,
   type Movie,
+  type MovieStylePatch,
   type SnapRef,
 } from '@/entities/movie';
 import { useClearTray, useTraySnapIds } from '@/entities/tray';
@@ -26,8 +29,26 @@ export type CutsOutcome = {
   refused?: CutsRefusal;
 };
 
-/** A movie's cuts may only be edited before a generation job takes it over. */
-function canEditCuts(movie: Movie): boolean {
+/**
+ * Why generation would not start.
+ *
+ * `frozen` — a job already owns the movie, or it is finished.
+ * `empty` — there is nothing to generate from.
+ */
+export type GenerationRefusal = 'frozen' | 'empty';
+
+export type GenerationOutcome = {
+  started: boolean;
+  refused?: GenerationRefusal;
+};
+
+/**
+ * A movie's cuts and settings may only be edited before a generation job takes
+ * it over. `failed` stays editable, so a broken attempt can be fixed and run
+ * again; `ready` does not, because changing a finished movie means regenerating
+ * it, which is a different action.
+ */
+function canEdit(movie: Movie): boolean {
   return movie.status === 'draft' || movie.status === 'failed';
 }
 
@@ -49,6 +70,8 @@ export function useComposeMovie() {
   const clearTray = useClearTray();
   const createMovie = useCreateMovie();
   const updateMovieCuts = useUpdateMovieCuts();
+  const updateMovieStyle = useUpdateMovieStyle();
+  const beginMovieJob = useBeginMovieJob();
 
   /**
    * Starts a draft from everything in the tray and empties the tray, returning
@@ -70,7 +93,7 @@ export function useComposeMovie() {
     (movieId: string, snapRefs: readonly SnapRef[]): CutsOutcome => {
       const movie = getMovieById(movieId);
       if (!movie) return { cutCount: 0, refused: 'frozen' };
-      if (!canEditCuts(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
+      if (!canEdit(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
       if (snapRefs.length === 0) return { cutCount: movie.snapRefs.length, refused: 'empty' };
       if (snapRefs.length > MovieSnapLimit) {
         return { cutCount: movie.snapRefs.length, refused: 'full' };
@@ -93,7 +116,7 @@ export function useComposeMovie() {
     (movieId: string, snapIds: readonly string[]): CutsOutcome => {
       const movie = getMovieById(movieId);
       if (!movie) return { cutCount: 0, refused: 'frozen' };
-      if (!canEditCuts(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
+      if (!canEdit(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
 
       const held = new Set(movie.snapRefs.map((ref) => ref.snapId));
       const added = snapIds.filter((snapId) => {
@@ -116,5 +139,41 @@ export function useComposeMovie() {
     [updateMovieCuts],
   );
 
-  return { startMovieFromTray, saveCuts, appendSnaps };
+  /**
+   * Writes the style step's settings. Returns whether the write landed, which is
+   * false only for a movie a job already owns — the single reason there is, so
+   * the caller needs no refusal code to tell the user why.
+   */
+  const saveStyle = useCallback(
+    (movieId: string, patch: MovieStylePatch): boolean => {
+      const movie = getMovieById(movieId);
+      if (!movie || !canEdit(movie)) return false;
+      updateMovieStyle(movieId, patch);
+      return true;
+    },
+    [updateMovieStyle],
+  );
+
+  /**
+   * Hands a movie to a generation job. From here on its cuts and settings are
+   * fixed and `MovieGenerationGate` carries it to a render.
+   *
+   * A movie with nothing to generate is refused rather than started: a job over
+   * an empty cut list can only produce an empty movie, and the editor would have
+   * no way to explain the result.
+   */
+  const startGeneration = useCallback(
+    (movieId: string): GenerationOutcome => {
+      const movie = getMovieById(movieId);
+      if (!movie) return { started: false, refused: 'frozen' };
+      if (!canEdit(movie)) return { started: false, refused: 'frozen' };
+      if (movie.snapRefs.length === 0) return { started: false, refused: 'empty' };
+
+      beginMovieJob(movieId);
+      return { started: true };
+    },
+    [beginMovieJob],
+  );
+
+  return { startMovieFromTray, saveCuts, appendSnaps, saveStyle, startGeneration };
 }

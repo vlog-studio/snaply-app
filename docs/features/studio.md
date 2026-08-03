@@ -11,10 +11,13 @@ The Studio (`/`) is the workbench the app opens on: the snaps picked out for the
 │                    · ✕ per snap, 비우기
 │                    · 이 스냅으로 새 무비   → /movie/[id]
 ├── 작업 중           movies with status draft / generating / failed  → /movie/[id]
-└── 최근 완성         movies with status ready (2 most recent)        → /movie/[id]
+│                    · a generating movie carries a progress bar
+└── 최근 완성         movies with status ready (2 most recent)        → /movie/[id]/play
 
 /movies  (무비)
-└── 2-column tile grid, every movie, most recent edit first          → /movie/[id]
+└── 2-column tile grid, every movie, most recent edit first
+    ├── draft / generating / failed                                  → /movie/[id]
+    └── ready                                                        → /movie/[id]/play
 ```
 
 ## The tray
@@ -35,9 +38,10 @@ The tray is the concept's one invention (concept §5): choosing a snap does not 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
 | 작업 중 lane | `Functional` | Reads `useInProgressMovies()` — every movie whose status is not `ready`, so drafts, in-flight generations, and failures all surface in one place. Each row shows a stack of the movie's first cuts, its cut count and length, its status, and when it was last worked on. |
-| 최근 완성 lane | `Partial` | Reads `useReadyMovies()` and previews the two most recent, with `전체 보기` deferring to the movie tab. Nothing can reach `ready` until the generation step lands, so it stands empty today. |
+| 최근 완성 lane | `Functional` | Reads `useReadyMovies()` and previews the two most recent, with `전체 보기` deferring to the movie tab. |
 | Movie tab grid | `Functional` | `/movies` draws every movie as a 9:16 tile with its status badge and length. Drafts sit in the same grid as finished movies — they are the same object at a different point in its life. |
-| Open a movie | `Functional` | Any row or tile pushes `/movie/[id]`, the editor. |
+| Open a movie | `Functional` | A finished movie opens on [playback](movie-playback.md); anything unfinished opens on the [editor](movie-editor.md). The tile's action is whatever the movie is waiting for. |
+| Generation progress | `Functional` | A row or tile for a `generating` movie carries a bar from `MovieSummary.progress`, derived from the step the job has reached. A card is deliberately coarse — a list must not re-render on a timer, so the second-by-second number lives on the generation step alone (see [Movie editor](movie-editor.md)). |
 
 ## Data model
 
@@ -51,28 +55,34 @@ Movie
 ├── snapRefs[]    { snapId, order, trim? }   — per-movie order and trim; the snap original is never mutated
 ├── style         calm | upbeat | plain | emotional
 ├── bgm, ratio    track id, '9:16'
-├── jobId?        set while a generation job is in flight
+├── captions      whether generation should burn in automatic subtitles
+├── job?          { id, stepIndex, startedAt } while a generation job is in flight
 ├── render?       { uri?, renderedAt, durationSec }
 └── error?        why the last generation failed
 ```
 
 `failed` is a first-class status rather than a flavor of draft: a generation job is remote work that really does fail, and the user has to be able to tell "I have not run this yet" from "it broke".
 
-The store exposes reads (`useMovies`, `useMovieById`, `getMovieById`, `useMoviesHydrated`), the writes the editor needs (`useCreateMovie`, `useUpdateMovieCuts`, `useRenameMovie`, `useDeleteMovie`), and `useRemoveSnapsEverywhere` for the delete cascade. The style and generation-lifecycle actions arrive with their callers, so the slice never publishes an unused API.
+A job lives on the movie rather than in memory so it outlives the screen that started it and the session it started in — the user is expected to leave while a movie generates. `stepIndex` is the only progress the store keeps; anything finer is derived from `startedAt` by whoever needs it.
+
+The store exposes reads (`useMovies`, `useMovieById`, `getMovieById`, `useMoviesHydrated`), the writes the editor needs (`useCreateMovie`, `useUpdateMovieCuts`, `useUpdateMovieStyle`, `useRenameMovie`, `useDeleteMovie`), the three generation-lifecycle actions (`useBeginMovieJob`, `useAdvanceMovieJob`, `useFinishMovieJob`), and `useRemoveSnapsEverywhere` for the delete cascade. `useDeleteMovie` is the one action with no caller — there is no movie-deletion UI yet (concept §11 leaves where it belongs open).
+
+Two of these are deliberately identity-preserving: a write that changes nothing returns the state object unchanged. The generation runner re-checks every job on a timer and writes the step it finds, and a new `movies` array on each of those would re-render every movie surface several times a second.
 
 ## Ownership
 
 - `src/pages/studio` owns the screen, the tray panel (`ui/tray-panel.tsx`), and the navigation into snap selection and the editor.
 - `src/pages/movies` owns the movie tab's grid.
-- `src/features/compose-movie` owns starting a movie from the tray and committing cut lists (see [Movie editor](movie-editor.md)).
+- `src/features/compose-movie` owns starting a movie from the tray, committing cut lists and style settings, starting generation, and the app-wide generation runner (see [Movie editor](movie-editor.md)).
 - `src/entities/tray` owns the tray store: pick order, the ten-snap cap, and the `{ added, rejected }` outcome. It holds ids only and never imports `entities/snap` — resolving a tray entry to a snap is the studio's join, through `useSnapsByRefs`.
 - `src/entities/movie` owns movies and their persisted store (`snaply.movies`). It never imports `entities/snap`; `SnapRef` is matched structurally by `entities/snap`'s `SnapRefLike`.
-- `src/widgets/movie-shelf` owns the movie↔snap read model (`MovieSummary`: cut count, total seconds, cover frames, date label), the two lane selectors, and the two ways a movie is drawn — `MovieRow` for the board and `MovieTile` for the grid, sharing one status badge. It is a widget because both the studio and the movie tab need the same summary and the same vocabulary, and neither entity may own a cross-entity join.
+- `src/widgets/movie-shelf` owns the movie↔snap read model (`MovieSummary`: cut count, total played seconds, cover frames, date label, job progress), the two lane selectors, and the two ways a movie is drawn — `MovieRow` for the board and `MovieTile` for the grid, sharing one status badge. It is a widget because both the studio and the movie tab need the same summary and the same vocabulary, and neither entity may own a cross-entity join.
 - `src/shared/ui/video-frame` draws a video's first frame from the shared thumbnail cache. Business-agnostic — it takes a URI, not a `Snap`.
 
 ## Known limitations
 
-- A movie can be assembled but not generated or played: the style and generation steps are not built, so nothing ever reaches `ready`.
+- Generation is a local simulation and nothing is composited (see [Movie editor](movie-editor.md) and [Movie playback](movie-playback.md)). A `ready` movie is real state, but its "render" is a length and a timestamp.
+- There is no movie-deletion UI, so a movie made by mistake stays on the board.
 - The tray is single. Collecting for two movies at once is not possible (concept §11 leaves this open).
 - `MovieSummary.dateLabel` reads the clock through `formatDayHeading`, so a movie edited just before midnight keeps reading "오늘" until the screen re-renders.
 - Movies are local-only. There is no upload, no server-side composition, and no sync between devices.

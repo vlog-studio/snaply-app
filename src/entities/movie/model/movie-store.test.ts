@@ -3,14 +3,18 @@ import { act, renderHook } from '@testing-library/react-native';
 import type { Movie } from './movie';
 import {
   getMovieById,
+  useAdvanceMovieJob,
+  useBeginMovieJob,
   useCreateMovie,
   useDeleteMovie,
+  useFinishMovieJob,
   useMovieById,
   useMovies,
   useMovieStore,
   useRemoveSnapsEverywhere,
   useRenameMovie,
   useUpdateMovieCuts,
+  useUpdateMovieStyle,
 } from './movie-store';
 
 // Mock the persistence backend so no native file system is touched.
@@ -32,6 +36,7 @@ function makeMovie(id: string, snapIds: string[]): Movie {
     snapRefs: snapIds.map((snapId, order) => ({ snapId, order })),
     style: 'calm',
     bgm: 'lofi-walk',
+    captions: true,
     ratio: '9:16',
   };
 }
@@ -201,6 +206,37 @@ describe('editing a movie', () => {
     });
   });
 
+  it('renames through the naming rule, so a blank name falls back to the date', async () => {
+    const { result } = await renderHook(() => useRenameMovie());
+
+    await act(async () => result.current('m1', '   ', 999));
+
+    // 무비 07-22 — the day makeMovie stamps as createdAt.
+    expect(useMovieStore.getState().movies[0].title).toMatch(/^무비 \d\d-\d\d$/);
+  });
+
+  it('writes only the style settings it is given', async () => {
+    const { result } = await renderHook(() => useUpdateMovieStyle());
+
+    await act(async () => result.current('m1', { style: 'upbeat' }, 999));
+
+    expect(useMovieStore.getState().movies[0]).toMatchObject({
+      style: 'upbeat',
+      bgm: 'lofi-walk',
+      captions: true,
+      updatedAt: 999,
+    });
+  });
+
+  it('leaves the movie identical when a style write changes nothing', async () => {
+    const before = useMovieStore.getState().movies[0];
+    const { result } = await renderHook(() => useUpdateMovieStyle());
+
+    await act(async () => result.current('m1', { style: 'calm', captions: true }, 999));
+
+    expect(useMovieStore.getState().movies[0]).toBe(before);
+  });
+
   it('deletes a movie', async () => {
     const { result } = await renderHook(() => useDeleteMovie());
 
@@ -209,19 +245,112 @@ describe('editing a movie', () => {
     expect(useMovieStore.getState().movies).toEqual([]);
   });
 
-  it.each(['updateMovieCuts', 'renameMovie'] as const)(
+  it.each(['updateMovieCuts', 'renameMovie', 'updateMovieStyle'] as const)(
     'ignores %s for an unknown movie',
     async (action) => {
       const before = useMovieStore.getState().movies;
       await act(async () => {
-        if (action === 'updateMovieCuts') {
-          useMovieStore.getState().updateMovieCuts('nope', [], 1);
-        } else {
-          useMovieStore.getState().renameMovie('nope', 'x', 1);
-        }
+        const store = useMovieStore.getState();
+        if (action === 'updateMovieCuts') store.updateMovieCuts('nope', [], 1);
+        else if (action === 'renameMovie') store.renameMovie('nope', 'x', 1);
+        else store.updateMovieStyle('nope', { style: 'plain' }, 1);
       });
 
-      expect(useMovieStore.getState().movies[0]).toBe(before[0]);
+      expect(useMovieStore.getState().movies).toBe(before);
+    },
+  );
+});
+
+describe('generating a movie', () => {
+  const startedAt = 1_754_000_000_000;
+  const render = { renderedAt: startedAt + 40_000, durationSec: 12 };
+
+  beforeEach(() => {
+    useMovieStore.setState({ movies: [makeMovie('m1', ['s1', 's2'])] });
+  });
+
+  it('starts a job on the first step and marks the movie generating', async () => {
+    const { result } = await renderHook(() => useBeginMovieJob());
+
+    await act(async () => result.current('m1', startedAt));
+
+    expect(useMovieStore.getState().movies[0]).toMatchObject({
+      status: 'generating',
+      job: { stepIndex: 0, startedAt },
+      updatedAt: startedAt,
+    });
+  });
+
+  it('discards the previous attempt when a failed movie is run again', async () => {
+    useMovieStore.setState({
+      movies: [{ ...makeMovie('m1', ['s1']), status: 'failed', error: '터졌어요', render }],
+    });
+    const { result } = await renderHook(() => useBeginMovieJob());
+
+    await act(async () => result.current('m1', startedAt));
+
+    expect(useMovieStore.getState().movies[0]).toMatchObject({ status: 'generating' });
+    expect(useMovieStore.getState().movies[0].error).toBeUndefined();
+    expect(useMovieStore.getState().movies[0].render).toBeUndefined();
+  });
+
+  it('records the step a running job reached, without reshuffling the board', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      advance: useAdvanceMovieJob(),
+    }));
+
+    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.advance('m1', 3));
+
+    expect(useMovieStore.getState().movies[0]).toMatchObject({
+      job: { stepIndex: 3 },
+      updatedAt: startedAt,
+    });
+  });
+
+  it('leaves the movie identical when the job is already on that step', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      advance: useAdvanceMovieJob(),
+    }));
+    await act(async () => result.current.begin('m1', startedAt));
+    const before = useMovieStore.getState().movies[0];
+
+    await act(async () => result.current.advance('m1', 0));
+
+    expect(useMovieStore.getState().movies[0]).toBe(before);
+  });
+
+  it('finishes a job into a ready movie holding its render', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      finish: useFinishMovieJob(),
+    }));
+
+    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.finish('m1', render, 999));
+
+    expect(useMovieStore.getState().movies[0]).toMatchObject({
+      status: 'ready',
+      render,
+      updatedAt: 999,
+    });
+    expect(useMovieStore.getState().movies[0].job).toBeUndefined();
+  });
+
+  it.each(['advanceMovieJob', 'finishMovieJob'] as const)(
+    'ignores %s for a movie no job owns',
+    async (action) => {
+      const before = useMovieStore.getState().movies[0];
+
+      await act(async () => {
+        const store = useMovieStore.getState();
+        if (action === 'advanceMovieJob') store.advanceMovieJob('m1', 2);
+        else store.finishMovieJob('m1', render, 999);
+      });
+
+      expect(useMovieStore.getState().movies[0]).toBe(before);
     },
   );
 });

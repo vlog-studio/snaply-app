@@ -8,9 +8,17 @@ import { useInProgressMovies, useMovieSummaries, useReadyMovies } from './use-mo
 const mockMovies = jest.fn<Movie[], []>();
 const mockSnaps = jest.fn<Snap[], []>();
 
-jest.mock('@/entities/movie', () => ({
-  useMovies: () => mockMovies(),
-}));
+jest.mock('@/entities/movie', () => {
+  // The trim and step rules are the entity's own and tested there; the summary is
+  // about which of them it reaches for, so they come from the real modules.
+  const trim = jest.requireActual('@/entities/movie/lib/movie-trim');
+  const generation = jest.requireActual('@/entities/movie/lib/movie-generation');
+  return {
+    useMovies: () => mockMovies(),
+    cutsDurationSec: trim.cutsDurationSec,
+    MovieGenerationStepCount: generation.MovieGenerationStepCount,
+  };
+});
 jest.mock('@/entities/snap', () => {
   const actual = jest.requireActual('@/entities/snap/model/snap-refs');
   return {
@@ -40,6 +48,7 @@ function makeMovie(overrides: Partial<Movie> & Pick<Movie, 'id'>): Movie {
     snapRefs: [],
     style: 'calm',
     bgm: 'lofi-walk',
+    captions: true,
     ratio: '9:16',
     ...overrides,
   };
@@ -88,6 +97,40 @@ describe('useMovieSummaries', () => {
 
     expect(result.current[0]).toMatchObject({ snapCount: 2, totalSec: 3 });
     expect(result.current[0].coverUris).toHaveLength(1);
+  });
+
+  it('times a movie by what each cut actually plays, not by the whole snap', async () => {
+    mockMovies.mockReturnValue([
+      makeMovie({
+        id: 'm1',
+        snapRefs: [
+          { snapId: 's2', order: 0, trim: { startSec: 1, endSec: 3.5 } },
+          { snapId: 's1', order: 1 },
+        ],
+      }),
+    ]);
+
+    const { result } = await renderHook(() => useMovieSummaries());
+
+    expect(result.current[0].totalSec).toBe(5.5);
+  });
+
+  it('reports how far a running job has come, and nothing for every other status', async () => {
+    mockMovies.mockReturnValue([
+      makeMovie({
+        id: 'generating',
+        status: 'generating',
+        updatedAt: 2,
+        job: { id: 'job-1', stepIndex: 2, startedAt: 1 },
+      }),
+      makeMovie({ id: 'draft', updatedAt: 1 }),
+    ]);
+
+    const { result } = await renderHook(() => useMovieSummaries());
+
+    // Step 2 of five steps.
+    expect(result.current[0].progress).toBeCloseTo(0.4);
+    expect(result.current[1].progress).toBeUndefined();
   });
 
   it('orders movies by the most recent edit', async () => {

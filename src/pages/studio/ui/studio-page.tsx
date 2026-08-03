@@ -47,12 +47,16 @@ export function StudioPage() {
   const traySnaps = useSnapsByRefs(traySnapIds.map((snapId, order) => ({ snapId, order })));
 
   const pickSnaps = () => router.push({ pathname: '/snaps', params: { select: '1' } });
-  const openMovie = (movieId: string) =>
+  const openEditor = (movieId: string) =>
     router.push({ pathname: '/movie/[id]', params: { id: movieId } });
+  // A finished movie opens on playback; anything unfinished opens on the editor,
+  // which is where the work it is waiting for happens.
+  const watchMovie = (movieId: string) =>
+    router.push({ pathname: '/movie/[id]/play', params: { id: movieId } });
 
   const startMovie = () => {
     const movie = startMovieFromTray();
-    if (movie) openMovie(movie.id);
+    if (movie) openEditor(movie.id);
   };
 
   return (
@@ -88,7 +92,7 @@ export function StudioPage() {
             </ThemedText>
           </View>
           {inProgress.length > 0 ? (
-            inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
+            inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openEditor} />)
           ) : (
             <View style={[styles.empty, { borderColor: theme.border }]}>
               <ThemedText type="small" themeColor="textSecondary">
@@ -117,11 +121,11 @@ export function StudioPage() {
           {ready.length > 0 ? (
             ready
               .slice(0, RecentReadyCount)
-              .map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
+              .map((movie) => <MovieRow key={movie.id} movie={movie} onPress={watchMovie} />)
           ) : (
             <View style={[styles.empty, { borderColor: theme.border }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                아직 완성한 무비가 없어요. 생성 단계는 준비 중이에요.
+                아직 완성한 무비가 없어요. 트레이로 무비를 만들고 스타일을 골라 생성해 보세요.
               </ThemedText>
             </View>
           )}

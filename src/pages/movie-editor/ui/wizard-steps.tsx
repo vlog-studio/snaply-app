@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -10,14 +10,18 @@ export type EditorStep = 0 | 1 | 2;
 
 export type WizardStepsProps = {
   current: EditorStep;
+  onSelect: (step: EditorStep) => void;
 };
 
 /**
- * The editor's progress header. Present from the first stage of the rebuild even
- * though only step ① is implemented: the wizard is what the screen *is*, and
- * hiding the other two would make the finished flow a surprise.
+ * The editor's progress header, and its shortest route between steps.
+ *
+ * The steps are tappable as well as walkable with 이전/다음: coming back to a
+ * draft to change one thing — the music, usually — should not mean paging through
+ * the list of cuts. Selecting a step goes through the same handler the footer
+ * uses, so leaving the cut list still commits it.
  */
-export function WizardSteps({ current }: WizardStepsProps) {
+export function WizardSteps({ current, onSelect }: WizardStepsProps) {
   const theme = useTheme();
 
   return (
@@ -28,7 +32,14 @@ export function WizardSteps({ current }: WizardStepsProps) {
         const color = isCurrent ? theme.primary : isDone ? theme.text : theme.textSecondary;
 
         return (
-          <View key={label} style={styles.step}>
+          <Pressable
+            key={label}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isCurrent }}
+            accessibilityLabel={`${index + 1}. ${label}`}
+            onPress={() => onSelect(index as EditorStep)}
+            style={styles.step}
+          >
             <View
               style={[
                 styles.bar,
@@ -38,7 +49,7 @@ export function WizardSteps({ current }: WizardStepsProps) {
             <ThemedText selectable={false} type="edge" style={{ color }}>
               {index + 1}. {label}
             </ThemedText>
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -47,6 +58,6 @@ export function WizardSteps({ current }: WizardStepsProps) {
 
 const styles = StyleSheet.create({
   steps: { flexDirection: 'row', gap: Spacing.two },
-  step: { flex: 1, gap: Spacing.one },
+  step: { flex: 1, gap: Spacing.one, paddingVertical: Spacing.one },
   bar: { height: 3, borderRadius: 2 },
 });

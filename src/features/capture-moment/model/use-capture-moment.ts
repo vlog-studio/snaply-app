@@ -1,46 +1,47 @@
 import { useState } from 'react';
 
-import type { CaptureDuration, CaptureMood } from '@/entities/capture-session';
-import { useAddClip, type Clip } from '@/entities/clip';
-import { ensureDailyRoll, useAddClipToRoll } from '@/entities/roll';
+import type { CaptureDuration } from '@/entities/capture-session';
+import { useAddSnap, type Snap } from '@/entities/snap';
 import { persistLocalRecording } from '@/shared/lib/recording-files';
 
-import { createClip } from './create-clip';
+import { createSnap } from './create-snap';
 
 const CAPTURE_MOMENT_FAILED = '순간을 담지 못했어요. 다시 시도해 주세요.'; // 순간을 담지 못했어요.
 
 type CaptureMomentInput = {
   durationSec: CaptureDuration;
-  mood?: CaptureMood;
 };
 
 /**
- * The "담기" action: persist a captured moment's video file, create its clip
- * metadata, and add the clip to today's daily roll (creating that roll on the
- * first capture of the day). Owns its pending/error state and guards re-entry;
- * it never navigates — the caller decides where to go on success (the recorder
- * returns Home, where the roll counter reflects the new clip).
+ * The capture action: persist a recorded moment's video file and create its snap
+ * metadata.
+ *
+ * That is the whole job. Capturing no longer files the snap into anything —
+ * automatic collection is gone along with the daily roll and its all-day rule. A
+ * snap sits in the library until the user picks it into the tray, which is now
+ * the one place material is chosen (concept §5).
+ *
+ * Owns its pending/error state and guards re-entry; it never navigates — the
+ * caller decides where to go on success (the recorder stays on the viewfinder,
+ * ready for the next hold).
  */
 export function useCaptureMoment() {
-  const addClip = useAddClip();
-  const addClipToRoll = useAddClipToRoll();
+  const addSnap = useAddSnap();
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function captureMoment(
     temporaryUri: string,
     input: CaptureMomentInput,
-  ): Promise<Clip | null> {
+  ): Promise<Snap | null> {
     if (isSaving) return null;
     setIsSaving(true);
     setError(null);
     try {
       const recording = await persistLocalRecording(temporaryUri);
-      const clip = createClip(recording, input);
-      addClip(clip);
-      const todayRoll = ensureDailyRoll();
-      addClipToRoll(todayRoll.id, clip.id);
-      return clip;
+      const snap = createSnap(recording, input);
+      addSnap(snap);
+      return snap;
     } catch {
       setError(CAPTURE_MOMENT_FAILED);
       return null;

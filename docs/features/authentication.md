@@ -68,7 +68,7 @@ the user in — cannot reach the app until the new password is set.
 | Sign-in / sign-up / reset / update-password / auth-callback screen composition | `src/pages/sign-in`, `src/pages/sign-up`, `src/pages/reset-password`, `src/pages/update-password`, `src/pages/auth-callback` |
 | Route files | `src/app/sign-in.tsx`, `src/app/sign-up.tsx`, `src/app/reset-password.tsx`, `src/app/update-password.tsx`, `src/app/auth/callback.tsx`, `src/app/auth/reset.tsx` (thin adapters) |
 | Access-control composition (route guard) and session bootstrap | `src/_app/routes/root-layout.tsx` (`Stack.Protected` + `initSession`) |
-| Sign-out control | `src/pages/settings` (calls the session entity's `useClearSession`) |
+| Sign-out control | `src/pages/me` (calls the session entity's `useClearSession`) |
 
 **Supabase owns the session.** The `supabase` client persists the session (access token, refresh token, user) via the chunked SecureStore adapter and refreshes tokens automatically while the app is active. The zustand session store no longer persists its own copy; instead `initSession` (run once from the root layout) subscribes to `supabase.auth.onAuthStateChange`, mirrors the derived `User` into the store, and flips `hasHydrated` on the first event. `initSession` is the single writer for Supabase-driven changes (restore on launch, refresh, sign-out); the sign-in action additionally writes the user directly for immediate feedback (and to support the offline mock provider). The store still exposes the same focused selector hooks (`useCurrentUser`, `useIsAuthenticated`, `useSessionHydrated`, `useSetSession`, `useClearSession`) through the slice Public API.
 

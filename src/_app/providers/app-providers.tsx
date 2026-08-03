@@ -9,12 +9,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PushTokenRegistrar } from '@/features/register-push-token';
 import { Colors } from '@/shared/ui/theme';
 
-import { DailyRollGate } from './daily-roll-gate';
 import { GeofenceGate } from './geofence-gate';
 import { queryClient } from './query-client';
 
-// The app is dark-fixed (the darkroom), so navigation chrome always uses the
-// darkroom palette on the dark base theme.
+// The app is dark-fixed, so navigation chrome always uses the app palette on
+// the dark base theme.
 const palette = Colors.dark;
 const navigationTheme = {
   ...DarkTheme,
@@ -34,14 +33,13 @@ export function AppProviders({ children }: PropsWithChildren) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={navigationTheme}>
         <StatusBar style="light" />
-        {/* The darkroom is always dark; keep the Android navigation bar buttons
+        {/* The app is always dark; keep the Android navigation bar buttons
             light. No-op on iOS/web. */}
         <NavigationBar style="dark" />
         <PushTokenRegistrar />
         <GeofenceGate />
-        <DailyRollGate />
-        {/* Gesture-handler gestures (the roll-detail drag reorder) need this
-            ancestor; expo-router's native stack does not provide one. */}
+        {/* Gesture-handler gestures need this ancestor; expo-router's native
+            stack does not provide one. */}
         <GestureHandlerRootView style={styles.root}>{children}</GestureHandlerRootView>
       </ThemeProvider>
     </QueryClientProvider>

@@ -20,7 +20,9 @@ jest.mock('@tanstack/react-query', () => ({ useQueryClient: jest.fn() }));
 jest.mock('@/entities/session', () => ({ useIsAuthenticated: jest.fn() }));
 
 jest.mock('@/entities/location', () => ({
-  locationQueries: { nearby: jest.fn((params) => ({ queryKey: ['nearby', params], queryFn: jest.fn() })) },
+  locationQueries: {
+    nearby: jest.fn((params) => ({ queryKey: ['nearby', params], queryFn: jest.fn() })),
+  },
 }));
 
 jest.mock('@/shared/lib/location', () => ({ getCurrentCoordinates: jest.fn() }));
@@ -51,7 +53,9 @@ describe('useGeofenceMonitoring', () => {
   it('starts monitoring nearby points when authenticated and enabled', async () => {
     await renderHook(() => useGeofenceMonitoring({ enabled: true }));
 
-    await waitFor(() => expect(startGeofenceMonitoring).toHaveBeenCalledWith(nearbyLocations, origin));
+    await waitFor(() =>
+      expect(startGeofenceMonitoring).toHaveBeenCalledWith(nearbyLocations, origin),
+    );
     expect(locationQueries.nearby).toHaveBeenCalledWith(origin);
     expect(stopGeofenceMonitoring).not.toHaveBeenCalled();
   });

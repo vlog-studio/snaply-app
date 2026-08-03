@@ -3,14 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 
-import {
-  type CaptureDuration,
-  type CaptureMood,
-  normalizeCaptureDuration,
-  normalizeCaptureMood,
-} from '@/entities/capture-session';
+import { normalizeCaptureDuration, type CaptureDuration } from '@/entities/capture-session';
 import { useCaptureMoment } from '@/features/capture-moment';
-import { useDeleteClips } from '@/features/delete-clip';
+import { useDeleteSnaps } from '@/features/delete-snap';
 import { useLocalRecordings } from '@/features/manage-recordings';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 
@@ -30,8 +25,8 @@ const PERMISSION_REQUEST_FAILED =
  * result through the recordings feature, the review/library flow, and screen
  * navigation. The page component consumes this and only renders.
  *
- * The capture options (mood, duration) are owned here as local state and tuned
- * inline in the viewfinder while idle, rather than in a separate setup screen.
+ * The capture option (duration) is owned here as local state and tuned inline in
+ * the viewfinder while idle, rather than in a separate setup screen.
  */
 export function useCaptureRecorder() {
   const router = useRouter();
@@ -50,16 +45,16 @@ export function useCaptureRecorder() {
     clearError: clearListError,
     reloadRecordings,
   } = useLocalRecordings();
-  // The library deletes originals, and an original captured earlier today is
-  // already a clip inside today's roll — so deletion must cascade through the
-  // clip and roll stores, not just remove the file.
+  // The library deletes originals, and an original may already be a cut inside a
+  // movie or sitting in the tray — so deletion must cascade through those
+  // stores, not just remove the file.
   const {
-    deleteClips,
+    deleteSnaps,
     deletingIds,
     errorMessage: deleteError,
     clearError: clearDeleteError,
-  } = useDeleteClips();
-  // Deletion in the library is one clip at a time.
+  } = useDeleteSnaps();
+  // Deletion in the library is one snap at a time.
   const [deletingId] = deletingIds;
   const libraryError = listError ?? deleteError;
   const { captureMoment, error: momentError, clearError: clearMomentError } = useCaptureMoment();
@@ -73,7 +68,6 @@ export function useCaptureRecorder() {
   const heldMs = useRef<number | undefined>(undefined);
   const collectNonce = useRef(0);
 
-  const [mood, setMood] = useState<CaptureMood>(() => normalizeCaptureMood(undefined));
   const [duration, setDuration] = useState<CaptureDuration>(() =>
     normalizeCaptureDuration(undefined),
   );
@@ -86,8 +80,8 @@ export function useCaptureRecorder() {
   const [isLibraryVisible, setIsLibraryVisible] = useState(false);
   const [selectedRecording, setSelectedRecording] = useState<LocalRecording>();
   const [captureError, setCaptureError] = useState<string>();
-  // The most recently collected clip, handed to the page so it can fly the clip
-  // into the roll counter. `nonce` makes each collect a distinct event even when
+  // The most recently captured snap, handed to the page so it can fly the frame
+  // into the snap counter. `nonce` makes each capture a distinct event even when
   // the same file id recurs.
   const [lastCollected, setLastCollected] = useState<{ nonce: number; uri: string }>();
 
@@ -189,21 +183,20 @@ export function useCaptureRecorder() {
       }
 
       setStage('saving');
-      // 담기: persist the clip and add it to today's roll. In the MVP loop there
-      // is no review/editing — the moment stays undeveloped and we return Home,
-      // where the roll counter reflects the new clip.
-      const clip = await captureMoment(result.uri, { durationSec: duration, mood });
-      if (!clip) {
+      // Persist the snap. It is filed into nothing — the user picks material
+      // later in the snap tab — so there is no review step here.
+      const snap = await captureMoment(result.uri, { durationSec: duration });
+      if (!snap) {
         setStage('idle');
         return;
       }
 
       if (isClosing.current) return;
       // Continuous capture: stay in the viewfinder, ready for the next hold, so
-      // the user is never yanked Home mid-session. Hand the page the clip so it
-      // can fly it into the roll counter as in-camera feedback.
+      // the user is never yanked away mid-session. Hand the page the snap so it
+      // can fly it into the counter as in-camera feedback.
       collectNonce.current += 1;
-      setLastCollected({ nonce: collectNonce.current, uri: clip.uri });
+      setLastCollected({ nonce: collectNonce.current, uri: snap.uri });
       if (process.env.EXPO_OS === 'ios') {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -221,7 +214,7 @@ export function useCaptureRecorder() {
     cameraRef.current?.stopRecording();
   };
 
-  // Press-and-hold collect gesture (concept §7): recording runs only while the
+  // Press-and-hold capture gesture: recording runs only while the
   // shutter is held. Release stops it early; the native maxDuration still ends
   // it automatically when the ring completes.
   const beginHold = () => {
@@ -242,8 +235,8 @@ export function useCaptureRecorder() {
   };
 
   const closePage = () => {
-    // Explicit leave: always go Home (not the tab that opened capture) so the
-    // user lands on the roll they just built, and its landing beat plays.
+    // Explicit leave: always go to the studio (not the tab that opened capture)
+    // so the user lands where the next step is.
     isClosing.current = true;
     if (isRecording.current) cameraRef.current?.stopRecording();
     router.dismissAll();
@@ -273,20 +266,15 @@ export function useCaptureRecorder() {
   const closeLibrary = () => setIsLibraryVisible(false);
 
   const deleteRecording = async (recording: LocalRecording) => {
-    const deletedIds = await deleteClips([recording]);
+    const deletedIds = await deleteSnaps([recording]);
     if (deletedIds.length === 0) return;
     // The list is read from disk, so refresh it now that the file is gone.
     await reloadRecordings();
     if (selectedRecording?.id === recording.id) retake();
   };
 
-  // Options are tuned only while idle; once a hold starts the run is committed.
-  const selectMood = (nextMood: CaptureMood) => {
-    if (stage !== 'idle') return;
-    setMood(nextMood);
-    if (process.env.EXPO_OS === 'ios') void Haptics.selectionAsync();
-  };
-
+  // The duration is tuned only while idle; once a hold starts the run is
+  // committed.
   const selectDuration = (nextDuration: CaptureDuration) => {
     if (stage !== 'idle') return;
     setDuration(nextDuration);
@@ -310,11 +298,9 @@ export function useCaptureRecorder() {
 
   return {
     // capture options
-    mood,
     duration,
-    selectMood,
     selectDuration,
-    // collect feedback
+    // capture feedback
     lastCollected,
     // recording state
     stage,

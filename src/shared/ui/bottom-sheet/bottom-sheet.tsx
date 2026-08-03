@@ -8,7 +8,7 @@ export type BottomSheetProps = {
   visible: boolean;
   onClose: () => void;
   children: ReactNode;
-  // Announced on the sheet surface for screen readers (e.g. "현상 안내").
+  // Announced on the sheet surface for screen readers (e.g. "스냅 삭제 확인").
   accessibilityLabel?: string;
 };
 

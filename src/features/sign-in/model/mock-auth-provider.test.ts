@@ -18,9 +18,7 @@ describe('mockAuthProvider', () => {
       await jest.advanceTimersByTimeAsync(600);
       const user = await pending;
 
-      expect(user).toEqual(
-        expect.objectContaining({ id: `mock-${provider}`, provider }),
-      );
+      expect(user).toEqual(expect.objectContaining({ id: `mock-${provider}`, provider }));
       expect(user.displayName.length).toBeGreaterThan(0);
     },
   );

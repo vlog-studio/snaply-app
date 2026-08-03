@@ -10,35 +10,23 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  type CaptureDuration,
-  type CaptureMood,
-  getCaptureMoodLabel,
-} from '@/entities/capture-session';
-import { useTodayRoll } from '@/entities/roll';
+import { type CaptureDuration } from '@/entities/capture-session';
+import { useSnaps } from '@/entities/snap';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
 import { useCaptureRecorder } from '../model/use-capture-recorder';
-import { CollectFlight } from './collect-flight';
+import { CaptureFlight } from './capture-flight';
 import { HoldRing } from './hold-ring';
 import { RecordingLibrary } from './recording-library';
 
-// How long the "담김" confirmation badge lingers after a collect.
+// How long the "담김" confirmation badge lingers after a capture.
 const COLLECTED_BADGE_MS = 1100;
 
-// The 담기 ring sits just outside the 88px shutter (5px stroke + breathing gap).
+// The capture ring sits just outside the 88px shutter (5px stroke + gap).
 const HOLD_RING_SIZE = 108;
-
-// Inline viewfinder options. Accents track the darkroom mood palette shared with
-// the mood copy in entities/capture-session.
-const MOOD_CHIPS: { accent: string; emoji: string; id: CaptureMood }[] = [
-  { id: 'hip', emoji: '🔥', accent: '#EA5E38' }, // ember
-  { id: 'lovely', emoji: '💕', accent: '#D98AA0' }, // warm rose
-  { id: 'energy', emoji: '⚡', accent: '#82D6CE' }, // lumen
-];
 
 const DURATION_OPTIONS: readonly CaptureDuration[] = [3, 5];
 
@@ -46,9 +34,7 @@ export function CaptureRecordPage() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const {
-    mood,
     duration,
-    selectMood,
     selectDuration,
     lastCollected,
     stage,
@@ -88,20 +74,19 @@ export function CaptureRecordPage() {
     openAppSettings,
   } = useCaptureRecorder();
 
-  // In-camera collect feedback: the just-captured clip flies up into the roll
-  // counter; when it lands, the count bumps and the counter pops. Collecting
-  // stays on the viewfinder instead of bouncing Home.
+  // In-camera feedback: the just-captured snap flies up into the counter; when
+  // it lands, the count bumps and the counter pops. Capturing stays on the
+  // viewfinder instead of bouncing back to the studio.
   const reducedMotion = useReducedMotion();
-  const todayRoll = useTodayRoll();
-  const collectedCount = todayRoll?.clipRefs.length ?? 0;
+  const collectedCount = useSnaps().length;
   const collectedCountRef = useRef(collectedCount);
 
   useEffect(() => {
     collectedCountRef.current = collectedCount;
   }, [collectedCount]);
 
-  // The pill count trails the store until the flying clip arrives, so the number
-  // bumps as the clip lands rather than the instant it is persisted.
+  // The pill count trails the store until the flying frame arrives, so the
+  // number bumps as it lands rather than the instant it is persisted.
   const [displayedCount, setDisplayedCount] = useState(collectedCount);
   const [flight, setFlight] = useState<{ key: number; uri: string }>();
   const [showCollectedBadge, setShowCollectedBadge] = useState(false);
@@ -116,7 +101,7 @@ export function CaptureRecordPage() {
     badgeTimer.current = setTimeout(() => setShowCollectedBadge(false), COLLECTED_BADGE_MS);
   };
 
-  // The clip reached the counter: reveal the new count and pop the pill.
+  // The frame reached the counter: reveal the new count and pop the pill.
   const handleFlightArrive = () => {
     setFlight(undefined);
     setDisplayedCount(collectedCountRef.current);
@@ -124,7 +109,7 @@ export function CaptureRecordPage() {
     flashCollectedBadge();
   };
 
-  // Each collect starts a flight; reduced motion lands it immediately.
+  // Each capture starts a flight; reduced motion lands it immediately.
   useEffect(() => {
     const nonce = lastCollected?.nonce ?? 0;
     if (nonce === 0 || nonce === processedNonce.current) return;
@@ -196,7 +181,7 @@ export function CaptureRecordPage() {
             />
           ) : null}
           <SnaplyButton
-            title={`담은 컷 보기 (${recordings.length})`}
+            title={`찍어둔 스냅 보기 (${recordings.length})`}
             variant="secondary"
             onPress={openLibrary}
             style={styles.permissionAction}
@@ -247,7 +232,7 @@ export function CaptureRecordPage() {
         <View style={styles.cameraShade} pointerEvents="none" />
 
         {flight ? (
-          <CollectFlight key={flight.key} uri={flight.uri} onArrive={handleFlightArrive} />
+          <CaptureFlight key={flight.key} uri={flight.uri} onArrive={handleFlightArrive} />
         ) : null}
 
         <View style={styles.topBar}>
@@ -262,7 +247,7 @@ export function CaptureRecordPage() {
           </Pressable>
           <Animated.View style={[styles.modePill, counterStyle]}>
             <ThemedText selectable={false} type="edge" style={styles.whiteText}>
-              오늘의 롤{displayedCount > 0 ? ` · ${displayedCount}컷` : ''}
+              스냅{displayedCount > 0 ? ` ${displayedCount}개` : ''}
             </ThemedText>
           </Animated.View>
           <Pressable
@@ -282,14 +267,14 @@ export function CaptureRecordPage() {
           {stage === 'idle' && !showCollectedBadge ? (
             <View style={styles.focusFrame} pointerEvents="none">
               <ThemedText selectable={false} type="edge" style={styles.frameMeta}>
-                꾹 눌러 담기
+                꾹 눌러 촬영
               </ThemedText>
             </View>
           ) : null}
           {stage === 'idle' && showCollectedBadge ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
               <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
-                담김 · 오늘의 롤 {displayedCount}컷
+                담김 · 스냅 {displayedCount}개
               </ThemedText>
             </View>
           ) : null}
@@ -307,14 +292,14 @@ export function CaptureRecordPage() {
           {stage === 'saving' ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
               <ThemedText selectable={false} type="edge" style={{ color: theme.amber }}>
-                컷을 담는 중…
+                스냅을 저장하는 중…
               </ThemedText>
             </View>
           ) : null}
           {stage === 'review' ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
               <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
-                담김 · 미현상
+                저장됨
               </ThemedText>
             </View>
           ) : null}
@@ -336,62 +321,28 @@ export function CaptureRecordPage() {
 
         <View style={[styles.bottomControls, { paddingBottom: insets.bottom + Spacing.five }]}>
           {stage === 'idle' && isRecordingSupported ? (
-            <View style={styles.optionsBar}>
-              <View style={styles.moodChips}>
-                {MOOD_CHIPS.map((chip) => {
-                  const isSelected = mood === chip.id;
-                  return (
-                    <Pressable
-                      key={chip.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: isSelected }}
-                      accessibilityLabel={getCaptureMoodLabel(chip.id)}
-                      onPress={() => selectMood(chip.id)}
-                      style={[
-                        styles.moodChip,
-                        isSelected && {
-                          borderColor: chip.accent,
-                          backgroundColor: `${chip.accent}26`,
-                        },
-                      ]}
+            <View style={styles.durationToggle}>
+              {DURATION_OPTIONS.map((seconds) => {
+                const isSelected = duration === seconds;
+                return (
+                  <Pressable
+                    key={seconds}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                    accessibilityLabel={`${seconds}초`}
+                    onPress={() => selectDuration(seconds)}
+                    style={[styles.durationSeg, isSelected && styles.durationSegActive]}
+                  >
+                    <ThemedText
+                      selectable={false}
+                      type="smallBold"
+                      style={isSelected ? { color: theme.media } : styles.mutedWhite}
                     >
-                      <ThemedText selectable={false} style={styles.moodChipEmoji}>
-                        {chip.emoji}
-                      </ThemedText>
-                      <ThemedText
-                        selectable={false}
-                        type="smallBold"
-                        style={isSelected ? styles.whiteText : styles.mutedWhite}
-                      >
-                        {getCaptureMoodLabel(chip.id)}
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <View style={styles.durationToggle}>
-                {DURATION_OPTIONS.map((seconds) => {
-                  const isSelected = duration === seconds;
-                  return (
-                    <Pressable
-                      key={seconds}
-                      accessibilityRole="radio"
-                      accessibilityState={{ checked: isSelected }}
-                      accessibilityLabel={`${seconds}초`}
-                      onPress={() => selectDuration(seconds)}
-                      style={[styles.durationSeg, isSelected && styles.durationSegActive]}
-                    >
-                      <ThemedText
-                        selectable={false}
-                        type="smallBold"
-                        style={isSelected ? { color: theme.media } : styles.mutedWhite}
-                      >
-                        {seconds}초
-                      </ThemedText>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      {seconds}초
+                    </ThemedText>
+                  </Pressable>
+                );
+              })}
             </View>
           ) : null}
           {stage === 'review' ? (
@@ -411,7 +362,7 @@ export function CaptureRecordPage() {
                   ▣
                 </ThemedText>
                 <ThemedText selectable={false} type="small" style={styles.mutedWhite}>
-                  보관함 {recordings.length}
+                  스냅 {recordings.length}
                 </ThemedText>
               </Pressable>
               <View style={styles.shutterArea}>
@@ -463,21 +414,21 @@ export function CaptureRecordPage() {
           )}
           <ThemedText type="small" style={styles.helperText}>
             {!isRecordingSupported
-              ? '순간 담기는 iOS 또는 Android 기기에서 사용할 수 있어요'
+              ? '촬영은 iOS 또는 Android 기기에서 사용할 수 있어요'
               : stage === 'recording'
-                ? '손을 떼면 바로 담기가 끝나요'
+                ? '손을 떼면 바로 촬영이 끝나요'
                 : stage === 'saving'
                   ? '앱을 닫지 말고 잠시 기다려 주세요'
                   : stage === 'review'
-                    ? '보관함에서 이전 컷도 다시 고를 수 있어요'
+                    ? '찍어둔 스냅을 다시 골라볼 수 있어요'
                     : collectedCount > 0
-                      ? '이어서 담거나, ✕를 눌러 오늘의 롤을 확인해요'
-                      : `가운데 버튼을 꾹 누르는 동안 담겨요 · 최대 ${duration}초`}
+                      ? '이어서 찍거나, ✕를 눌러 스튜디오로 돌아가요'
+                      : `가운데 버튼을 꾹 누르는 동안 찍혀요 · 최대 ${duration}초`}
           </ThemedText>
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
               <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-                담은 컷 {recordings.length}개 관리
+                찍어둔 스냅 {recordings.length}개 관리
               </ThemedText>
             </Pressable>
           ) : null}
@@ -581,20 +532,6 @@ const styles = StyleSheet.create({
   },
   errorDismiss: { color: 'rgba(255,255,255,0.72)' },
   bottomControls: { paddingHorizontal: Spacing.five, gap: Spacing.three },
-  optionsBar: { alignItems: 'center', gap: Spacing.three },
-  moodChips: { flexDirection: 'row', gap: Spacing.two },
-  moodChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(0,0,0,0.36)',
-  },
-  moodChipEmoji: { fontSize: 16 },
   durationToggle: {
     flexDirection: 'row',
     gap: Spacing.one,

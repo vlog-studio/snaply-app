@@ -54,7 +54,8 @@ src/
 - [`위치 기반 FCM 알림 선행 개발 계획`](docs/guides/location-notifications-plan.md): 백엔드 API 이전에 프론트에서 만들 수 있는 범위, FSD 배치, 단계별 계획, 네이티브 설정 체크리스트
 - [`FCM 푸시 알림 설정 가이드`](docs/guides/fcm-push-setup.md): 네이티브 FCM 토큰용 Firebase 프로젝트·앱 등록, `google-services.json`/`GoogleService-Info.plist`/APNs 준비 절차
 - [`Snaply 스튜디오 — AI 숏폼 브이로그 기획`](docs/guides/ai-vlog-studio/concept.md): **현재 확정 기획.** 스냅↔무비 재정의, 4탭 + 담기 트레이 정보 구조, 편집기 3단계, 기존 clip/roll 모델 매핑, 백엔드 계약 초안 (인터랙티브 목업 HTML 포함)
-- [`순간 수집 앱 리디자인 — 기획 컨셉`](docs/guides/moment-collection-redesign/concept.md): 필름/현상 메타포 기반의 이전 기획. **위 스튜디오 기획으로 대체되었습니다.** 현재 구현된 코드가 따르고 있는 기획이므로 이력·참고용으로 남겨둡니다
+- [`스튜디오 재기획 — 구현 계획`](docs/guides/ai-vlog-studio/refactor-plan.md): **작업 중.** 위 기획을 코드에 반영하는 4단계 계획과 진행 상황. 세션을 나눠 이어서 작업하기 위한 임시 문서이며, 다 끝나면 지웁니다
+- [`순간 수집 앱 리디자인 — 기획 컨셉`](docs/guides/moment-collection-redesign/concept.md): 필름/현상 메타포 기반의 이전 기획. **위 스튜디오 기획으로 대체되었습니다.** 이력·참고용으로만 남겨둡니다
 
 에이전트용 문서는 [`AGENTS.md`](AGENTS.md)에서 작업 유형별로 찾을 수 있습니다.
 

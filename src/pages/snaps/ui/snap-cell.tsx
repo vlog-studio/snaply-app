@@ -14,15 +14,20 @@ export type SnapCellProps = {
   pickNumber?: number;
   /** Whether the grid is in selection mode — a tap picks instead of plays. */
   selecting: boolean;
-  /** Whether this snap is already sitting in the tray. */
-  inTray: boolean;
+  /** Whether the picks' target (the tray, or a movie) already holds this snap. */
+  isHeld: boolean;
   onPress: (snap: Snap) => void;
   onLongPress: (snap: Snap) => void;
 };
 
 /**
- * One snap in the grid: its first frame, its length, and — depending on the
- * mode — either a "담김" badge or its pick number.
+ * One snap in the grid: its first frame, its length, its pick number while
+ * selecting, and a "담김" badge whenever the target already holds it.
+ *
+ * The badge stays visible during selection because that is exactly when it
+ * matters: picking a snap the target already has does nothing, and without the
+ * badge the user only finds out afterwards. It sits in the opposite corner from
+ * the pick circle so the two never collide.
  *
  * Memoized because selecting one snap re-renders the whole library; without it
  * every cell would re-run its thumbnail lookup on every tap.
@@ -32,7 +37,7 @@ export const SnapCell = memo(function SnapCell({
   width,
   pickNumber,
   selecting,
-  inTray,
+  isHeld,
   onPress,
   onLongPress,
 }: SnapCellProps) {
@@ -43,7 +48,7 @@ export const SnapCell = memo(function SnapCell({
     <Pressable
       accessibilityRole="button"
       accessibilityState={selecting ? { selected: isPicked } : undefined}
-      accessibilityLabel={`${snap.durationSec}초 스냅${inTray && !selecting ? ' · 트레이에 담김' : ''}`}
+      accessibilityLabel={`${snap.durationSec}초 스냅${isHeld ? ' · 이미 담김' : ''}`}
       accessibilityHint={selecting ? '탭하면 선택해요' : '탭하면 재생해요. 길게 누르면 선택해요'}
       onPress={() => onPress(snap)}
       onLongPress={() => onLongPress(snap)}
@@ -74,8 +79,9 @@ export const SnapCell = memo(function SnapCell({
             </ThemedText>
           ) : null}
         </View>
-      ) : inTray ? (
-        <View style={[styles.trayBadge, { backgroundColor: theme.primary }]}>
+      ) : null}
+      {isHeld ? (
+        <View style={[styles.heldBadge, { backgroundColor: theme.primary }]}>
           <ThemedText selectable={false} type="edge" style={{ color: theme.onPrimary }}>
             담김
           </ThemedText>
@@ -114,7 +120,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trayBadge: {
+  heldBadge: {
     position: 'absolute',
     top: Spacing.one,
     left: Spacing.one,

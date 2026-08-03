@@ -37,7 +37,7 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 | Cap enforcement | `Functional` | The bar names the target and its room (`트레이 3/10 · 7개 더`, or the movie's title when picking for one). A pick past the remaining room is refused with an inline notice; snaps the target already holds take no new room, so re-picking one is always allowed. |
 | 트레이에 담기 | `Functional` | Hands the picked ids to `entities/tray` and navigates to the studio, where the tray lives, so the user sees what they collected. If the tray refused any (a concurrent change), the notice reports how many went in and how many were turned away. |
 | 이 무비에 넣기 | `Functional` | In `?for=<movieId>` mode, appends the picks to that movie through `features/compose-movie` and returns to the editor. A batch that would not fit is refused whole, with the room left named. |
-| 담김 badge | `Functional` | Outside selection mode, a snap already in the tray carries a `담김` badge. |
+| 담김 badge | `Functional` | A snap the target already holds carries a `담김` badge, in selection mode too — that is exactly when it matters, since picking one does nothing and the user would otherwise only find out afterwards. It sits in the opposite corner from the pick circle. |
 | Delete | `Functional` | See below. |
 
 ## Deleting an original

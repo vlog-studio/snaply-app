@@ -73,13 +73,16 @@ function RootStack() {
           name="capture/index"
           options={{ headerShown: false, presentation: 'fullScreenModal' }}
         />
-        {/* The movie editor is a pushed screen rather than a tab: it is a task
-            with a beginning and an end, and its own back affordance. */}
-        <Stack.Screen name="movie/[id]/index" options={{ title: '무비 편집' }} />
-        {/* Playback is its own screen rather than the editor's last step: what a
-            finished movie is for is being watched, and the wizard chrome has
-            nothing to add to that. */}
-        <Stack.Screen name="movie/[id]/play" options={{ title: '무비' }} />
+        {/* One screen per movie, whatever point of its life it is at: watching a
+            finished movie and fixing it are the same visit, so a second route
+            would only have meant two places that can edit one cut list. It is a
+            pushed screen rather than a tab because it is a task with a beginning
+            and an end, and its own back affordance. */}
+        <Stack.Screen name="movie/[id]/index" options={{ title: '무비' }} />
+        {/* Picking a template is the other way into a movie, and it is a task of
+            the same shape: it opens over the studio and leaves on the movie it
+            made. */}
+        <Stack.Screen name="template/[id]" options={{ title: '템플릿' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>

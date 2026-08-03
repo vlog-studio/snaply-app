@@ -39,7 +39,7 @@ export type GenerationRunnerOptions = {
 /**
  * Carries every generation job in flight to its render.
  *
- * Mounted once for the whole app (`MovieGenerationGate`), not by the editor,
+ * Mounted once for the whole app (`MovieGenerationGate`), not by the movie screen,
  * because a job has to keep going after the user leaves the screen — which is
  * exactly what they are told will happen (concept §6 step ③).
  *

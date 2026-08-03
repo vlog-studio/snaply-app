@@ -39,7 +39,7 @@ export function AppProviders({ children }: PropsWithChildren) {
         <NavigationBar style="dark" />
         <PushTokenRegistrar />
         <GeofenceGate />
-        {/* Movie generation runs here rather than in the editor: a job is meant
+        {/* Movie generation runs here rather than on the movie screen: a job is meant
             to keep going after the user leaves the screen, and to be picked back
             up on the next app start if they left before it finished. */}
         <MovieGenerationBridge />

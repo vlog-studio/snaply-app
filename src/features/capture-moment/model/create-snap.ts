@@ -1,5 +1,5 @@
 import type { CaptureDuration } from '@/entities/capture-session';
-import type { Snap } from '@/entities/snap';
+import type { Snap, SnapPlace } from '@/entities/snap';
 import type { LocalRecording } from '@/shared/lib/recording-files';
 
 // Portrait is the capture default; real orientation/dimension detection lands
@@ -9,6 +9,8 @@ const DEFAULT_PORTRAIT_HEIGHT = 1920;
 
 export type CreateSnapInput = {
   durationSec: CaptureDuration;
+  /** Where the capture happened, when a fix was available (see `readCapturePlace`). */
+  place?: SnapPlace;
 };
 
 /**
@@ -26,5 +28,8 @@ export function createSnap(recording: LocalRecording, input: CreateSnapInput): S
     width: DEFAULT_PORTRAIT_WIDTH,
     height: DEFAULT_PORTRAIT_HEIGHT,
     orientation: 'portrait',
+    // Spread rather than assign, so a snap with no fix carries no `place` key at
+    // all instead of an explicit `undefined` the store would persist as null.
+    ...(input.place ? { place: input.place } : {}),
   };
 }

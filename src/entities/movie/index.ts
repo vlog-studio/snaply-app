@@ -11,11 +11,13 @@ export {
   useMoviesHydrated,
   useRemoveSnapsEverywhere,
   useRenameMovie,
+  useSetMovieArranger,
   useUpdateMovieCuts,
   useUpdateMovieStyle,
   type CreateMovieInput,
   type MovieStylePatch,
 } from './model/movie-store';
+export { isAiArranged, movieArranger, sameArrangement } from './lib/movie-arrangement';
 export { MovieSnapLimit } from './model/movie';
 export { MovieTitleMaxLength } from './lib/movie-title';
 export { MovieBgmCatalog, movieBgmLabel } from './lib/movie-bgm';
@@ -35,4 +37,11 @@ export {
   withTrim,
   withoutTrim,
 } from './lib/movie-trim';
-export type { Movie, MovieRender, MovieStatus, MovieStyle, SnapRef } from './model/movie';
+export type {
+  Movie,
+  MovieArranger,
+  MovieRender,
+  MovieStatus,
+  MovieStyle,
+  SnapRef,
+} from './model/movie';

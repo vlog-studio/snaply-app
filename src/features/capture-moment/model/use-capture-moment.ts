@@ -4,6 +4,8 @@ import type { CaptureDuration } from '@/entities/capture-session';
 import { useAddSnap, type Snap } from '@/entities/snap';
 import { persistLocalRecording } from '@/shared/lib/recording-files';
 
+import { readCapturePlace } from '../lib/read-capture-place';
+
 import { createSnap } from './create-snap';
 
 const CAPTURE_MOMENT_FAILED = '순간을 담지 못했어요. 다시 시도해 주세요.'; // 순간을 담지 못했어요.
@@ -14,7 +16,7 @@ type CaptureMomentInput = {
 
 /**
  * The capture action: persist a recorded moment's video file and create its snap
- * metadata.
+ * metadata, tagged with where it was shot when that can be answered.
  *
  * That is the whole job. Capturing no longer files the snap into anything —
  * automatic collection is gone along with the daily roll and its all-day rule. A
@@ -38,8 +40,13 @@ export function useCaptureMoment() {
     setIsSaving(true);
     setError(null);
     try {
-      const recording = await persistLocalRecording(temporaryUri);
-      const snap = createSnap(recording, input);
+      // Both reads run together: a coordinate must never add its latency on top
+      // of the file move, and it must never be able to fail the capture.
+      const [recording, place] = await Promise.all([
+        persistLocalRecording(temporaryUri),
+        readCapturePlace(),
+      ]);
+      const snap = createSnap(recording, { ...input, place });
       addSnap(snap);
       return snap;
     } catch {

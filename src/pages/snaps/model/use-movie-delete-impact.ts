@@ -23,7 +23,7 @@ const NoImpact: MovieDeleteImpact[] = [];
  * recently edited first.
  *
  * Cross-entity composition, but only one screen asks the question, so it stays
- * page-local rather than becoming a widget. Promote it if the editor ever needs
+ * page-local rather than becoming a widget. Promote it if a movie screen needs
  * the same answer.
  */
 export function useMovieDeleteImpact(snapIds: readonly string[]): MovieDeleteImpact[] {

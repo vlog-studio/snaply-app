@@ -6,7 +6,7 @@ import { localStore } from '@/shared/lib/local-store';
 import { DefaultMovieBgm } from '../lib/movie-bgm';
 import { DefaultMovieStyle } from '../lib/movie-style';
 import { movieTitle } from '../lib/movie-title';
-import type { Movie, MovieRender, MovieStyle, SnapRef } from './movie';
+import type { Movie, MovieArranger, MovieRender, MovieStyle, SnapRef } from './movie';
 
 /** What the caller gets to decide when a movie is started from picked snaps. */
 export type CreateMovieInput = {
@@ -14,6 +14,18 @@ export type CreateMovieInput = {
   snapIds: readonly string[];
   /** Optional — a blank name becomes the day the movie was started. */
   title?: string;
+  /**
+   * Who arranged the cut list. Defaults to `user`: snaps the user picked are
+   * ordered by the user, and only template matching may claim otherwise.
+   */
+  arranger?: MovieArranger;
+  /**
+   * What the movie should start out looking and sounding like. A template says
+   * so; a movie started from the tray takes the defaults and the user changes
+   * them once there is a result to change them against.
+   */
+  style?: MovieStyle;
+  bgm?: string;
   /** Injectable for tests; production callers use the default. */
   createdAt?: number;
 };
@@ -47,6 +59,7 @@ type MovieState = {
   createMovie: (input: CreateMovieInput) => Movie;
   updateMovieCuts: (movieId: string, snapRefs: SnapRef[], updatedAt?: number) => void;
   updateMovieStyle: (movieId: string, patch: MovieStylePatch, updatedAt?: number) => void;
+  setMovieArranger: (movieId: string, arranger: MovieArranger, updatedAt?: number) => void;
   renameMovie: (movieId: string, title: string, updatedAt?: number) => void;
   deleteMovie: (movieId: string) => void;
   beginMovieJob: (movieId: string, startedAt?: number) => void;
@@ -93,14 +106,18 @@ function uniqueMovieId(base: string, taken: ReadonlySet<string>): string {
 /**
  * Builds a fresh draft: the given snaps in the given order, the default style
  * and ratio, and no render. Everything else about a movie is decided later, in
- * the editor.
+ * the movie screen, after a first result exists.
  */
 function createDraft(
   {
     snapIds,
     title,
+    arranger,
+    style,
+    bgm,
     createdAt,
-  }: Required<Pick<CreateMovieInput, 'snapIds' | 'createdAt'>> & Pick<CreateMovieInput, 'title'>,
+  }: Required<Pick<CreateMovieInput, 'snapIds' | 'createdAt'>> &
+    Pick<CreateMovieInput, 'title' | 'arranger' | 'style' | 'bgm'>,
   existing: readonly Movie[],
 ): Movie {
   return {
@@ -110,10 +127,11 @@ function createDraft(
     createdAt,
     updatedAt: createdAt,
     snapRefs: snapIds.map((snapId, order) => ({ snapId, order })),
-    style: DefaultMovieStyle,
-    bgm: DefaultMovieBgm,
+    style: style ?? DefaultMovieStyle,
+    bgm: bgm ?? DefaultMovieBgm,
     captions: true,
     ratio: '9:16',
+    arranger: arranger ?? 'user',
   };
 }
 
@@ -135,8 +153,8 @@ export const useMovieStore = create<MovieState>()(
     (set, get) => ({
       movies: [],
       hasHydrated: false,
-      createMovie: ({ snapIds, title, createdAt = Date.now() }) => {
-        const movie = createDraft({ snapIds, title, createdAt }, get().movies);
+      createMovie: ({ snapIds, title, arranger, style, bgm, createdAt = Date.now() }) => {
+        const movie = createDraft({ snapIds, title, arranger, style, bgm, createdAt }, get().movies);
         set((state) => ({ movies: [...state.movies, movie] }));
         return movie;
       },
@@ -152,6 +170,12 @@ export const useMovieStore = create<MovieState>()(
               next.captions !== movie.captions;
             return changed ? next : movie;
           }),
+        ),
+      setMovieArranger: (movieId, arranger, updatedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.arranger === arranger ? movie : { ...movie, arranger, updatedAt },
+          ),
         ),
       renameMovie: (movieId, title, updatedAt = Date.now()) =>
         set((state) =>
@@ -249,7 +273,7 @@ export function getMovieById(id: string): Movie | undefined {
 
 /**
  * Starts a movie from picked snaps and returns it, so the caller can open the
- * editor on the movie it just made. Never idempotent — asking twice means the
+ * screen on the movie it just made. Never idempotent — asking twice means the
  * user wanted two movies.
  */
 export function useCreateMovie(): (input: CreateMovieInput) => Movie {
@@ -258,7 +282,7 @@ export function useCreateMovie(): (input: CreateMovieInput) => Movie {
 
 /**
  * Replaces a movie's whole cut list in one write. Membership, order, and trim
- * are edited together in the editor's assemble step, and committing them
+ * are edited together in the movie screen's cut list, and committing them
  * separately would let a movie exist in a half-applied state between writes.
  */
 export function useUpdateMovieCuts(): (
@@ -280,6 +304,19 @@ export function useUpdateMovieStyle(): (
   updatedAt?: number,
 ) => void {
   return useMovieStore((state) => state.updateMovieStyle);
+}
+
+/**
+ * Records who owns the cut order. Separate from the cut list because handing
+ * arrangement back to the AI changes no cut, and rearranging by hand changes no
+ * setting — the two writes answer different questions.
+ */
+export function useSetMovieArranger(): (
+  movieId: string,
+  arranger: MovieArranger,
+  updatedAt?: number,
+) => void {
+  return useMovieStore((state) => state.setMovieArranger);
 }
 
 /**

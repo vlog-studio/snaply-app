@@ -16,11 +16,26 @@ export type MovieStyle = 'calm' | 'upbeat' | 'plain' | 'emotional';
  * A movie's lifecycle.
  *
  * `draft` is anything the user has assembled but not generated — it survives
- * leaving the editor. `failed` is a first-class state rather than a flavor of
+ * leaving the screen. `failed` is a first-class state rather than a flavor of
  * draft, because a generation job is remote work that really does fail and the
  * user has to be able to tell "I have not run this yet" from "it broke".
  */
 export type MovieStatus = 'draft' | 'generating' | 'ready' | 'failed';
+
+/**
+ * Who owns the cut order.
+ *
+ * `user` — the order in `snapRefs` is the user's and nothing may rewrite it.
+ * `ai` — the order was produced by template matching, and re-matching may
+ * produce a different one.
+ *
+ * The rule that follows from it is the whole point (concept §6): whoever chose
+ * the material also arranges it, and the moment the user reorders an `ai` movie
+ * by hand it becomes `user` and stops being re-arrangeable. That is the "순서
+ * 고정" the user was promised — it happens by editing rather than by remembering
+ * to flip a switch, and the switch exists only to hand arrangement back.
+ */
+export type MovieArranger = 'user' | 'ai';
 
 /**
  * A movie's reference to a snap. The snap original is immutable; per-movie edit
@@ -85,6 +100,13 @@ export type Movie = {
   captions: boolean;
   /** Only 9:16 for now; stored so a movie keeps its ratio when others arrive. */
   ratio: '9:16';
+  /**
+   * Who owns the cut order. Optional because movies stored before the field
+   * existed have none and the local store has no migration step — ask
+   * `isAiArranged` rather than reading it, so a missing value reads as the
+   * safe answer (`user`, nothing may rewrite it).
+   */
+  arranger?: MovieArranger;
   /** Present only while a job is in flight; cleared when it finishes. */
   job?: MovieJob;
   render?: MovieRender;

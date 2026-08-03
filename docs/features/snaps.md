@@ -17,7 +17,7 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 
 `/snaps?select=1` opens straight in selection mode; the studio's tray links here that way.
 
-`/snaps?select=1&for=<movieId>` is the editor's "스냅 더 넣기": the picks go into that movie's cut list instead of the tray, the bar measures room against the movie's ten-cut cap, and confirming returns to the editor. Routing those picks through the tray would make the user leave the editor, empty the tray, and come back.
+`/snaps?select=1&for=<movieId>` is a movie screen's "스냅 더 넣기": the picks go into that movie's cut list instead of the tray, the bar measures room against the movie's ten-cut cap, and confirming returns to the movie. Routing those picks through the tray would make the user leave the movie, empty the tray, and come back. Only a generated movie offers the control, since only a generated movie can be edited ([The movie screen](movie.md)).
 
 ## Browsing and playback
 
@@ -37,7 +37,7 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 | Pick order | `Functional` | Selection is an ordered list, not a set: the number drawn on each cell is its position, and that order becomes the tray order. |
 | Cap enforcement | `Functional` | The bar names the target and its room (`트레이 3/10 · 7개 더`, or the movie's title when picking for one). A pick past the remaining room is refused with an inline notice; snaps the target already holds take no new room, so re-picking one is always allowed. |
 | 트레이에 담기 | `Functional` | Hands the picked ids to `entities/tray` and navigates to the studio, where the tray lives, so the user sees what they collected. If the tray refused any (a concurrent change), the notice reports how many went in and how many were turned away. |
-| 이 무비에 넣기 | `Functional` | In `?for=<movieId>` mode, appends the picks to that movie through `features/compose-movie` and returns to the editor. A batch that would not fit is refused whole, with the room left named. |
+| 이 무비에 넣기 | `Functional` | In `?for=<movieId>` mode, appends the picks to that movie through `features/compose-movie` and returns to it. A batch that would not fit is refused whole, with the room left named. |
 | 담김 badge | `Functional` | A snap the target already holds carries a `담김` badge, in selection mode too — that is exactly when it matters, since picking one does nothing and the user would otherwise only find out afterwards. It sits in the opposite corner from the pick circle. |
 | Delete | `Functional` | See below. |
 
@@ -94,10 +94,19 @@ Snap
 ├── uri           local file URI
 ├── durationSec   3 or 5
 ├── capturedAt    epoch ms
+├── place?        { latitude, longitude } — only when a fix was available
 └── width, height, orientation
 ```
 
-Snaps are immutable originals. Per-movie edits (order, trim) live on the movie's `snapRefs`, never here, so the same snap can be cut differently into two movies. `mood` was removed with the redesign — the look belongs to the finished movie, chosen once in the editor, not to each fragment as it is shot.
+`place` is optional permanently, not provisionally: location permission may be
+refused, a fix may not arrive inside the capture's short wait, and every snap
+captured before the field existed has none. Nothing may treat a missing place as
+an error — the template matcher and its 근거 문구 fall back to time alone (see
+[Movie templates](movie-templates.md)). Coordinates are all that is stored: there
+is no reverse geocoding and no place name, because the only question asked of the
+field is whether two snaps are near each other. The value never leaves the device.
+
+Snaps are immutable originals. Per-movie edits (order, trim) live on the movie's `snapRefs`, never here, so the same snap can be cut differently into two movies. `mood` was removed with the redesign — the look belongs to the finished movie, chosen on the movie screen, not to each fragment as it is shot.
 
 ## Ownership
 

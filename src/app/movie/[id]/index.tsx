@@ -1,9 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 
-import { MovieEditorPage } from '@/pages/movie-editor';
+import { MoviePage } from '@/pages/movie';
 
-export default function MovieEditorRoute() {
+export default function MovieRoute() {
   const { id } = useLocalSearchParams<{ id?: string }>();
 
-  return <MovieEditorPage movieId={typeof id === 'string' ? id : undefined} />;
+  return <MoviePage movieId={typeof id === 'string' ? id : undefined} />;
 }

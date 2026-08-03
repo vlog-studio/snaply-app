@@ -3,21 +3,28 @@ import { useCallback } from 'react';
 import {
   MovieSnapLimit,
   getMovieById,
+  isAiArranged,
+  sameArrangement,
   useBeginMovieJob,
   useCreateMovie,
+  useSetMovieArranger,
   useUpdateMovieCuts,
   useUpdateMovieStyle,
   type Movie,
+  type MovieArranger,
   type MovieStylePatch,
   type SnapRef,
 } from '@/entities/movie';
+import { useSnapIndex } from '@/entities/snap';
 import { useClearTray, useTraySnapIds } from '@/entities/tray';
 
 /**
  * Why a cut edit was refused, or `undefined` when it landed.
  *
- * `frozen` — the movie is generating or already finished, so its cuts are fixed.
- * `empty` — a movie must keep at least one cut; the editor offers deletion for
+ * `frozen` — the movie has not been generated yet, or a job owns it right now.
+ * Fixing a movie is something the user does to a result (see
+ * {@link canEditMovie}).
+ * `empty` — a movie must keep at least one cut; deleting the movie is offered for
  * the case where the user really wants none.
  * `full` — the change would push past {@link MovieSnapLimit}.
  */
@@ -32,7 +39,8 @@ export type CutsOutcome = {
 /**
  * Why generation would not start.
  *
- * `frozen` — a job already owns the movie, or it is finished.
+ * `frozen` — a job already owns the movie; there is nothing else to refuse for,
+ * because a finished movie may always be made again.
  * `empty` — there is nothing to generate from.
  */
 export type GenerationRefusal = 'frozen' | 'empty';
@@ -43,24 +51,72 @@ export type GenerationOutcome = {
 };
 
 /**
- * A movie's cuts and settings may only be edited before a generation job takes
- * it over. `failed` stays editable, so a broken attempt can be fixed and run
- * again; `ready` does not, because changing a finished movie means regenerating
- * it, which is a different action.
+ * A movie's cuts and settings may only be edited **after** it has been generated.
+ *
+ * This is the inversion the product asked for: before generation there is
+ * nothing to react to, so the user only picks material and runs it; fixing the
+ * order, dropping a cut, or trying another style are things you do to a result
+ * you have seen. `failed` counts as a result — it is the state a fix is most
+ * urgently needed in — while `draft` and `generating` do not.
  */
-function canEdit(movie: Movie): boolean {
-  return movie.status === 'draft' || movie.status === 'failed';
+export function canEditMovie(movie: Movie): boolean {
+  return movie.status === 'ready' || movie.status === 'failed';
 }
 
 /**
- * Turning picked material into a movie, and committing the editor's cut list.
+ * A movie may be generated whenever a job is not already running on it.
+ *
+ * `ready` is included on purpose: running a finished movie again *is*
+ * regeneration, and it is the same act with the same rules, so it is not a
+ * second code path. `beginMovieJob` drops the previous render and error, so the
+ * old result never outlives the movie that replaced it.
+ */
+function canGenerate(movie: Movie): boolean {
+  return movie.status !== 'generating';
+}
+
+/**
+ * Puts an AI-arranged cut list back into the order the snaps were shot in, or
+ * answers `undefined` when it is already in it.
+ *
+ * **This is the whole of "AI가 순서를 짠다" today.** Chronological is a real
+ * arrangement rather than a placeholder — it is the order a walk happened in,
+ * and it is what template matching produces in the first place — but it is not
+ * a model looking at pictures, and no part of the app claims otherwise. It
+ * becomes visible when the user appends a snap to an AI-arranged movie: the new
+ * cut drops into its place in the day instead of sitting at the end. A cut whose
+ * original is gone keeps its position, because there is no time to sort it by
+ * and dropping it here would delete material behind the user's back.
+ */
+function arrangeByCaptureTime(
+  snapRefs: readonly SnapRef[],
+  snapIndex: ReadonlyMap<string, { capturedAt: number }>,
+): SnapRef[] | undefined {
+  const stored = [...snapRefs].sort((left, right) => left.order - right.order);
+  const capturedAt = (ref: SnapRef) => snapIndex.get(ref.snapId)?.capturedAt;
+  if (stored.some((ref) => capturedAt(ref) === undefined)) return undefined;
+
+  const arranged = stored
+    .map((ref, position) => ({ ref, position }))
+    .sort(
+      (left, right) =>
+        capturedAt(left.ref)! - capturedAt(right.ref)! || left.position - right.position,
+    )
+    .map(({ ref }, order) => ({ ...ref, order }));
+
+  const unchanged = arranged.every((ref, index) => ref.snapId === stored[index].snapId);
+  return unchanged ? undefined : arranged;
+}
+
+/**
+ * Turning picked material into a movie, running it, and fixing what comes back.
  *
  * It spans the tray and the movie — starting a movie empties the tray — which is
  * what makes it a feature rather than page code. Concentrating it here also
  * concentrates the rules that guard it: at least one cut, at most
- * {@link MovieSnapLimit}, and no cut edits once a generation job owns the movie.
- * Enforcing those only in the UI would leave each one a forgotten `disabled`
- * prop away from being bypassed.
+ * {@link MovieSnapLimit}, no edits until a movie has been generated, and no
+ * generation while one is already running. Enforcing those only in the UI would
+ * leave each one a forgotten `disabled` prop away from being bypassed.
  *
  * The movie is read at call time rather than subscribed to: these run from event
  * handlers, and the current movie is what the write must be checked against.
@@ -68,46 +124,94 @@ function canEdit(movie: Movie): boolean {
 export function useComposeMovie() {
   const traySnapIds = useTraySnapIds();
   const clearTray = useClearTray();
+  // Only for arranging an AI-arranged movie by capture time; nothing else here
+  // needs a snap, and movies themselves never hold one.
+  const snapIndex = useSnapIndex();
   const createMovie = useCreateMovie();
   const updateMovieCuts = useUpdateMovieCuts();
   const updateMovieStyle = useUpdateMovieStyle();
+  const setMovieArranger = useSetMovieArranger();
   const beginMovieJob = useBeginMovieJob();
 
   /**
    * Starts a draft from everything in the tray and empties the tray, returning
-   * the movie so the caller can open the editor on it. An empty tray makes
-   * nothing — a movie with no cuts is a dead end.
+   * the movie so the caller can open it. An empty tray makes nothing — a movie
+   * with no cuts is a dead end.
+   *
+   * The tray's order is the user's, so the movie it makes is `user`-arranged and
+   * nothing may re-sort it.
    */
   const startMovieFromTray = useCallback((): Movie | undefined => {
     if (traySnapIds.length === 0) return undefined;
-    const movie = createMovie({ snapIds: traySnapIds });
+    const movie = createMovie({ snapIds: traySnapIds, arranger: 'user' });
     clearTray();
     return movie;
   }, [traySnapIds, createMovie, clearTray]);
 
   /**
-   * Commits the editor's working cut list. Order is rewritten to the list's own
-   * order, so a caller never has to renumber; the trim it carries is kept.
+   * Starts a movie from a filled template, in slot order, with the look the
+   * template asks for.
+   *
+   * The tray is untouched: material gathered by hand and material found by
+   * matching are two separate ways to start a movie, and finishing one should
+   * not empty the other. The movie is `ai`-arranged, which is what lets a later
+   * generation re-sort it — until the user rearranges it themselves.
+   */
+  const startMovieFromTemplate = useCallback(
+    (input: { snapIds: readonly string[]; title?: string; style: Movie['style']; bgm: string }) => {
+      if (input.snapIds.length === 0) return undefined;
+      return createMovie({ ...input, arranger: 'ai' });
+    },
+    [createMovie],
+  );
+
+  /**
+   * Commits the working cut list. Order is rewritten to the list's own order, so
+   * a caller never has to renumber; the trim it carries is kept.
+   *
+   * A commit that moves the cuts of an AI-arranged movie hands the order to the
+   * user in the same write. That is the whole of "순서 고정": the user does not
+   * have to find a switch first, and a later re-match cannot undo what they just
+   * did. Trimming alone is not rearranging, so it costs nothing.
    */
   const saveCuts = useCallback(
     (movieId: string, snapRefs: readonly SnapRef[]): CutsOutcome => {
       const movie = getMovieById(movieId);
       if (!movie) return { cutCount: 0, refused: 'frozen' };
-      if (!canEdit(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
+      if (!canEditMovie(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
       if (snapRefs.length === 0) return { cutCount: movie.snapRefs.length, refused: 'empty' };
       if (snapRefs.length > MovieSnapLimit) {
         return { cutCount: movie.snapRefs.length, refused: 'full' };
       }
 
+      const stored = [...movie.snapRefs].sort((left, right) => left.order - right.order);
       const renumbered = snapRefs.map((ref, order) => ({ ...ref, order }));
       updateMovieCuts(movieId, renumbered);
+      if (isAiArranged(movie) && !sameArrangement(stored, renumbered)) {
+        setMovieArranger(movieId, 'user');
+      }
       return { cutCount: renumbered.length };
     },
-    [updateMovieCuts],
+    [updateMovieCuts, setMovieArranger],
   );
 
   /**
-   * Appends snaps to the end of a movie's cut list — the editor's "스냅 더 넣기".
+   * Hands the cut order back to the AI, or takes it. The only way into `ai`
+   * after creation — everything else can hand it to the user but never away.
+   */
+  const setArranger = useCallback(
+    (movieId: string, arranger: MovieArranger): boolean => {
+      const movie = getMovieById(movieId);
+      if (!movie || !canEditMovie(movie)) return false;
+      setMovieArranger(movieId, arranger);
+      return true;
+    },
+    [setMovieArranger],
+  );
+
+  /**
+   * Appends snaps to the end of a movie's cut list — the movie screen's "스냅 더
+   * 넣기", so a movie that came back short can be filled out and run again.
    * Snaps the movie already holds are skipped rather than duplicated, and the
    * whole batch is refused if it would not fit, so the user is never left
    * guessing which half went in.
@@ -116,7 +220,7 @@ export function useComposeMovie() {
     (movieId: string, snapIds: readonly string[]): CutsOutcome => {
       const movie = getMovieById(movieId);
       if (!movie) return { cutCount: 0, refused: 'frozen' };
-      if (!canEdit(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
+      if (!canEditMovie(movie)) return { cutCount: movie.snapRefs.length, refused: 'frozen' };
 
       const held = new Set(movie.snapRefs.map((ref) => ref.snapId));
       const added = snapIds.filter((snapId) => {
@@ -140,14 +244,14 @@ export function useComposeMovie() {
   );
 
   /**
-   * Writes the style step's settings. Returns whether the write landed, which is
-   * false only for a movie a job already owns — the single reason there is, so
-   * the caller needs no refusal code to tell the user why.
+   * Writes the style settings. Returns whether the write landed, which is false
+   * only for a movie that has not come back from generation yet — the single
+   * reason there is, so the caller needs no refusal code to tell the user why.
    */
   const saveStyle = useCallback(
     (movieId: string, patch: MovieStylePatch): boolean => {
       const movie = getMovieById(movieId);
-      if (!movie || !canEdit(movie)) return false;
+      if (!movie || !canEditMovie(movie)) return false;
       updateMovieStyle(movieId, patch);
       return true;
     },
@@ -155,25 +259,42 @@ export function useComposeMovie() {
   );
 
   /**
-   * Hands a movie to a generation job. From here on its cuts and settings are
-   * fixed and `MovieGenerationGate` carries it to a render.
+   * Hands a movie to a generation job, whether that is its first run, a retry
+   * after a failure, or a regeneration of a movie the user has already watched
+   * and changed. `MovieGenerationGate` carries it to a render from there.
    *
    * A movie with nothing to generate is refused rather than started: a job over
-   * an empty cut list can only produce an empty movie, and the editor would have
+   * an empty cut list can only produce an empty movie, and the screen would have
    * no way to explain the result.
    */
   const startGeneration = useCallback(
     (movieId: string): GenerationOutcome => {
       const movie = getMovieById(movieId);
       if (!movie) return { started: false, refused: 'frozen' };
-      if (!canEdit(movie)) return { started: false, refused: 'frozen' };
+      if (!canGenerate(movie)) return { started: false, refused: 'frozen' };
       if (movie.snapRefs.length === 0) return { started: false, refused: 'empty' };
+
+      // A movie the AI still arranges gets arranged before it runs, so what the
+      // user sees afterwards is what was made. A movie the user arranged is left
+      // exactly as they left it — that is the whole promise of the lock.
+      if (isAiArranged(movie)) {
+        const arranged = arrangeByCaptureTime(movie.snapRefs, snapIndex);
+        if (arranged) updateMovieCuts(movieId, arranged);
+      }
 
       beginMovieJob(movieId);
       return { started: true };
     },
-    [beginMovieJob],
+    [beginMovieJob, updateMovieCuts, snapIndex],
   );
 
-  return { startMovieFromTray, saveCuts, appendSnaps, saveStyle, startGeneration };
+  return {
+    startMovieFromTray,
+    startMovieFromTemplate,
+    saveCuts,
+    appendSnaps,
+    saveStyle,
+    setArranger,
+    startGeneration,
+  };
 }

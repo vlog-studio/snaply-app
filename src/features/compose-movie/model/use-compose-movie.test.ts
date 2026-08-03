@@ -8,18 +8,31 @@ const mockCreateMovie = jest.fn();
 const mockUpdateMovieCuts = jest.fn();
 const mockUpdateMovieStyle = jest.fn();
 const mockBeginMovieJob = jest.fn();
+const mockSetMovieArranger = jest.fn();
 const mockClearTray = jest.fn();
 const mockGetMovieById = jest.fn<Movie | undefined, [string]>();
 const mockTraySnapIds = jest.fn<string[], []>();
+const mockSnapIndex = jest.fn<[string, { capturedAt: number }][], []>();
 
 // Mock each dependency at its slice Public API so the test stays at the seam.
-jest.mock('@/entities/movie', () => ({
-  MovieSnapLimit: 10,
-  getMovieById: (id: string) => mockGetMovieById(id),
-  useCreateMovie: () => mockCreateMovie,
-  useUpdateMovieCuts: () => mockUpdateMovieCuts,
-  useUpdateMovieStyle: () => mockUpdateMovieStyle,
-  useBeginMovieJob: () => mockBeginMovieJob,
+jest.mock('@/entities/movie', () => {
+  // The arrangement predicates are the entity's own and tested there; this suite
+  // is about which of them the rules apply and what they then write.
+  const arrangement = jest.requireActual('@/entities/movie/lib/movie-arrangement');
+  return {
+    MovieSnapLimit: 10,
+    getMovieById: (id: string) => mockGetMovieById(id),
+    isAiArranged: arrangement.isAiArranged,
+    sameArrangement: arrangement.sameArrangement,
+    useCreateMovie: () => mockCreateMovie,
+    useUpdateMovieCuts: () => mockUpdateMovieCuts,
+    useUpdateMovieStyle: () => mockUpdateMovieStyle,
+    useSetMovieArranger: () => mockSetMovieArranger,
+    useBeginMovieJob: () => mockBeginMovieJob,
+  };
+});
+jest.mock('@/entities/snap', () => ({
+  useSnapIndex: () => new Map(mockSnapIndex()),
 }));
 jest.mock('@/entities/tray', () => ({
   useTraySnapIds: () => mockTraySnapIds(),
@@ -30,7 +43,9 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
   return {
     id: 'm1',
     title: '무비',
-    status: 'draft',
+    // Editing happens after generation, so the movie under test is a finished
+    // one unless a case says otherwise.
+    status: 'ready',
     createdAt: 1,
     updatedAt: 1,
     snapRefs: [
@@ -48,6 +63,10 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
 beforeEach(() => {
   jest.clearAllMocks();
   mockTraySnapIds.mockReturnValue([]);
+  mockSnapIndex.mockReturnValue([
+    ['s1', { capturedAt: 100 }],
+    ['s2', { capturedAt: 200 }],
+  ]);
   mockGetMovieById.mockReturnValue(makeMovie());
 });
 
@@ -63,7 +82,7 @@ describe('startMovieFromTray', () => {
       movie = result.current.startMovieFromTray();
     });
 
-    expect(mockCreateMovie).toHaveBeenCalledWith({ snapIds: ['s3', 's1'] });
+    expect(mockCreateMovie).toHaveBeenCalledWith({ snapIds: ['s3', 's1'], arranger: 'user' });
     expect(mockClearTray).toHaveBeenCalled();
     expect(movie).toBe(created);
   });
@@ -79,6 +98,50 @@ describe('startMovieFromTray', () => {
     expect(movie).toBeUndefined();
     expect(mockCreateMovie).not.toHaveBeenCalled();
     expect(mockClearTray).not.toHaveBeenCalled();
+  });
+});
+
+describe('startMovieFromTemplate', () => {
+  it('creates an AI-arranged movie with the template’s look', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startMovieFromTemplate({
+        snapIds: ['s2', 's1'],
+        style: 'upbeat',
+        bgm: 'sunny-side',
+      });
+    });
+
+    expect(mockCreateMovie).toHaveBeenCalledWith({
+      snapIds: ['s2', 's1'],
+      style: 'upbeat',
+      bgm: 'sunny-side',
+      arranger: 'ai',
+    });
+  });
+
+  it('leaves the tray alone, so gathering by hand survives a template', async () => {
+    mockTraySnapIds.mockReturnValue(['kept']);
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startMovieFromTemplate({ snapIds: ['s1'], style: 'calm', bgm: 'silence' });
+    });
+
+    expect(mockClearTray).not.toHaveBeenCalled();
+  });
+
+  it('makes nothing from a template with every slot empty', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let movie;
+    await act(async () => {
+      movie = result.current.startMovieFromTemplate({ snapIds: [], style: 'calm', bgm: 'silence' });
+    });
+
+    expect(movie).toBeUndefined();
+    expect(mockCreateMovie).not.toHaveBeenCalled();
   });
 });
 
@@ -126,18 +189,21 @@ describe('saveCuts', () => {
     expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
   });
 
-  it.each(['generating', 'ready'] as const)('refuses a %s movie', async (status) => {
-    mockGetMovieById.mockReturnValue(makeMovie({ status }));
-    const { result } = await renderHook(() => useComposeMovie());
+  it.each(['draft', 'generating'] as const)(
+    'refuses a %s movie, which has no result to fix yet',
+    async (status) => {
+      mockGetMovieById.mockReturnValue(makeMovie({ status }));
+      const { result } = await renderHook(() => useComposeMovie());
 
-    let outcome;
-    await act(async () => {
-      outcome = result.current.saveCuts('m1', [{ snapId: 's1', order: 0 }]);
-    });
+      let outcome;
+      await act(async () => {
+        outcome = result.current.saveCuts('m1', [{ snapId: 's1', order: 0 }]);
+      });
 
-    expect(outcome).toEqual({ cutCount: 2, refused: 'frozen' });
-    expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
-  });
+      expect(outcome).toEqual({ cutCount: 2, refused: 'frozen' });
+      expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
+    },
+  );
 
   it('lets a failed movie be edited, so a broken generation can be fixed', async () => {
     mockGetMovieById.mockReturnValue(makeMovie({ status: 'failed' }));
@@ -148,6 +214,76 @@ describe('saveCuts', () => {
     });
 
     expect(mockUpdateMovieCuts).toHaveBeenCalled();
+  });
+
+  it('takes the order off the AI when the user rearranges an AI-arranged movie', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ arranger: 'ai' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.saveCuts('m1', [
+        { snapId: 's2', order: 0 },
+        { snapId: 's1', order: 1 },
+      ]);
+    });
+
+    expect(mockSetMovieArranger).toHaveBeenCalledWith('m1', 'user');
+  });
+
+  it('leaves the AI its order when only a trim changed', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ arranger: 'ai' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.saveCuts('m1', [
+        { snapId: 's1', order: 0, trim: { startSec: 0.5, endSec: 2 } },
+        { snapId: 's2', order: 1 },
+      ]);
+    });
+
+    expect(mockUpdateMovieCuts).toHaveBeenCalled();
+    expect(mockSetMovieArranger).not.toHaveBeenCalled();
+  });
+
+  it('never writes an arranger for a movie that was already the user’s', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.saveCuts('m1', [
+        { snapId: 's2', order: 0 },
+        { snapId: 's1', order: 1 },
+      ]);
+    });
+
+    expect(mockSetMovieArranger).not.toHaveBeenCalled();
+  });
+});
+
+describe('setArranger', () => {
+  it('hands the order back to the AI', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ arranger: 'user' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let applied;
+    await act(async () => {
+      applied = result.current.setArranger('m1', 'ai');
+    });
+
+    expect(applied).toBe(true);
+    expect(mockSetMovieArranger).toHaveBeenCalledWith('m1', 'ai');
+  });
+
+  it('refuses a movie that has not come back from generation', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'draft' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let applied;
+    await act(async () => {
+      applied = result.current.setArranger('m1', 'ai');
+    });
+
+    expect(applied).toBe(false);
+    expect(mockSetMovieArranger).not.toHaveBeenCalled();
   });
 });
 
@@ -211,7 +347,7 @@ describe('saveStyle', () => {
     expect(applied).toBe(true);
   });
 
-  it.each(['generating', 'ready'] as const)('refuses a %s movie', async (status) => {
+  it.each(['draft', 'generating'] as const)('refuses a %s movie', async (status) => {
     mockGetMovieById.mockReturnValue(makeMovie({ status }));
     const { result } = await renderHook(() => useComposeMovie());
 
@@ -227,6 +363,7 @@ describe('saveStyle', () => {
 
 describe('startGeneration', () => {
   it('hands a draft to a job', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'draft' }));
     const { result } = await renderHook(() => useComposeMovie());
 
     let outcome;
@@ -262,8 +399,20 @@ describe('startGeneration', () => {
     expect(mockBeginMovieJob).not.toHaveBeenCalled();
   });
 
-  it.each(['generating', 'ready'] as const)('refuses a %s movie', async (status) => {
-    mockGetMovieById.mockReturnValue(makeMovie({ status }));
+  it('runs a finished movie again, which is what regeneration is', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = result.current.startGeneration('m1');
+    });
+
+    expect(outcome).toEqual({ started: true });
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
+  });
+
+  it('refuses a movie a job is already running on', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'generating' }));
     const { result } = await renderHook(() => useComposeMovie());
 
     let outcome;
@@ -273,6 +422,71 @@ describe('startGeneration', () => {
 
     expect(outcome).toEqual({ started: false, refused: 'frozen' });
     expect(mockBeginMovieJob).not.toHaveBeenCalled();
+  });
+
+  it('arranges an AI-arranged movie by capture time before running it', async () => {
+    mockGetMovieById.mockReturnValue(
+      makeMovie({
+        arranger: 'ai',
+        // The user appended s1 after s2, but s1 was shot first.
+        snapRefs: [
+          { snapId: 's2', order: 0 },
+          { snapId: 's1', order: 1 },
+        ],
+      }),
+    );
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startGeneration('m1');
+    });
+
+    expect(mockUpdateMovieCuts).toHaveBeenCalledWith('m1', [
+      { snapId: 's1', order: 0 },
+      { snapId: 's2', order: 1 },
+    ]);
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
+  });
+
+  it('leaves a user-arranged movie in the order the user left it', async () => {
+    mockGetMovieById.mockReturnValue(
+      makeMovie({
+        arranger: 'user',
+        snapRefs: [
+          { snapId: 's2', order: 0 },
+          { snapId: 's1', order: 1 },
+        ],
+      }),
+    );
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startGeneration('m1');
+    });
+
+    expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
+  });
+
+  it('does not rearrange when a cut’s original is gone, which would drop it', async () => {
+    mockSnapIndex.mockReturnValue([['s2', { capturedAt: 200 }]]);
+    mockGetMovieById.mockReturnValue(
+      makeMovie({
+        arranger: 'ai',
+        snapRefs: [
+          { snapId: 's2', order: 0 },
+          { snapId: 's1', order: 1 },
+        ],
+      }),
+    );
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.startGeneration('m1');
+    });
+
+    expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
+    expect(mockBeginMovieJob).toHaveBeenCalledWith('m1');
   });
 
   it('refuses a movie that is gone', async () => {

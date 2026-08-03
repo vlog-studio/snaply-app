@@ -56,7 +56,7 @@ export function withoutTrim(ref: SnapRef): SnapRef {
  *
  * A window covering the whole snap drops `trim` altogether, so "plays whole" has
  * a single representation — otherwise a cut dragged out and back would compare as
- * changed and the editor would offer to save nothing. The end is placed first and
+ * changed and the screen would offer to save nothing. The end is placed first and
  * the start is then held behind it, so neither handle can pass the other however
  * the caller ordered the two values.
  */

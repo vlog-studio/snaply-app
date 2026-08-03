@@ -34,10 +34,10 @@ import { SnapDeleteDialog } from './snap-delete-dialog';
 import { SnapSelectionBar } from './snap-selection-bar';
 
 export type SnapsPageProps = {
-  /** `?select=1` — the studio or the editor sends the user here to pick. */
+  /** `?select=1` — the studio or a movie screen sends the user here to pick. */
   startSelecting?: boolean;
   /**
-   * `?for=<movieId>` — the editor's "스냅 더 넣기". Picks go straight into that
+   * `?for=<movieId>` — a movie screen's "스냅 더 넣기". Picks go straight into that
    * movie's cut list instead of the tray, and the cap shown is the movie's
    * remaining room. Without it, picks go to the tray as usual.
    */
@@ -56,9 +56,9 @@ const Columns = 3;
  * straight into a movie, so material can be gathered across several days
  * (concept §5).
  *
- * The one exception is the editor's "스냅 더 넣기", which arrives with a movie id
+ * The one exception is a movie's "스냅 더 넣기", which arrives with a movie id
  * and appends to that movie directly. Routing those picks through the tray would
- * make the user leave the editor, empty the tray, and come back.
+ * make the user leave the movie, empty the tray, and come back.
  */
 export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps) {
   const theme = useTheme();
@@ -193,7 +193,7 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
         return;
       }
       exitSelection();
-      // Back to the editor the user came from, where the new cuts are waiting.
+      // Back to the movie the user came from, where the new cuts are waiting.
       router.back();
       return;
     }

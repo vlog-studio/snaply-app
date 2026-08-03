@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSnapsByRefs } from '@/entities/snap';
 import { useClearTray, useRemoveSnapsFromTray, useTraySnapIds } from '@/entities/tray';
 import { useComposeMovie } from '@/features/compose-movie';
+import { useTemplateOffers } from '@/features/fill-template';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
@@ -16,6 +17,7 @@ import {
 import { ThemedText } from '@/shared/ui/themed-text';
 import { MovieRow, useInProgressMovies, useReadyMovies } from '@/widgets/movie-shelf';
 
+import { TemplatePanel } from './template-panel';
 import { TrayPanel } from './tray-panel';
 
 /** How many finished movies the studio previews before deferring to the tab. */
@@ -24,10 +26,13 @@ const RecentReadyCount = 2;
 /**
  * The studio — the workbench the app opens on.
  *
- * Three blocks, read top to bottom as material → work → results: the tray of
- * picked snaps, the movies still being worked on, and the most recent finished
- * ones. Reopening the app lands here so the user resumes rather than restarts
- * (concept §3).
+ * Four blocks, read top to bottom as material → work → results: the tray of
+ * picked snaps, the templates that will go looking for material on their own,
+ * the movies still being worked on, and the most recent finished ones. Reopening
+ * the app lands here so the user resumes rather than restarts (concept §3).
+ *
+ * The tray and the templates are two entrances to the same place and both stay:
+ * one is "make a movie out of these", the other is "make me something like this".
  */
 export function StudioPage() {
   const theme = useTheme();
@@ -39,6 +44,7 @@ export function StudioPage() {
   const removeSnapsFromTray = useRemoveSnapsFromTray();
   const clearTray = useClearTray();
   const { startMovieFromTray } = useComposeMovie();
+  const templateOffers = useTemplateOffers();
   const inProgress = useInProgressMovies();
   const ready = useReadyMovies();
 
@@ -47,16 +53,17 @@ export function StudioPage() {
   const traySnaps = useSnapsByRefs(traySnapIds.map((snapId, order) => ({ snapId, order })));
 
   const pickSnaps = () => router.push({ pathname: '/snaps', params: { select: '1' } });
-  const openEditor = (movieId: string) =>
+  // Every movie opens on the same screen, whatever it is waiting for: watching a
+  // finished one and fixing it happen in the same place.
+  const openMovie = (movieId: string) =>
     router.push({ pathname: '/movie/[id]', params: { id: movieId } });
-  // A finished movie opens on playback; anything unfinished opens on the editor,
-  // which is where the work it is waiting for happens.
-  const watchMovie = (movieId: string) =>
-    router.push({ pathname: '/movie/[id]/play', params: { id: movieId } });
+
+  const openTemplate = (templateId: string) =>
+    router.push({ pathname: '/template/[id]', params: { id: templateId } });
 
   const startMovie = () => {
     const movie = startMovieFromTray();
-    if (movie) openEditor(movie.id);
+    if (movie) openMovie(movie.id);
   };
 
   return (
@@ -84,6 +91,8 @@ export function StudioPage() {
           onStartMovie={startMovie}
         />
 
+        <TemplatePanel offers={templateOffers} onOpen={openTemplate} />
+
         <View style={styles.section}>
           <View style={styles.sectionHead}>
             <ThemedText type="smallBold">작업 중</ThemedText>
@@ -92,7 +101,7 @@ export function StudioPage() {
             </ThemedText>
           </View>
           {inProgress.length > 0 ? (
-            inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openEditor} />)
+            inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
           ) : (
             <View style={[styles.empty, { borderColor: theme.border }]}>
               <ThemedText type="small" themeColor="textSecondary">
@@ -121,11 +130,11 @@ export function StudioPage() {
           {ready.length > 0 ? (
             ready
               .slice(0, RecentReadyCount)
-              .map((movie) => <MovieRow key={movie.id} movie={movie} onPress={watchMovie} />)
+              .map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
           ) : (
             <View style={[styles.empty, { borderColor: theme.border }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                아직 완성한 무비가 없어요. 트레이로 무비를 만들고 스타일을 골라 생성해 보세요.
+                아직 완성한 무비가 없어요. 트레이나 템플릿으로 한 편 만들어 보세요.
               </ThemedText>
             </View>
           )}

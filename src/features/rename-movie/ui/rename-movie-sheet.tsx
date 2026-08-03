@@ -23,7 +23,7 @@ export type RenameMovieSheetProps = {
  * Renaming a movie.
  *
  * A feature rather than page code because both surfaces a movie has need it: the
- * editor names a draft, and the playback screen is where a finished movie finally
+ * screen names a draft, and the same screen is where a finished movie finally
  * earns a name — a user names a thing after seeing it.
  *
  * The sheet is mounted with the movie's current name as its default, so it is

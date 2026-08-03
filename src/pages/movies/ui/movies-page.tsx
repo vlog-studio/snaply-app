@@ -58,14 +58,10 @@ export function MoviesPage() {
               key={movie.id}
               movie={movie}
               width={tileWidth}
-              // A finished movie opens on playback, an unfinished one on the
-              // editor: the tile's action is whatever the movie is waiting for.
+              // One destination for every status: the movie screen is where a
+              // finished movie is watched and where an unfinished one is run.
               onPress={(movieId) =>
-                router.push(
-                  movie.status === 'ready'
-                    ? { pathname: '/movie/[id]/play', params: { id: movieId } }
-                    : { pathname: '/movie/[id]', params: { id: movieId } },
-                )
+                router.push({ pathname: '/movie/[id]', params: { id: movieId } })
               }
             />
           ))}

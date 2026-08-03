@@ -16,7 +16,7 @@ Users open capture from the center button of the tab bar, land directly in the v
 The supported capture options are owned by `entities/capture-session`:
 
 - Durations: 3 or 5 seconds; an invalid or missing value normalizes to 3, which seeds the recorder's initial state
-- Mood (`hip` / `lovely` / `energy`) was **removed**: the look belongs to the finished movie, chosen once in the editor with the whole cut list in view, rather than to each fragment as it is shot (concept §8)
+- Mood (`hip` / `lovely` / `energy`) was **removed**: the look belongs to the finished movie, chosen on the movie screen with the whole thing in view, rather than to each fragment as it is shot (concept §8)
 
 ## Capture options
 
@@ -33,8 +33,10 @@ While the recorder is `idle`, a `3초 / 5초` segment toggle sits above the shut
 | Sound toggle | `Functional` | Recording can be muted; enabling sound requires microphone permission. During review the toggle mutes/unmutes the looping playback without restarting it. |
 | Front/back camera toggle | `Functional` | Available while the recorder is idle. |
 | Saving a snap | `Functional` | On capture completion the temporary recording is moved into the app document directory and a snap is created from it. Owned by `features/capture-moment`. Nothing else happens — the snap joins no movie and no tray. |
+| Recording where a snap was shot | `Functional` | iOS and Android. While the file is being moved, `features/capture-moment` asks for foreground location permission and reads the current coordinates onto the snap (`Snap.place`). The two run concurrently so a coordinate adds no latency to the save, and **every failure is silent**: a refusal, no fix, a read slower than two seconds, or a throwing adapter all file the snap with no place. The prompt is the OS's own and appears at most once. Nothing in capture reads the value back — it exists for template matching (see [Movie templates](movie-templates.md)). |
 | Continuous capture | `Functional` | On success the recorder returns to `idle` and stays on the viewfinder — it never auto-navigates. Feedback is in-camera: a paused frame of the just-captured snap (`ui/capture-flight.tsx`) flies up from the viewfinder into the top "스냅 N개" counter (~480ms, rendered beneath the top bar so it tucks in behind the pill); on arrival the displayed count bumps, the counter pops, and a "담김 · 스냅 N개" badge shows for ~1.1s (plus a success haptic). The count in the pill trails the store until the frame lands, so the number rises as it arrives. Reduced motion skips the flight and pop (the count updates and the badge/haptic remain). |
 | Leave → Studio | `Functional` | Leaving is explicit: the ✕ dismisses to the **Studio** (not the tab that opened capture), which is where the next step lives. |
+| Shooting for an empty template slot | `Functional` | `지금 찍기` on a slot opens this same screen with nothing changed about it — the snap is filed in the library like any other. The template screen is what remembers which slot asked and picks the new snap up on the way back (see [Movie templates](movie-templates.md)). Capture stays ignorant of it on purpose: a capture that behaved differently depending on where it was opened from is a capture that can lose a snap. |
 | Select a previous recording | `Functional` | The in-screen recording library can select (enters a preview/review stage) or delete a locally stored original. Deleting goes through `features/delete-snap`, so an original already used by a movie or sitting in the tray is removed from those too (see [Snap library](snaps.md#deleting-an-original)). |
 | Web recording | `Prototype` | The shutter is disabled and the UI explains that recording requires iOS or Android. |
 
@@ -46,7 +48,8 @@ The camera-permission-denied screen still exposes the recording library, so user
 
 ## Ownership and dependencies
 
-- `src/pages/capture-record` owns camera lifecycle, permissions, capture-stage orchestration, the inline duration state (idle-only), the in-camera feedback (counter pulse + "담김" badge), and its internal recording-library modal.
+- `src/features/capture-moment/lib/read-capture-place.ts` owns the location read and the rule that it can never fail a capture. It is the feature's decision to ask, per the boundary in `shared/lib/location`, which stays transport-only.
+- `src/pages/capture-record` owns camera lifecycle, camera/microphone permissions, capture-stage orchestration, the inline duration state (idle-only), the in-camera feedback (counter pulse + "담김" badge), and its internal recording-library modal.
 - `src/features/capture-moment` owns saving a snap: persisting the file and building snap metadata. It owns its own pending/error state and does not navigate.
 - `src/pages/capture-record/ui/capture-flight.tsx` owns the "frame flies into the counter" animation; the recorder page owns the trailing count, counter pop, and badge.
 - `src/entities/snap` owns snap metadata and its persisted store.
@@ -59,7 +62,9 @@ The camera-permission-denied screen still exposes the recording library, so user
 
 Original recordings are stored only in the Snaply app's document directory. They are not exported to the system media library, uploaded, shared, or synchronized. Removing the app also removes its recordings. See [Snap library](snaps.md) for file behavior and management surfaces.
 
+A snap's coordinates are held to the same boundary: they are stored in the local snap metadata, never uploaded, and never turned into a place name. The iOS purpose string in `app.json` states both uses of the permission (tagging snaps and the existing arrival alerts); a `prebuild` is required for a change to it to reach the native projects.
+
 ## Known limitations
 
 - The counter shows the whole library's snap count, not a per-session count, so it never resets between capture sessions.
-- Capturing never files a snap anywhere. Turning snaps into a movie is a separate, deliberate act that starts in the [Snap library](snaps.md) and finishes in the [Movie editor](movie-editor.md).
+- Capturing never files a snap anywhere. Turning snaps into a movie is a separate, deliberate act that starts in the [Snap library](snaps.md) or on a [template](movie-templates.md) and finishes on [the movie screen](movie.md).

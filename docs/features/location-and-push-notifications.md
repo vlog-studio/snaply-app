@@ -30,7 +30,7 @@ There is no screen or route for this feature. It is composed headlessly at the a
 | --- | --- | --- |
 | `src/_app/providers` | `geofence-gate.tsx` | Headless bridge: reads `useNotificationEnabled` (notification-settings) and drives `useGeofenceMonitoring` (geofence-monitor). The two features must not import each other, so the app layer composes them. |
 | `src/_app/providers` | `app-providers.tsx` | Mounts `PushTokenRegistrar`, `GeofenceGate`, and `MovieGenerationBridge`. |
-| `src/_app/providers` | `movie-generation-bridge.tsx` | The same bridge shape for the other notification preference: reads `useMovieReadyEnabled` and lets `compose-movie` announce a finished or failed generation. Documented in [Movie editor](movie-editor.md). |
+| `src/_app/providers` | `movie-generation-bridge.tsx` | The same bridge shape for the other notification preference: reads `useMovieReadyEnabled` and lets `compose-movie` announce a finished or failed generation. Documented in [The movie screen](movie.md). |
 | `src/_app/routes` | `register-background-tasks.ts` | Side-effect import that defines the background geofence task at startup. |
 | `src/features/register-push-token` | `ui/push-token-registrar.tsx`, `model/use-push-token.ts`, `api/register-fcm-token.ts` | Acquire and keep the FCM token registered while authenticated; present foreground messages locally; `POST /auth/fcm-token` (mock-routed). |
 | `src/features/geofence-monitor` | `model/use-geofence-monitoring.ts` | Bridge the `enabled` preference to OS geofencing: ensure permissions, resolve position, load nearby points, start/stop monitoring. Native only. |

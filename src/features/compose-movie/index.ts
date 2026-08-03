@@ -1,4 +1,5 @@
 export {
+  canEditMovie,
   useComposeMovie,
   type CutsOutcome,
   type CutsRefusal,

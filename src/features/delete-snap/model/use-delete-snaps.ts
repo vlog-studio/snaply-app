@@ -31,7 +31,7 @@ export type DeletableSnap = { id: string; uri: string };
  * in one synchronous block, so an interruption cannot leave a snap whose file
  * is gone but whose movie references remain.
  *
- * Taking a snap out of one movie while keeping the original is the editor's cut
+ * Taking a snap out of one movie while keeping the original is the cut list's
  * list, not this; this one takes the snap out of everything.
  */
 export function useDeleteSnaps() {

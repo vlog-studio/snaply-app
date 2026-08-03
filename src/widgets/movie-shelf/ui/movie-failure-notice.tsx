@@ -25,7 +25,7 @@ const UnknownError = '알 수 없는 이유로 생성이 멈췄어요.';
  *
  * Retrying is refused rather than offered when the movie has no cuts left: that
  * is the one failure the app can produce today, and a retry would fail again
- * immediately. The card itself opens the editor, which is where cuts come back.
+ * immediately. The card itself opens the movie, which is where cuts come back.
  */
 export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNoticeProps) {
   const theme = useTheme();
@@ -53,7 +53,7 @@ export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNo
         </Pressable>
       ) : (
         <ThemedText type="edge" themeColor="textSecondary">
-          편집기에서 스냅을 다시 넣어주세요.
+          무비를 열어 스냅을 다시 넣어주세요.
         </ThemedText>
       )}
     </View>

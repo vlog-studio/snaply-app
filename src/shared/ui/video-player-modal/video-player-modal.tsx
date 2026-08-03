@@ -28,7 +28,7 @@ export type VideoPlayerModalProps = {
  *
  * Business-agnostic — it takes a bare URI and two strings rather than a `Snap`,
  * like `VideoFrame` does. That split is what lets the screens that play a video
- * keep their own wording (the same snap reads as "3번째 컷" inside the editor and
+ * keep their own wording (the same snap reads as "3번째 컷" in a movie's cut list and
  * as its length in the library) while sharing one implementation of the chrome
  * around it.
  *

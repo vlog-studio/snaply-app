@@ -30,7 +30,7 @@ function indexSnapsById(snaps: readonly Snap[]): SnapIndex {
  * A reference whose snap is gone from the library is skipped. That is the part
  * worth keeping in one place: deleting an original leaves every movie that
  * pointed at it holding a reference to nothing, and the studio board, the movie
- * grid, and the editor's cut list all have to agree about what that movie now
+ * grid, and a movie's cut list all have to agree about what that movie now
  * holds.
  *
  * `order` is only ever a sort key, so gaps and duplicates in it are harmless.

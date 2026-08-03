@@ -6,4 +6,4 @@ export {
   useSnaps,
   useSnapsHydrated,
 } from './model/snap-store';
-export type { Snap, SnapOrientation } from './model/snap';
+export type { Snap, SnapOrientation, SnapPlace } from './model/snap';

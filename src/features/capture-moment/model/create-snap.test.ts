@@ -28,4 +28,14 @@ describe('createSnap', () => {
   it('carries the five-second duration through', () => {
     expect(createSnap(recording, { durationSec: 5 }).durationSec).toBe(5);
   });
+
+  it('carries a capture place through when one was resolved', () => {
+    const place = { latitude: 37.5445, longitude: 127.0557 };
+
+    expect(createSnap(recording, { durationSec: 3, place }).place).toEqual(place);
+  });
+
+  it('omits the key entirely when no place was resolved', () => {
+    expect(createSnap(recording, { durationSec: 3 })).not.toHaveProperty('place');
+  });
 });

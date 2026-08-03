@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>프로토타입 2 — 스튜디오 (작업대형)</title>
+<title>Snaply 스튜디오 — 확정 기획 목업</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -239,12 +239,17 @@
 <body>
 <div class="page">
   <div class="brief">
-    <div class="kicker">Prototype 2 / 3</div>
+    <div class="kicker">확정 기획 · 2026-08-03</div>
     <h1>스튜디오 — 작업대형</h1>
     <p class="bet">
-      <b>가정:</b> 사용자는 결과물을 <b>자기 손으로 통제</b>하고 싶어한다. AI는 주인공이 아니라
+      <b>전제:</b> 사용자는 결과물을 <b>자기 손으로 통제</b>하고 싶어한다. AI는 주인공이 아니라
       마지막에 붙는 <b>강력한 도구</b>다. 홈은 “내 작업대” — 담아둔 재료와 진행 중인 무비가
       항상 여기 놓여 있고, 앱을 다시 열면 하던 작업을 이어서 한다.
+    </p>
+    <p class="bet" style="margin-top:12px;font-size:14px;color:var(--dim)">
+      세 방향(오늘 / 스튜디오 / 레시피)을 비교해 <b style="color:var(--ink)">이 방향으로 확정</b>했다.
+      기획 전문은 <a href="concept.md" style="color:var(--lumen)">concept.md</a>. 이 목업은 확정된 화면과 플로우를
+      눌러볼 수 있게 만든 것이고, 데이터는 전부 가짜다. 아직 <code>src</code>에는 반영되지 않았다.
     </p>
 
     <div class="block">
@@ -266,16 +271,27 @@
     </div>
 
     <div class="block">
-      <h2>강점 / 리스크</h2>
+      <h2>이 방향을 고른 이유</h2>
       <ul>
         <li class="good">“내가 만들었다”는 소유감이 가장 강하다 — 공유 동기가 붙는다.</li>
         <li class="good">AI 결과가 마음에 안 들 때 <strong>사용자가 고칠 손잡이</strong>가 있다.</li>
         <li class="good">트레이 덕분에 여러 날짜에 걸친 무비를 자연스럽게 만든다.</li>
         <li class="good">콜드 스타트에 강하다 — 스냅 0개여도 홈이 “뭘 하면 되는지” 말한다.</li>
-        <li class="bad">단계가 많다. 첫 무비까지 탭 6–8번 — 이탈 지점이 많다.</li>
-        <li class="bad">AI가 “도구”로 밀려나서 제품 차별점이 흐려질 수 있다.</li>
-        <li class="bad">트레이라는 개념을 사용자가 학습해야 한다(온보딩 필요).</li>
+        <li class="good"><strong>운영 비용이 0에 가깝다</strong> — 백엔드는 합성 잡 하나로 출발할 수 있다.</li>
       </ul>
+    </div>
+
+    <div class="block">
+      <h2>감수하는 것</h2>
+      <ul>
+        <li class="bad">단계가 많다. 첫 무비까지 탭 6–8번 — 이탈 지점이 많다.</li>
+        <li class="bad">AI가 “도구”로 밀려나서 제품 차별점이 흐려질 수 있다. 차별화는 <strong>트레이와 재료 관리 경험</strong>이 진다.</li>
+        <li class="bad">트레이라는 개념을 사용자가 학습해야 한다 — 온보딩 한 장이 필요하다.</li>
+      </ul>
+      <p style="margin-top:10px">
+        폐기한 두 방향은 뒤 단계로 밀어뒀다 — <strong>제안 카드</strong>는 v1.2에 스튜디오 상단으로,
+        <strong>레시피</strong>는 카탈로그를 운영할 사람이 생기면 v1.3으로.
+      </p>
     </div>
 
     <div class="block">
@@ -283,6 +299,7 @@
       <ul>
         <li><strong>초안 저장</strong> — <code>PATCH /movies/:id</code>로 순서·트림·스타일을 서버에 유지(기기 교체 대응).</li>
         <li><strong>합성 잡</strong> — 사용자가 정한 순서/트림을 <em>그대로 지키는</em> 모드가 필요. AI가 순서를 다시 짜면 안 된다.</li>
+        <li><strong>무비 완성 푸시</strong> — 합성이 40초씩 걸리면 사용자는 앱을 나간다. 기존 FCM 인프라 재사용.</li>
         <li>스타일/BGM 카탈로그 API.</li>
       </ul>
     </div>

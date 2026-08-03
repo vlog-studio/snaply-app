@@ -6,8 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
+import { BackBar } from '@/shared/ui/back-bar';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { useMovieCuts } from '../model/use-movie-cuts';
@@ -46,7 +47,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const topInset = useTopContentInset();
   const { width: windowWidth } = useWindowDimensions();
   const { saveStyle, setArranger, startGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
@@ -57,11 +57,18 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const [renaming, setRenaming] = useState(false);
   const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
 
+  // A direct link can land here with nothing behind it, and the screen has no
+  // navigation bar to fall back on — so going back means the studio.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
   if (!movie) {
     return (
-      <View style={[styles.screen, styles.centered, { backgroundColor: theme.background }]}>
-        <ThemedText type="heading">무비를 찾을 수 없어요</ThemedText>
-        <ThemedText themeColor="textSecondary">이미 사라졌거나 잘못된 주소예요.</ThemedText>
+      <View style={[styles.screen, { backgroundColor: theme.background }]}>
+        <BackBar onPress={goBack} />
+        <View style={[styles.screen, styles.centered]}>
+          <ThemedText type="heading">무비를 찾을 수 없어요</ThemedText>
+          <ThemedText themeColor="textSecondary">이미 사라졌거나 잘못된 주소예요.</ThemedText>
+        </View>
       </View>
     );
   }
@@ -107,12 +114,8 @@ export function MoviePage({ movieId }: MoviePageProps) {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: Spacing.four + topInset, paddingBottom: Spacing.seven },
-        ]}
-      >
+      <BackBar onPress={goBack} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Spacing.seven }]}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
             <ThemedText type="title" numberOfLines={1}>
@@ -259,6 +262,9 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
+    // The back arrow above carries its own padding, so the title needs only the
+    // gap that keeps it off the glyph.
+    paddingTop: Spacing.two,
     gap: Spacing.four,
   },
   header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },

@@ -644,6 +644,11 @@ export function XPage() {
   embedded and resolves down to 500 (see
   [app branding and native config](../workflows/app-branding-and-native-config.md#app-font)).
 - Respect insets with `useTopContentInset()` / `useTabBarHeight()`.
+- `useTopContentInset()` is for a screen that has nothing above its content — the four
+  tab screens. A **pushed** screen (`/movie/[id]`, `/template/[id]`) puts
+  [`BackBar`](../../src/shared/ui/back-bar) above its `ScrollView` instead, and the bar
+  pads for the status bar itself; calling the hook as well stacks two status-bar heights
+  of empty ground under the arrow.
 
 ---
 

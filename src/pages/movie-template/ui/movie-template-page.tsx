@@ -8,8 +8,9 @@ import { useSnaps } from '@/entities/snap';
 import { useComposeMovie } from '@/features/compose-movie';
 import { useTemplateFill } from '@/features/fill-template';
 import { formatSeconds } from '@/shared/lib/datetime';
+import { BackBar } from '@/shared/ui/back-bar';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '@/shared/ui/theme';
+import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { SlotRow } from './slot-row';
@@ -36,7 +37,6 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const topInset = useTopContentInset();
   const snaps = useSnaps();
   const template = getMovieTemplateById(templateId);
   const fill = useTemplateFill(template);
@@ -63,11 +63,18 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
     }, [snaps, fillSlot]),
   );
 
+  // A direct link can land here with nothing behind it, and the screen has no
+  // navigation bar to fall back on — so going back means the studio.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
   if (!template) {
     return (
-      <View style={[styles.screen, styles.centered, { backgroundColor: theme.background }]}>
-        <ThemedText type="heading">템플릿을 찾을 수 없어요</ThemedText>
-        <ThemedText themeColor="textSecondary">이미 사라졌거나 잘못된 주소예요.</ThemedText>
+      <View style={[styles.screen, { backgroundColor: theme.background }]}>
+        <BackBar onPress={goBack} />
+        <View style={[styles.screen, styles.centered]}>
+          <ThemedText type="heading">템플릿을 찾을 수 없어요</ThemedText>
+          <ThemedText themeColor="textSecondary">이미 사라졌거나 잘못된 주소예요.</ThemedText>
+        </View>
       </View>
     );
   }
@@ -93,12 +100,8 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: Spacing.four + topInset, paddingBottom: Spacing.seven },
-        ]}
-      >
+      <BackBar onPress={goBack} />
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Spacing.seven }]}>
         <View style={styles.header}>
           <ThemedText type="title">{template.name}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
@@ -192,6 +195,9 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
     paddingHorizontal: Spacing.five,
+    // The back arrow above carries its own padding, so the title needs only the
+    // gap that keeps it off the glyph.
+    paddingTop: Spacing.two,
     gap: Spacing.four,
   },
   header: { gap: Spacing.half },

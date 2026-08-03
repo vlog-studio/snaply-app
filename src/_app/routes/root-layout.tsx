@@ -83,12 +83,17 @@ function RootStack() {
             finished movie and fixing it are the same visit, so a second route
             would only have meant two places that can edit one cut list. It is a
             pushed screen rather than a tab because it is a task with a beginning
-            and an end, and its own back affordance. */}
-        <Stack.Screen name="movie/[id]/index" options={{ title: '무비' }} />
+            and an end, and its own back affordance.
+
+            That affordance is the page's own `BackBar`, not a navigation bar: a
+            titled bar here could only have said `무비`, one line above the
+            movie's actual name, and the gap it left between the two was the
+            emptiest part of the screen. */}
+        <Stack.Screen name="movie/[id]/index" options={{ headerShown: false }} />
         {/* Picking a template is the other way into a movie, and it is a task of
             the same shape: it opens over the studio and leaves on the movie it
-            made. */}
-        <Stack.Screen name="template/[id]" options={{ title: '템플릿' }} />
+            made — headerless for the same reason. */}
+        <Stack.Screen name="template/[id]" options={{ headerShown: false }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>

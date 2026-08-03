@@ -8,6 +8,7 @@ export type ThemedTextProps = TextProps & {
     | 'display'
     | 'title'
     | 'heading'
+    | 'xsmall'
     | 'small'
     | 'smallBold'
     | 'subtitle'
@@ -38,6 +39,7 @@ export function ThemedText({
         type === 'display' && styles.display,
         type === 'title' && styles.title,
         type === 'heading' && styles.heading,
+        type === 'xsmall' && styles.xsmall,
         type === 'small' && styles.small,
         type === 'smallBold' && styles.smallBold,
         type === 'subtitle' && styles.subtitle,
@@ -56,6 +58,7 @@ export function ThemedText({
 }
 
 const styles = StyleSheet.create({
+  xsmall: { fontSize: 12, lineHeight: 16, fontWeight: 500 },
   small: { fontSize: 14, lineHeight: 20, fontWeight: 500 },
   smallBold: { fontSize: 14, lineHeight: 20, fontWeight: 700 },
   default: { fontSize: 16, lineHeight: 24, fontWeight: 500 },

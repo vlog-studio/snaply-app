@@ -81,7 +81,7 @@ export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: S
           ) : null}
         </View>
 
-        <ThemedText type="small" themeColor="textSecondary">
+        <ThemedText type="xsmall" themeColor="textSecondary">
           {snap
             ? `${formatTimestamp(snap.capturedAt)} · ${formatSeconds(snap.durationSec)}`
             : slot.hint}

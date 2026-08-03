@@ -149,7 +149,7 @@ API가 없는 동안 인터페이스만 확정하고 목으로 동작시킵니�
 ### 4단계 — 알림 설정 UI
 - `pages/settings`의 기존 프로토타입 알림 섹션(수신 토글, 빈도)을 `features/notification-settings`와 연결.
 - `notification_enabled`, `quiet_start`, `quiet_end`, `interests`를 편집. 초기엔 로컬 상태/스토어로 두고, `PATCH /auth/me`가 준비되면 뮤테이션으로 전환.
-- **검증:** 값 변경이 상태에 반영·유지되는지 확인. (현재는 리마운트 시 초기화되는 프로토타입 — `docs/features/settings.md` 참고.)
+- **검증:** 값 변경이 상태에 반영·유지되는지 확인. (SecureStore로 영속화돼 앱을 껐다 켜도 유지됩니다 — `docs/features/me.md` 참고.)
 
 ### 5단계 — 네이티브 설정 마무리와 iOS 검증
 - `app.json`에 `expo-location`, `expo-notifications`, `@react-native-firebase/app` 플러그인 등록, iOS는 `expo-build-properties`로 `useFrameworks: "static"` 설정.
@@ -211,5 +211,5 @@ Firebase는 아직 설정 전이므로, 실제 FCM 토큰 발급은 아래가 �
 - 상태·데이터 배치 규칙: `docs/frameworks/state-and-data.md`
 - FSD 계층: `docs/architecture/feature-sliced-design.md`
 - 권한 처리 참고 구현: `src/pages/capture-record/model/use-recording-permissions.ts`
-- 설정 화면 현재 동작: `docs/features/settings.md`
+- 설정 화면 현재 동작: `docs/features/me.md`
 - Expo SDK 57 지오펜싱: https://docs.expo.dev/versions/v57.0.0/sdk/location/

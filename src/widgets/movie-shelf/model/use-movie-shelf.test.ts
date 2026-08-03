@@ -133,6 +133,20 @@ describe('useMovieSummaries', () => {
     expect(result.current[1].progress).toBeUndefined();
   });
 
+  it('carries the failure reason while a movie is failed, and drops it on a retry', async () => {
+    mockMovies.mockReturnValue([
+      makeMovie({ id: 'failed', status: 'failed', error: '원본이 사라졌어요', updatedAt: 2 }),
+      // A retry keeps the last error on the movie; the card must stop reporting a
+      // problem the movie is no longer in.
+      makeMovie({ id: 'retried', status: 'generating', error: '원본이 사라졌어요', updatedAt: 1 }),
+    ]);
+
+    const { result } = await renderHook(() => useMovieSummaries());
+
+    expect(result.current[0].error).toBe('원본이 사라졌어요');
+    expect(result.current[1].error).toBeUndefined();
+  });
+
   it('orders movies by the most recent edit', async () => {
     mockMovies.mockReturnValue([
       makeMovie({ id: 'old', updatedAt: 1_753_200_000_000 }),

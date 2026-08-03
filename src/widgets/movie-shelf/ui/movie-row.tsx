@@ -6,6 +6,7 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
 
 import type { MovieSummary } from '../model/use-movie-shelf';
+import { MovieFailureNotice } from './movie-failure-notice';
 import { MovieStatusBadge, MovieStatusLabels } from './movie-status-badge';
 
 export type MovieRowProps = {
@@ -80,6 +81,9 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
               ]}
             />
           </View>
+        ) : null}
+        {movie.status === 'failed' ? (
+          <MovieFailureNotice movieId={movie.id} error={movie.error} snapCount={movie.snapCount} />
         ) : null}
       </View>
 

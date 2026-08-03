@@ -52,6 +52,7 @@ type MovieState = {
   beginMovieJob: (movieId: string, startedAt?: number) => void;
   advanceMovieJob: (movieId: string, stepIndex: number) => void;
   finishMovieJob: (movieId: string, render: MovieRender, updatedAt?: number) => void;
+  failMovieJob: (movieId: string, error: string, updatedAt?: number) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
   setHasHydrated: (value: boolean) => void;
 };
@@ -197,6 +198,17 @@ export const useMovieStore = create<MovieState>()(
               : movie,
           ),
         ),
+      // The other way out of `generating`. The job is dropped but the cut list and
+      // settings are left exactly as they were: recovery is running the same movie
+      // again, so everything the retry needs has to survive the failure.
+      failMovieJob: (movieId, error, updatedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.status === 'generating'
+              ? { ...movie, status: 'failed', error, job: undefined, updatedAt }
+              : movie,
+          ),
+        ),
       removeSnapsEverywhere: (snapIds) =>
         set((state) => {
           const removed = new Set(snapIds);
@@ -279,10 +291,10 @@ export function useRenameMovie(): (movieId: string, title: string, updatedAt?: n
 }
 
 /**
- * Puts a movie into generation at its first step. The three job actions are the
+ * Puts a movie into generation at its first step. The four job actions are the
  * movie's generation lifecycle, and each is a distinct transition — starting
- * discards a previous attempt, advancing is a progress report, and finishing is
- * the only way out of `generating`.
+ * discards a previous attempt, advancing is a progress report, and finishing or
+ * failing are the two ways out of `generating`.
  */
 export function useBeginMovieJob(): (movieId: string, startedAt?: number) => void {
   return useMovieStore((state) => state.beginMovieJob);
@@ -300,6 +312,14 @@ export function useFinishMovieJob(): (
   updatedAt?: number,
 ) => void {
   return useMovieStore((state) => state.finishMovieJob);
+}
+
+/**
+ * Ends a running job without a render, recording why. The message is what the
+ * recovery UI shows, so it is written for the user rather than for a log.
+ */
+export function useFailMovieJob(): (movieId: string, error: string, updatedAt?: number) => void {
+  return useMovieStore((state) => state.failMovieJob);
 }
 
 export function useDeleteMovie(): (movieId: string) => void {

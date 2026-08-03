@@ -2,7 +2,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 
 /**
  * File-based JSON key-value adapter over the app's document directory. It fills
- * the "local metadata store" gap for general, growing data (clips, rolls) that
+ * the "local metadata store" gap for general, growing data (snaps, movies) that
  * does not belong in SecureStore — SecureStore is for small secrets and has a
  * per-value size limit, whereas snap/movie collections grow without bound.
  *

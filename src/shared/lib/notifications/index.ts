@@ -9,4 +9,5 @@ export {
   configureForegroundNotifications,
   ensureNotificationChannel,
   presentLocalNotification,
+  requestLocalNotificationPermission,
 } from './local';

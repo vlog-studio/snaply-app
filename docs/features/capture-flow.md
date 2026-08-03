@@ -62,4 +62,4 @@ Original recordings are stored only in the Snaply app's document directory. They
 ## Known limitations
 
 - The counter shows the whole library's snap count, not a per-session count, so it never resets between capture sessions.
-- Nothing turns a snap into a movie yet; movie generation lands in later stages of the rebuild (`docs/guides/ai-vlog-studio/refactor-plan.md`).
+- Capturing never files a snap anywhere. Turning snaps into a movie is a separate, deliberate act that starts in the [Snap library](snaps.md) and finishes in the [Movie editor](movie-editor.md).

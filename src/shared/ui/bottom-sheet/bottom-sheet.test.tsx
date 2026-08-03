@@ -21,12 +21,12 @@ describe('BottomSheet', () => {
     await render(
       withSafeArea(
         <BottomSheet visible onClose={jest.fn()}>
-          <Text>현상 안내</Text>
+          <Text>무비 이름</Text>
         </BottomSheet>,
       ),
     );
 
-    expect(screen.getByText('현상 안내')).toBeTruthy();
+    expect(screen.getByText('무비 이름')).toBeTruthy();
   });
 
   it('calls onClose when the backdrop is pressed', async () => {

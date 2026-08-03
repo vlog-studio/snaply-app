@@ -10,6 +10,7 @@ import { MaxContentWidth, Radius, Spacing, useTheme, useTopContentInset } from '
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { useMoviePlayback } from '../model/use-movie-playback';
+import { useShareMovie } from '../model/use-share-movie';
 import { CutPlayer } from './cut-player';
 
 export type MovieDetailPageProps = {
@@ -29,6 +30,7 @@ export function MovieDetailPage({ movieId }: MovieDetailPageProps) {
   const router = useRouter();
   const topInset = useTopContentInset();
   const { movie, cuts, totalSec } = useMoviePlayback(movieId);
+  const sharing = useShareMovie(movie);
   const [renaming, setRenaming] = useState(false);
 
   if (!movie) {
@@ -96,6 +98,13 @@ export function MovieDetailPage({ movieId }: MovieDetailPageProps) {
           ) : null}
         </View>
 
+        <SnaplyButton
+          title="무비 공유"
+          variant="ai"
+          disabled={sharing.blocked !== undefined}
+          onPress={sharing.share}
+        />
+
         <View style={[styles.notice, { borderColor: theme.border }]}>
           <ThemedText type="edge" themeColor="lumen">
             아직 프로토타입
@@ -103,6 +112,9 @@ export function MovieDetailPage({ movieId }: MovieDetailPageProps) {
           <ThemedText type="small" themeColor="textSecondary">
             합성된 영상 파일은 아직 없어요. 여기 보이는 건 정한 순서와 길이대로 컷을 이어 붙인
             재생이고, 스타일·음악은 설정으로만 저장돼 있어요.
+            {sharing.blocked === 'no-render'
+              ? ' 내보낼 파일이 없어서 공유도 아직 눌러지지 않아요 — 합성이 붙는 순간 열립니다.'
+              : ''}
           </ThemedText>
         </View>
 

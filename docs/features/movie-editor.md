@@ -73,7 +73,16 @@ The trim bar follows the finger on the UI thread and reports to JavaScript only 
 | Leaving mid-job | `Functional` | The job belongs to the movie, not to the screen: `MovieGenerationGate` is mounted app-wide, so a job keeps running while the user browses other tabs and is picked back up on the next app start. Progress is derived from the job's start time rather than counted up, so a job whose whole duration passed while the app was closed finishes on the first look. |
 | Finished state | `Functional` | Step ③ turns into `완성됐어요` with `무비 보기`, which replaces the editor with [movie playback](movie-playback.md). |
 | Nothing to generate | `Functional` | A movie with no cuts is refused rather than started, with an explanation, because a job over an empty cut list can only produce an empty movie. |
-| Failure | `Not implemented` | `failed` exists in the model and `features/compose-movie` will run a failed movie again, but the simulation never fails, so no failure or retry UI is built. That is stage 4. |
+| Failure | `Functional` | A job whose originals were all deleted while it ran is failed with a reason rather than finished into an empty movie. Step ③ then reads `만들지 못했어요` with the stored reason and a `다시 시도` button; the header subtitle says so too. See "How a job fails" below. |
+| Announce the end | `Partial` | With 무비 완성 알림 on ([Me tab](me.md)), a job that ends — either way — presents a local notification, so the user who walked away is told. It is local because the job is local; when the backend generates, this becomes an FCM message. Nothing arrives if the app was force-quit, because then the job never reached its end either. |
+
+### How a job fails
+
+There is no remote work to break, so `failed` is not a simulated coin flip. It is one real thing that can happen: the user deletes the last original a running job was built from. Deleting a snap strips it from every movie that references it ([Snap library](snaps.md#deleting-an-original)), and a job with no cuts left can only render nothing.
+
+`useGenerationRunner` checks this on every look rather than only at the last step — waiting out thirty more seconds to be told the material is gone is a pointless wait — and refuses to judge it at all before the snap store has rehydrated, when every cut would look deleted. Recovery is `startGeneration` on the same movie: `failed` is editable and re-runnable everywhere `draft` is, and the cut list, style, and BGM all survive the failure, so a retry starts from what the user already chose. A retry is offered only when the movie still has cuts; with none, the copy sends the user back to ① instead of to a retry that would fail again immediately.
+
+Recovery is reachable from all three places a failed movie appears: the studio board row, the movie-tab tile (both through `widgets/movie-shelf`'s `MovieFailureNotice`), and step ③ of the editor.
 
 ## Rules and where they live
 
@@ -94,17 +103,18 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 ## Ownership
 
 - `src/pages/movie-editor` owns the screen and its three steps (`ui/assemble-step.tsx`, `ui/style-step.tsx`, `ui/generate-step.tsx`), the wizard header, the cut row and its trim bar, the working cut list (`model/use-movie-editor.ts`), the trim gesture's geometry (`model/trim-geometry.ts`), and the job clock the progress ring reads (`model/use-job-clock.ts`).
-- `src/features/compose-movie` owns starting a movie from the tray (which empties it), committing cut lists and style settings, starting generation, and `MovieGenerationGate` — the app-wide runner that carries a job to its render (`model/use-generation-runner.ts`).
+- `src/features/compose-movie` owns starting a movie from the tray (which empties it), committing cut lists and style settings, starting generation, and `MovieGenerationGate` — the app-wide runner that carries a job to its render or to a failure (`model/use-generation-runner.ts`) and, when asked, announces the end (`lib/announce-job-end.ts`).
+- `src/_app/providers/movie-generation-bridge.tsx` mounts the gate with the user's 무비 완성 알림 preference. The preference belongs to `features/notification-settings` and features must not import each other, so the app layer composes them — the same shape as `GeofenceGate`.
 - `src/features/rename-movie` owns the rename sheet and its schema. A feature rather than page code because both of a movie's screens need it — the editor names a draft, and playback is where a finished movie earns a name.
-- `src/entities/movie` owns the store and its write actions (`useCreateMovie`, `useUpdateMovieCuts`, `useUpdateMovieStyle`, `useRenameMovie`, `useDeleteMovie`, and the three job actions), the default-title rule (`lib/movie-title.ts`), the style and BGM catalogs, the generation step table and its progress rule (`lib/movie-generation.ts`), and the trim rules (`lib/movie-trim.ts`).
+- `src/entities/movie` owns the store and its write actions (`useCreateMovie`, `useUpdateMovieCuts`, `useUpdateMovieStyle`, `useRenameMovie`, `useDeleteMovie`, and the four job actions — begin, advance, finish, fail), the default-title rule (`lib/movie-title.ts`), the style and BGM catalogs, the generation step table and its progress rule (`lib/movie-generation.ts`), and the trim rules (`lib/movie-trim.ts`).
 - `src/widgets/movie-shelf` supplies the row and tile that open the editor, and the summaries behind them — including the coarse progress a card shows for a job in flight.
 - `src/pages/snaps` handles the `?for=<movieId>` picking mode, appending through `compose-movie`.
 
 ## Known limitations
 
 - **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays.
-- A finished movie's cuts and settings are frozen. Changing them means regenerating, which is stage 4; until then the only route back is deleting the movie — for which there is no UI either.
-- Generation never fails, so there is no failure or retry UI.
+- A finished movie's cuts and settings are frozen. Changing them means regenerating, which does not exist; until then the only route back is deleting the movie — for which there is no UI either.
+- Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.
 - Reordering is button-based, not drag-based.
 - Trim is set on a half-second grid. Frame-accurate trimming would need a real editor timeline.
 - Everything is local. No draft is synced to a backend, so a movie does not follow the user to another device (concept §9 requires `PATCH /movies/:id` for that).

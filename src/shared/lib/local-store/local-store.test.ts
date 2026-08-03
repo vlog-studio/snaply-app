@@ -62,37 +62,37 @@ beforeEach(() => {
 
 describe('localStore', () => {
   it('returns null for a key that was never written', async () => {
-    expect(await localStore.getItem('snaply.clips')).toBeNull();
+    expect(await localStore.getItem('snaply.snaps')).toBeNull();
   });
 
   it('round-trips a JSON string through setItem and getItem', async () => {
-    const value = JSON.stringify({ clips: [{ id: 'clip-1', durationSec: 3 }] });
+    const value = JSON.stringify({ snaps: [{ id: 'snap-1', durationSec: 3 }] });
 
-    await localStore.setItem('snaply.clips', value);
+    await localStore.setItem('snaply.snaps', value);
 
-    expect(await localStore.getItem('snaply.clips')).toBe(value);
+    expect(await localStore.getItem('snaply.snaps')).toBe(value);
   });
 
   it('overwrites a previously written value', async () => {
-    await localStore.setItem('snaply.rolls', '{"rolls":[]}');
-    await localStore.setItem('snaply.rolls', '{"rolls":[{"id":"daily-2026-07-23"}]}');
+    await localStore.setItem('snaply.movies', '{"movies":[]}');
+    await localStore.setItem('snaply.movies', '{"movies":[{"id":"movie-1"}]}');
 
-    expect(await localStore.getItem('snaply.rolls')).toBe('{"rolls":[{"id":"daily-2026-07-23"}]}');
+    expect(await localStore.getItem('snaply.movies')).toBe('{"movies":[{"id":"movie-1"}]}');
   });
 
   it('removes a stored value', async () => {
-    await localStore.setItem('snaply.clips', '{"clips":[]}');
+    await localStore.setItem('snaply.snaps', '{"snaps":[]}');
 
-    await localStore.removeItem('snaply.clips');
+    await localStore.removeItem('snaply.snaps');
 
-    expect(await localStore.getItem('snaply.clips')).toBeNull();
+    expect(await localStore.getItem('snaply.snaps')).toBeNull();
   });
 
   it('keeps values written under different keys independent', async () => {
-    await localStore.setItem('snaply.clips', 'clips-value');
-    await localStore.setItem('snaply.rolls', 'rolls-value');
+    await localStore.setItem('snaply.snaps', 'snaps-value');
+    await localStore.setItem('snaply.movies', 'movies-value');
 
-    expect(await localStore.getItem('snaply.clips')).toBe('clips-value');
-    expect(await localStore.getItem('snaply.rolls')).toBe('rolls-value');
+    expect(await localStore.getItem('snaply.snaps')).toBe('snaps-value');
+    expect(await localStore.getItem('snaply.movies')).toBe('movies-value');
   });
 });

@@ -33,6 +33,8 @@ export type MovieSummary = {
   coverUris: string[];
   /** How far generation has come, 0–1. Present only while `generating`. */
   progress?: number;
+  /** Why the last generation broke. Present only while `failed`. */
+  error?: string;
 };
 
 /**
@@ -62,6 +64,10 @@ function summarize(movie: Movie, snapIndex: SnapIndex): MovieSummary {
     dateLabel: formatDayHeading(movie.updatedAt),
     coverUris: snaps.slice(0, CoverFrameCount).map((snap) => snap.uri),
     progress: jobProgress(movie),
+    // Only while failed: a movie keeps its last error through a retry so the
+    // store can tell one attempt from the next, but a card showing it after the
+    // movie recovered would be reporting a problem that is over.
+    error: movie.status === 'failed' ? movie.error : undefined,
   };
 }
 

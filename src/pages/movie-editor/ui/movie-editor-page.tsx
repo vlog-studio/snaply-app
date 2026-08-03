@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import type { MovieStatus } from '@/entities/movie';
 import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -21,6 +22,17 @@ export type MovieEditorPageProps = {
 
 /** Row padding plus its two hairline borders, taken off the content column. */
 const RowInset = Spacing.two * 2 + 2;
+
+/**
+ * What the subtitle says when there is nothing unsaved. A failed movie has to say
+ * so here: the editor is where the board sends it, and its recovery is on ③.
+ */
+const SavedStateLines: Record<MovieStatus, string> = {
+  draft: '초안으로 저장돼 있어요',
+  generating: '생성 중이에요',
+  ready: '완성된 무비예요',
+  failed: '생성에 실패했어요. ③생성에서 다시 시도할 수 있어요',
+};
 
 /**
  * The movie editor — the three-step wizard every movie passes through (concept §6).
@@ -89,8 +101,11 @@ export function MovieEditorPage({ movieId }: MovieEditorPageProps) {
             <ThemedText type="title" numberOfLines={1}>
               {movie.title}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {isDirty ? '저장하지 않은 변경이 있어요' : '초안으로 저장돼 있어요'}
+            <ThemedText
+              type="small"
+              themeColor={movie.status === 'failed' ? 'danger' : 'textSecondary'}
+            >
+              {isDirty ? '저장하지 않은 변경이 있어요' : SavedStateLines[movie.status]}
             </ThemedText>
           </View>
           <Pressable

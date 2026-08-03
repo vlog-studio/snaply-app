@@ -4,6 +4,7 @@ export {
   useBeginMovieJob,
   useCreateMovie,
   useDeleteMovie,
+  useFailMovieJob,
   useFinishMovieJob,
   useMovieById,
   useMovies,

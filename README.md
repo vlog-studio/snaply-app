@@ -1,6 +1,8 @@
 # Snaply
 
-Snaply는 짧은 일상 영상을 기록하는 데일리 브이로그 앱입니다. 사용자는 기분과 촬영 시간(3초 또는 5초)을 선택하고, 카메라로 영상을 촬영한 뒤 원본을 확인할 수 있습니다. 이후 현재는 시뮬레이션으로 구현된 AI 편집 과정을 거쳐 결과 화면으로 이동합니다. 촬영한 영상은 앱의 로컬 문서 디렉터리에만 저장됩니다.
+Snaply는 짧게 여러 번 찍어두면 AI가 한 편의 숏폼 브이로그로 만들어 주는 앱입니다. 3초 또는 5초짜리 **스냅**을 모아두고, 스냅 탭에서 골라 **트레이**에 담고, 스튜디오에서 **무비** 한 편으로 엮습니다. 편집기는 조립·스타일·생성 3단계입니다. 촬영한 영상은 앱의 로컬 문서 디렉터리에만 저장됩니다.
+
+> **AI 합성은 아직 시뮬레이션입니다.** 백엔드 합성 잡이 없어 진행 단계는 시늉이고, 완성된 무비는 정한 순서와 트림대로 컷을 이어 재생합니다. 무엇이 실제로 동작하는지는 [`docs/features/`](docs/features)를 보세요.
 
 Expo SDK 57(React Native 0.86, Expo Router)을 사용하며, Feature-Sliced Design v2.1을 기준으로 프로젝트를 구성합니다.
 
@@ -53,9 +55,7 @@ src/
 - [`Supabase 소셜 로그인 설정 가이드`](docs/guides/supabase-auth-setup.md): Google·Apple 로그인을 켜기 위한 `.env` 값, Supabase·Google·Apple 콘솔 설정, 개발 빌드 실행 절차
 - [`위치 기반 FCM 알림 선행 개발 계획`](docs/guides/location-notifications-plan.md): 백엔드 API 이전에 프론트에서 만들 수 있는 범위, FSD 배치, 단계별 계획, 네이티브 설정 체크리스트
 - [`FCM 푸시 알림 설정 가이드`](docs/guides/fcm-push-setup.md): 네이티브 FCM 토큰용 Firebase 프로젝트·앱 등록, `google-services.json`/`GoogleService-Info.plist`/APNs 준비 절차
-- [`Snaply 스튜디오 — AI 숏폼 브이로그 기획`](docs/guides/ai-vlog-studio/concept.md): **현재 확정 기획.** 스냅↔무비 재정의, 4탭 + 담기 트레이 정보 구조, 편집기 3단계, 기존 clip/roll 모델 매핑, 백엔드 계약 초안 (인터랙티브 목업 HTML 포함)
-- [`스튜디오 재기획 — 구현 계획`](docs/guides/ai-vlog-studio/refactor-plan.md): **작업 중.** 위 기획을 코드에 반영하는 4단계 계획과 진행 상황. 세션을 나눠 이어서 작업하기 위한 임시 문서이며, 다 끝나면 지웁니다
-- [`순간 수집 앱 리디자인 — 기획 컨셉`](docs/guides/moment-collection-redesign/concept.md): 필름/현상 메타포 기반의 이전 기획. **위 스튜디오 기획으로 대체되었습니다.** 이력·참고용으로만 남겨둡니다
+- [`Snaply 스튜디오 — AI 숏폼 브이로그 기획`](docs/guides/ai-vlog-studio/concept.md): **현재 확정 기획이자 구현 기준.** 스냅↔무비 재정의, 4탭 + 담기 트레이 정보 구조, 편집기 3단계, 백엔드 계약 초안 (인터랙티브 목업 HTML 포함). 기획과 실제 구현 상태가 다를 수 있으므로, 지금 무엇이 동작하는지는 [`docs/features/`](docs/features)를 기준으로 봅니다
 
 에이전트용 문서는 [`AGENTS.md`](AGENTS.md)에서 작업 유형별로 찾을 수 있습니다.
 
@@ -132,7 +132,7 @@ src/
 | `expo-video` | 촬영 원본·결과 영상 재생. |
 | `expo-image` | 이미지 렌더링과 캐싱. (app.json 플러그인) |
 | `expo-file-system` | 촬영 영상을 로컬 문서 디렉터리에 저장·관리. |
-| `expo-sharing` | 결과물 공유 시트 호출. (app.json 플러그인) |
+| `expo-sharing` | 완성 무비 내보내기용 시스템 공유 시트 호출. 합성된 파일이 아직 없어 실제로는 아직 열리지 않습니다. (app.json 플러그인) |
 | `expo-media-library` | 영상을 기기 갤러리에 저장(예약). |
 
 ### 위치와 알림

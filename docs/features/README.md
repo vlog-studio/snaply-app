@@ -4,7 +4,7 @@
 
 This directory is the product-level source of truth for behavior that is currently represented in the Snaply application. It complements the architecture guides: architecture documents define how code should be organized, while these documents record what users can currently do, which code owns that behavior, and which experiences are still prototypes.
 
-The inventory reflects the codebase as of 2026-08-03, after stage 3 of the studio rebuild (`docs/guides/ai-vlog-studio/refactor-plan.md`).
+The inventory reflects the codebase as of 2026-08-03, after the studio rebuild that replaced the film/develop metaphor with the snap → tray → movie model (`docs/guides/ai-vlog-studio/concept.md`).
 
 ## Implementation status vocabulary
 
@@ -51,7 +51,7 @@ There is no separate capture-setup screen: `/capture` opens straight into the vi
 
 Access control: `src/_app/routes/root-layout.tsx` composes the four groups above with `Stack.Protected`. The two `auth/*` deep-link landings sit outside every guard so an email link always resolves; the recovery group takes precedence over the authenticated one, so a recovery link cannot reach the app until the new password is set. See [Authentication](authentication.md) for the deep-link flow.
 
-Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRegistrar` and `GeofenceGate`, and `src/_app/routes/register-background-tasks.ts` defines the background geofence task at startup. These have no route (see [Location alerts and push notifications](location-and-push-notifications.md)).
+Headless behavior: while authenticated, `src/_app/providers` mounts `PushTokenRegistrar`, `GeofenceGate`, and `MovieGenerationBridge`, and `src/_app/routes/register-background-tasks.ts` defines the background geofence task at startup. These have no route (see [Location alerts and push notifications](location-and-push-notifications.md) and [Movie editor](movie-editor.md)). Both gates are the same shape: an app-layer component that reads a preference from `features/notification-settings` and hands it to the feature that acts on it, because features must not import each other.
 
 The main user journey is:
 
@@ -70,7 +70,9 @@ Tap the center capture button in the tab bar
   → the finished movie opens on playback from the Studio or the Movie tab
 ```
 
-**Generation is a local simulation.** The steps are paced by a clock, nothing is composited, and a finished movie is played by running its cuts in order. See [Movie editor](movie-editor.md) and [Movie playback](movie-playback.md) for exactly what is and is not real. Failure recovery, the completion push, and sharing land in stage 4 (`docs/guides/ai-vlog-studio/refactor-plan.md`).
+**Generation is a local simulation.** The steps are paced by a clock, nothing is composited, and a finished movie is played by running its cuts in order. See [Movie editor](movie-editor.md) and [Movie playback](movie-playback.md) for exactly what is and is not real.
+
+Because the job is local, so is everything built on top of it: a job that ends announces itself with a *local* notification rather than a push (gated by 무비 완성 알림 in the [Me tab](me.md)), and a job can fail in exactly one way — losing every original it was built from — which the studio board, the movie grid, and the editor all offer a retry for. Exporting a finished movie is the one capability that could not be built: there is no rendered file to hand the share sheet, so the control is present, disabled, and states the reason ([Movie playback](movie-playback.md)).
 
 ## Feature index
 
@@ -78,9 +80,9 @@ Tap the center capture button in the tab bar
 | --- | --- | --- |
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, four-tab navigation, capture button, route adapters, theme | `Functional` |
 | [Authentication](authentication.md) | Supabase email/password sign-in, sign-up with email confirmation, password reset (both via deep link), Google OAuth (Apple deferred), Supabase-owned session persistence, route guard, sign-out | `Functional` |
-| [Studio and movies](studio.md) | The 담기 tray (pick order, ten-snap cap, persistence), the work-in-progress and finished lanes with job progress, the movie tab grid, and the movie data model | `Functional` |
-| [Movie editor](movie-editor.md) | Starting a movie from the tray, renaming it, and all three wizard steps — assemble (reorder, remove, trim, add), style (style, BGM, subtitles), and generation | `Prototype` |
-| [Movie playback](movie-playback.md) | Watching a finished movie as its cuts in order, its recipe, and renaming it | `Partial` |
+| [Studio and movies](studio.md) | The 담기 tray (pick order, ten-snap cap, persistence), the work-in-progress and finished lanes with job progress and failure recovery, the movie tab grid, and the movie data model | `Functional` |
+| [Movie editor](movie-editor.md) | Starting a movie from the tray, renaming it, all three wizard steps — assemble (reorder, remove, trim, add), style (style, BGM, subtitles), generation — plus failure, retry, and the end-of-job notification | `Prototype` |
+| [Movie playback](movie-playback.md) | Watching a finished movie as its cuts in order, its recipe, renaming it, and the (blocked) export | `Partial` |
 | [Snap library](snaps.md) | Day-grouped snap grid, playback, selection → tray or a movie, cascading deletion, the file and thumbnail model | `Functional` |
 | [Capture flow](capture-flow.md) | Inline duration option, permissions, press-and-hold recording, saving a snap, in-camera feedback, recording library | `Functional` |
 | [Me tab](me.md) | Profile, snap/movie/tray stats, reminder, notification, social-connection, and account controls | `Partial` |
@@ -91,12 +93,12 @@ Tap the center capture button in the tab bar
 | Layer | Current modules | Responsibility |
 | --- | --- | --- |
 | `src/app` | Route files and layouts | Parse route parameters and expose `_app` layouts or page Public APIs to Expo Router. |
-| `src/_app` | `providers`, `routes`, `styles` | Compose the navigation theme, splash overlay, root stack with the session route guard, and the four-tab navigation. Also mount the headless `PushTokenRegistrar`, `GeofenceGate`, and `MovieGenerationGate`, and define the background geofence task at startup (`register-background-tasks`). |
+| `src/_app` | `providers`, `routes`, `styles` | Compose the navigation theme, splash overlay, root stack with the session route guard, and the four-tab navigation. Also mount the headless `PushTokenRegistrar`, `GeofenceGate`, and `MovieGenerationBridge` — the last two bridging a notification preference to the feature that acts on it — and define the background geofence task at startup (`register-background-tasks`). |
 | `src/pages` | `sign-in`, `sign-up`, `reset-password`, `update-password`, `auth-callback`, `studio`, `snaps`, `movies`, `movie-editor`, `movie-detail`, `me`, `capture-record` | Own screen composition and screen-specific state. A screen that draws a movie's cuts composes the movie↔snap join through `entities/snap`'s `useSnapsByRefs` rather than resolving references itself. |
 | `src/widgets` | `movie-shelf` | Owns the cross-entity movie read model — a movie summarized for a card (cut count, total played seconds, cover frames, date label, job progress), the in-progress and finished lane selectors, and the two ways a movie is drawn (`MovieRow`, `MovieTile`). |
-| `src/features` | `capture-moment`, `compose-movie`, `rename-movie`, `delete-snap`, `manage-recordings`, `sign-in`, `sign-up`, `reset-password`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own saving a captured snap; turning the tray into a movie, committing its cut list and style settings, and carrying a generation job to its render (with the at-least-one-cut, ten-cut, and frozen-once-generating rules); renaming a movie; cascading original deletion (file, thumbnail, movie references, tray entry, metadata); reused local-recording handling; the email/social sign-in, sign-up, and password-reset actions; the notification preferences; OS geofence monitoring; and FCM token registration. |
+| `src/features` | `capture-moment`, `compose-movie`, `rename-movie`, `delete-snap`, `manage-recordings`, `sign-in`, `sign-up`, `reset-password`, `notification-settings`, `geofence-monitor`, `register-push-token` | Own saving a captured snap; turning the tray into a movie, committing its cut list and style settings, and carrying a generation job to its render or its failure (with the at-least-one-cut, ten-cut, and frozen-once-generating rules) and announcing the end; renaming a movie; cascading original deletion (file, thumbnail, movie references, tray entry, metadata); reused local-recording handling; the email/social sign-in, sign-up, and password-reset actions; the notification preferences (including the permission grant the movie-completion switch needs); OS geofence monitoring; and FCM token registration. |
 | `src/entities` | `capture-session`, `snap`, `movie`, `tray`, `session`, `location` | Define the capture duration, own the snap library and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other), own movies (cut lists, trim rules, the style and BGM catalogs, the generation step table, lifecycle), own the 담기 tray (pick order and the ten-snap cap), the authenticated session and current user, and geofence points. |
-| `src/shared` | `api`, `config`, `lib/recording-files`, `lib/local-store`, `lib/secure-storage`, `lib/supabase`, `lib/location`, `lib/notifications`, `lib/video-thumbnails`, `lib/validation`, `lib/format-file-size`, `lib/datetime`, UI modules | Provide the HTTP client and mock-mode switch, the platform-specific file, JSON local-store, secure-storage, Supabase, location, notification, and video-thumbnail adapters, validation primitives, the date/time, seconds, and duration formatters every screen prints (`lib/datetime`), design tokens, theme helpers, typography, buttons, the video frame and player chrome, and other business-agnostic UI. |
+| `src/shared` | `api`, `config`, `lib/recording-files`, `lib/local-store`, `lib/secure-storage`, `lib/supabase`, `lib/location`, `lib/notifications`, `lib/sharing`, `lib/video-thumbnails`, `lib/validation`, `lib/format-file-size`, `lib/datetime`, UI modules | Provide the HTTP client and mock-mode switch, the platform-specific file, JSON local-store, secure-storage, Supabase, location, notification, file-sharing, and video-thumbnail adapters, validation primitives, the date/time, seconds, and duration formatters every screen prints (`lib/datetime`), design tokens, theme helpers, typography, buttons, the video frame and player chrome, and other business-agnostic UI. |
 
 The `widgets` layer holds the cross-entity read models that no single entity may own and more than one screen needs (`movie-shelf`). A cross-entity read with a single consumer stays in its page — the Snap tab's movie-delete impact is an example — and is promoted only when a second surface needs it. Neither layer holds formatters: a business-agnostic date, time, or duration format belongs in `shared/lib/datetime`, so a page never depends on a feature or a widget in order to print one.
 

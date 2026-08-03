@@ -6,6 +6,7 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
 
 import type { MovieSummary } from '../model/use-movie-shelf';
+import { MovieFailureNotice } from './movie-failure-notice';
 import { MovieStatusBadge, MovieStatusLabels } from './movie-status-badge';
 
 export type MovieTileProps = {
@@ -59,6 +60,9 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
       <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
         {movie.dateLabel} · 스냅 {movie.snapCount}
       </ThemedText>
+      {movie.status === 'failed' ? (
+        <MovieFailureNotice movieId={movie.id} error={movie.error} snapCount={movie.snapCount} />
+      ) : null}
     </Pressable>
   );
 }

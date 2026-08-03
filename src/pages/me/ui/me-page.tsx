@@ -8,6 +8,7 @@ import { useTraySnapIds } from '@/entities/tray';
 import {
   INTEREST_OPTIONS,
   useInterests,
+  useMovieReadyAlerts,
   useNotificationEnabled,
   useQuietEnd,
   useQuietStart,
@@ -56,9 +57,7 @@ export function MePage() {
     evening: true,
   });
   const [frequency, setFrequency] = useState(2);
-  // Local only for now: nothing publishes a "movie is ready" push yet, so this
-  // records the preference and does not gate a notification.
-  const [movieDonePush, setMovieDonePush] = useState(true);
+  const movieReadyAlerts = useMovieReadyAlerts();
   const notificationEnabled = useNotificationEnabled();
   const setNotificationEnabled = useSetNotificationEnabled();
   const quietStart = useQuietStart();
@@ -164,6 +163,33 @@ export function MePage() {
         </View>
       </SettingsSection>
 
+      <SettingsSection title="무비 알림">
+        <View style={styles.settingRow}>
+          <ThemedText selectable={false} style={styles.rowEmoji}>
+            ✨
+          </ThemedText>
+          <View style={styles.rowCopy}>
+            <ThemedText type="smallBold">무비 완성 알림</ThemedText>
+            <ThemedText
+              type="small"
+              themeColor={movieReadyAlerts.blocked ? 'danger' : 'textSecondary'}
+            >
+              {movieReadyAlerts.blocked
+                ? '기기 설정에서 Snaply 알림을 켜야 받을 수 있어요.'
+                : '생성이 끝나거나 실패하면 알려드려요. 앱을 완전히 종료하면 오지 않아요.'}
+            </ThemedText>
+          </View>
+          <Switch
+            accessibilityLabel="무비 완성 알림"
+            value={movieReadyAlerts.enabled}
+            onValueChange={movieReadyAlerts.setEnabled}
+            trackColor={{ false: theme.border, true: theme.primary }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={theme.border}
+          />
+        </View>
+      </SettingsSection>
+
       <SettingsSection title="위치 알림">
         <View style={styles.settingRow}>
           <ThemedText selectable={false} style={styles.rowEmoji}>
@@ -179,26 +205,6 @@ export function MePage() {
             accessibilityLabel="위치 알림 받기"
             value={notificationEnabled}
             onValueChange={setNotificationEnabled}
-            trackColor={{ false: theme.border, true: theme.primary }}
-            thumbColor="#FFFFFF"
-            ios_backgroundColor={theme.border}
-          />
-        </View>
-        <View style={{ height: 1, backgroundColor: theme.border }} />
-        <View style={styles.settingRow}>
-          <ThemedText selectable={false} style={styles.rowEmoji}>
-            ✨
-          </ThemedText>
-          <View style={styles.rowCopy}>
-            <ThemedText type="smallBold">무비 완성 알림</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              생성이 끝나면 알려드려요. 아직 준비 중인 기능이에요.
-            </ThemedText>
-          </View>
-          <Switch
-            accessibilityLabel="무비 완성 알림"
-            value={movieDonePush}
-            onValueChange={setMovieDonePush}
             trackColor={{ false: theme.border, true: theme.primary }}
             thumbColor="#FFFFFF"
             ios_backgroundColor={theme.border}

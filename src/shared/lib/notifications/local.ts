@@ -37,6 +37,23 @@ export async function ensureNotificationChannel(): Promise<void> {
   });
 }
 
+/**
+ * Ensure this app may present a notification, asking once if it still can.
+ *
+ * Separate from the FCM permission request: that one goes through Firebase and
+ * resolves false wherever the native module is absent, while a locally presented
+ * notification needs nothing but the OS grant. Call it from a control the user
+ * just touched — a background caller would raise the system prompt out of
+ * nowhere. Returns whether presentation is now allowed.
+ */
+export async function requestLocalNotificationPermission(): Promise<boolean> {
+  const current = await Notifications.getPermissionsAsync();
+  if (current.granted) return true;
+  if (!current.canAskAgain) return false;
+  const requested = await Notifications.requestPermissionsAsync();
+  return requested.granted;
+}
+
 type LocalNotification = {
   title?: string;
   body?: string;

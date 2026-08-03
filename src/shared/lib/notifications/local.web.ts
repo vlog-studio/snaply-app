@@ -7,6 +7,10 @@ export function ensureNotificationChannel(): Promise<void> {
   return Promise.resolve();
 }
 
+export function requestLocalNotificationPermission(): Promise<boolean> {
+  return Promise.resolve(false);
+}
+
 export function presentLocalNotification(_input: {
   title?: string;
   body?: string;

@@ -37,10 +37,10 @@ const RefusalMessages: Record<GenerationRefusal, string> = {
 /**
  * Step ③ — handing the movie to the AI (concept §6).
  *
- * Three states in one screen, because they are three points in one wait: ready to
- * run, running, and done. Leaving mid-job is expected and safe — the job belongs
- * to the movie, not to this screen (`MovieGenerationGate`), so the ring picks up
- * where it left off on the way back.
+ * Four states in one screen, because they are four points in one wait: ready to
+ * run, running, done, and broken. Leaving mid-job is expected and safe — the job
+ * belongs to the movie, not to this screen (`MovieGenerationGate`), so the ring
+ * picks up where it left off on the way back.
  *
  * **Nothing is composited.** No renderer exists yet, so the steps are paced by the
  * job clock and a finished movie is played by running its cuts in order. The
@@ -120,21 +120,40 @@ export function GenerateStep({
     );
   }
 
+  const hasFailed = movie.status === 'failed';
+
   return (
     <View style={styles.step}>
-      <ThemedText type="heading">준비됐어요</ThemedText>
+      <ThemedText type="heading">{hasFailed ? '만들지 못했어요' : '준비됐어요'}</ThemedText>
+      {hasFailed ? (
+        // The stored reason, not a generic apology: the user has to know whether
+        // running it again is worth anything, and today's one failure is only
+        // answered by putting cuts back first.
+        <View style={[styles.notice, { borderColor: theme.danger }]}>
+          <ThemedText type="small" themeColor="danger">
+            {movie.error ?? '알 수 없는 이유로 생성이 멈췄어요.'}
+          </ThemedText>
+          {cutCount === 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              ①조립에서 스냅을 다시 넣으면 그대로 다시 시도할 수 있어요.
+            </ThemedText>
+          ) : null}
+        </View>
+      ) : null}
       <ThemedText type="small" themeColor="textSecondary">
         {recipe}
       </ThemedText>
 
       {refusal ? (
-        <View style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}>
+        <View
+          style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}
+        >
           <ThemedText type="small">{RefusalMessages[refusal]}</ThemedText>
         </View>
       ) : null}
 
       <SnaplyButton
-        title="AI로 생성 시작"
+        title={hasFailed ? '다시 시도' : 'AI로 생성 시작'}
         variant="ai"
         disabled={cutCount === 0}
         onPress={onStart}

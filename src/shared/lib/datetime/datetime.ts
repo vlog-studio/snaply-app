@@ -1,7 +1,7 @@
 // Formatters are built once at module load and reused. Constructing an
 // `Intl.DateTimeFormat` costs far more than formatting with one, and these run
-// per film frame and per list row — a contact strip formats every frame it
-// draws, so a per-call constructor showed up as scroll cost.
+// per snap and per list row — the snap grid formats every cell it draws, so a
+// per-call constructor showed up as scroll cost.
 const dateTimeFormat = new Intl.DateTimeFormat('ko-KR', {
   month: 'long',
   day: 'numeric',
@@ -31,8 +31,9 @@ function startOfDay(date: Date): number {
  * and a date says the same thing twice.
  *
  * `now` is injectable so a caller that already knows which day it is can stay
- * pure, matching `elapsedDaysInMonth` and `ensureDailyRoll`. The default reads
- * the clock, so callers that have no better answer need not invent one.
+ * pure — a grid grouping a whole library resolves it once and passes it down.
+ * The default reads the clock, so callers with no better answer need not invent
+ * one.
  */
 export function relativeDayLabel(epochMs: number, now: number = Date.now()): string | undefined {
   const today = startOfDay(new Date(now));

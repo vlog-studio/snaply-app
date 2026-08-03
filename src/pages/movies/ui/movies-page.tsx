@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
   MaxContentWidth,
@@ -9,21 +10,30 @@ import {
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { useMovieSummaries } from '@/widgets/movie-shelf';
+import { MovieTile, useMovieSummaries } from '@/widgets/movie-shelf';
+
+/** Two columns, as in the mockup: a 9:16 cover wants the width. */
+const Columns = 2;
 
 /**
- * The movie tab — every finished vlog and every draft, newest work first.
+ * The movie tab — every movie, drafts included, most recent work first.
  *
- * Nothing can create a movie until the editor lands in the next stage of the
- * rebuild, so the grid is empty by construction and the screen shows what to do
- * about it. The count comes from the real shelf, not a placeholder, so the page
- * fills itself the moment movies exist.
+ * Drafts sit in the same grid as finished movies rather than in a separate
+ * section: they are the same object at a different point in its life, and the
+ * status badge is what distinguishes them.
  */
 export function MoviesPage() {
   const theme = useTheme();
+  const router = useRouter();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
+  const { width: windowWidth } = useWindowDimensions();
   const movies = useMovieSummaries();
+
+  // Derived instead of measured (the content column is centered, capped at
+  // MaxContentWidth, and padded) so the tiles lay out on their first frame.
+  const gridWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
+  const tileWidth = Math.floor((gridWidth - Spacing.three * (Columns - 1)) / Columns);
 
   return (
     <ScrollView
@@ -41,12 +51,27 @@ export function MoviesPage() {
         </ThemedText>
       </View>
 
-      <View style={[styles.empty, { borderColor: theme.border }]}>
-        <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
-        <ThemedText themeColor="textSecondary" style={styles.centerText}>
-          스냅 탭에서 쓸 장면을 골라 트레이에 담아두면, 스튜디오에서 한 편으로 엮을 수 있어요.
-        </ThemedText>
-      </View>
+      {movies.length > 0 ? (
+        <View style={styles.grid}>
+          {movies.map((movie) => (
+            <MovieTile
+              key={movie.id}
+              movie={movie}
+              width={tileWidth}
+              onPress={(movieId) =>
+                router.push({ pathname: '/movie/[id]', params: { id: movieId } })
+              }
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={[styles.empty, { borderColor: theme.border }]}>
+          <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
+          <ThemedText themeColor="textSecondary" style={styles.centerText}>
+            스냅 탭에서 쓸 장면을 골라 트레이에 담아두면, 스튜디오에서 한 편으로 엮을 수 있어요.
+          </ThemedText>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -60,6 +85,7 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
   },
   header: { gap: Spacing.half },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.three },
   empty: {
     borderWidth: 1.5,
     borderStyle: 'dashed',

@@ -25,14 +25,15 @@ Snaply opens into a four-tab application — 스튜디오 (`/`), 스냅 (`/snaps
 | Route | Presentation | Owner |
 | --- | --- | --- |
 | `/` | 스튜디오 tab | `pages/studio` |
-| `/snaps` | 스냅 tab; accepts `?select=1` to open in selection mode | `pages/snaps` |
+| `/snaps` | 스냅 tab; accepts `?select=1` to open in selection mode and `?for=<movieId>` to pick into a movie | `pages/snaps` |
 | `/movies` | 무비 tab | `pages/movies` |
 | `/me` | 나 tab | `pages/me` |
 | `/capture` | Headerless root-stack full-screen modal (opened by the center capture button); the viewfinder | `pages/capture-record` |
+| `/movie/[id]` | Root-stack screen with a themed native header ("무비 편집"); the three-step editor | `pages/movie-editor` |
 
-`src/app` parses string search parameters where needed and passes them to page components as explicit props (`snaps.tsx` turns `?select=1` into a `startSelecting` prop). The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
+`src/app` parses string search parameters where needed and passes them to page components as explicit props (`snaps.tsx` turns `?select=1` and `?for=<movieId>` into `startSelecting` and `forMovieId`). The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
 
-The movie editor (`/movie/[id]`) and movie playback routes do not exist yet; they land in later stages of the rebuild (`docs/guides/ai-vlog-studio/refactor-plan.md`).
+The editor is a pushed stack screen rather than a tab: it is a task with a beginning and an end, and it needs its own back affordance. Movie playback does not exist yet; it lands with the generation step (`docs/guides/ai-vlog-studio/refactor-plan.md`).
 
 ## Composition and ownership
 

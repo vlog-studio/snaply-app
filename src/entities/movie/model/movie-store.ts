@@ -3,7 +3,18 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
 
-import type { Movie } from './movie';
+import { movieTitle } from '../lib/movie-title';
+import type { Movie, SnapRef } from './movie';
+
+/** What the caller gets to decide when a movie is started from picked snaps. */
+export type CreateMovieInput = {
+  /** The cut list, in order. */
+  snapIds: readonly string[];
+  /** Optional — a blank name becomes the day the movie was started. */
+  title?: string;
+  /** Injectable for tests; production callers use the default. */
+  createdAt?: number;
+};
 
 /**
  * Owns movies: their cut lists, generation settings, and lifecycle state.
@@ -21,9 +32,58 @@ import type { Movie } from './movie';
 type MovieState = {
   movies: Movie[];
   hasHydrated: boolean;
+  createMovie: (input: CreateMovieInput) => Movie;
+  updateMovieCuts: (movieId: string, snapRefs: SnapRef[], updatedAt?: number) => void;
+  renameMovie: (movieId: string, title: string, updatedAt?: number) => void;
+  deleteMovie: (movieId: string) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
   setHasHydrated: (value: boolean) => void;
 };
+
+/**
+ * Keeps a new movie's id off one already stored. Two movies started in the same
+ * millisecond is not a real user action, but a duplicate id would make every
+ * later write land on both at once, so it is cheap to rule out.
+ */
+function uniqueMovieId(base: string, taken: ReadonlySet<string>): string {
+  if (!taken.has(base)) return base;
+  let suffix = 2;
+  while (taken.has(`${base}-${suffix}`)) suffix += 1;
+  return `${base}-${suffix}`;
+}
+
+/**
+ * Builds a fresh draft: the given snaps in the given order, the default style
+ * and ratio, and no render. Everything else about a movie is decided later, in
+ * the editor.
+ */
+function createDraft(
+  {
+    snapIds,
+    title,
+    createdAt,
+  }: Required<Pick<CreateMovieInput, 'snapIds' | 'createdAt'>> & Pick<CreateMovieInput, 'title'>,
+  existing: readonly Movie[],
+): Movie {
+  return {
+    id: uniqueMovieId(`movie-${createdAt}`, new Set(existing.map((movie) => movie.id))),
+    title: movieTitle(title, createdAt, new Set(existing.map((movie) => movie.title))),
+    status: 'draft',
+    createdAt,
+    updatedAt: createdAt,
+    snapRefs: snapIds.map((snapId, order) => ({ snapId, order })),
+    style: DefaultMovieStyle,
+    bgm: DefaultMovieBgm,
+    ratio: '9:16',
+  };
+}
+
+/**
+ * What a movie starts as. Both are placeholders until the style step lands and
+ * the catalogs move to the server (`GET /styles`, `GET /bgms`).
+ */
+const DefaultMovieStyle = 'calm';
+const DefaultMovieBgm = 'lofi-walk';
 
 /**
  * Strips every reference to the given snaps from a movie.
@@ -40,9 +100,28 @@ function withoutSnaps(movie: Movie, removedSnapIds: ReadonlySet<string>): Movie 
 
 export const useMovieStore = create<MovieState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       movies: [],
       hasHydrated: false,
+      createMovie: ({ snapIds, title, createdAt = Date.now() }) => {
+        const movie = createDraft({ snapIds, title, createdAt }, get().movies);
+        set((state) => ({ movies: [...state.movies, movie] }));
+        return movie;
+      },
+      updateMovieCuts: (movieId, snapRefs, updatedAt = Date.now()) =>
+        set((state) => ({
+          movies: state.movies.map((movie) =>
+            movie.id === movieId ? { ...movie, snapRefs, updatedAt } : movie,
+          ),
+        })),
+      renameMovie: (movieId, title, updatedAt = Date.now()) =>
+        set((state) => ({
+          movies: state.movies.map((movie) =>
+            movie.id === movieId ? { ...movie, title, updatedAt } : movie,
+          ),
+        })),
+      deleteMovie: (movieId) =>
+        set((state) => ({ movies: state.movies.filter((movie) => movie.id !== movieId) })),
       removeSnapsEverywhere: (snapIds) =>
         set((state) => {
           const removed = new Set(snapIds);
@@ -71,6 +150,44 @@ export function useMovieById(id: string | undefined): Movie | undefined {
 
 export function useMoviesHydrated(): boolean {
   return useMovieStore((state) => state.hasHydrated);
+}
+
+/**
+ * Non-reactive read of a movie by id, for an imperative action (the compose
+ * flow) that reads the current movie at call time rather than subscribing.
+ */
+export function getMovieById(id: string): Movie | undefined {
+  return useMovieStore.getState().movies.find((movie) => movie.id === id);
+}
+
+/**
+ * Starts a movie from picked snaps and returns it, so the caller can open the
+ * editor on the movie it just made. Never idempotent — asking twice means the
+ * user wanted two movies.
+ */
+export function useCreateMovie(): (input: CreateMovieInput) => Movie {
+  return useMovieStore((state) => state.createMovie);
+}
+
+/**
+ * Replaces a movie's whole cut list in one write. Membership, order, and trim
+ * are edited together in the editor's assemble step, and committing them
+ * separately would let a movie exist in a half-applied state between writes.
+ */
+export function useUpdateMovieCuts(): (
+  movieId: string,
+  snapRefs: SnapRef[],
+  updatedAt?: number,
+) => void {
+  return useMovieStore((state) => state.updateMovieCuts);
+}
+
+export function useRenameMovie(): (movieId: string, title: string, updatedAt?: number) => void {
+  return useMovieStore((state) => state.renameMovie);
+}
+
+export function useDeleteMovie(): (movieId: string) => void {
+  return useMovieStore((state) => state.deleteMovie);
 }
 
 /**

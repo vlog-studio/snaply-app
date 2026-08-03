@@ -9,8 +9,10 @@ import {
   View,
 } from 'react-native';
 
+import { MovieSnapLimit, useMovieById } from '@/entities/movie';
 import type { Snap } from '@/entities/snap';
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
+import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatDuration } from '@/shared/lib/datetime';
 import {
@@ -31,8 +33,14 @@ import { SnapDeleteDialog } from './snap-delete-dialog';
 import { SnapSelectionBar } from './snap-selection-bar';
 
 export type SnapsPageProps = {
-  /** `?select=1` — the studio sends the user here to pick material. */
+  /** `?select=1` — the studio or the editor sends the user here to pick. */
   startSelecting?: boolean;
+  /**
+   * `?for=<movieId>` — the editor's "스냅 더 넣기". Picks go straight into that
+   * movie's cut list instead of the tray, and the cap shown is the movie's
+   * remaining room. Without it, picks go to the tray as usual.
+   */
+  forMovieId?: string;
 };
 
 /** Three columns, as in the mockup: wide enough to read, dense enough to scan. */
@@ -46,8 +54,12 @@ const Columns = 3;
  * library into a picking surface: chosen snaps go to the studio's tray, not
  * straight into a movie, so material can be gathered across several days
  * (concept §5).
+ *
+ * The one exception is the editor's "스냅 더 넣기", which arrives with a movie id
+ * and appends to that movie directly. Routing those picks through the tray would
+ * make the user leave the editor, empty the tray, and come back.
  */
-export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
+export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps) {
   const theme = useTheme();
   const router = useRouter();
   const topInset = useTopContentInset();
@@ -55,6 +67,8 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const { days, totalCount, isHydrated } = useSnapDays();
   const traySnapIds = useTraySnapIds();
   const addSnapsToTray = useAddSnapsToTray();
+  const targetMovie = useMovieById(forMovieId);
+  const { appendSnaps } = useComposeMovie();
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
   const { width: windowWidth } = useWindowDimensions();
 
@@ -103,7 +117,14 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
     return () => subscription.remove();
   }, [selecting, exitSelection]);
 
-  const room = Math.max(TrayCapacity - traySnapIds.length, 0);
+  // Which container the picks are headed for decides both the room left and
+  // what "already in it" means.
+  const heldIds = targetMovie
+    ? new Set(targetMovie.snapRefs.map((ref) => ref.snapId))
+    : new Set(traySnapIds);
+  const heldCount = targetMovie ? targetMovie.snapRefs.length : traySnapIds.length;
+  const capacity = targetMovie ? MovieSnapLimit : TrayCapacity;
+  const room = Math.max(capacity - heldCount, 0);
 
   const togglePick = (snap: Snap) => {
     if (picked.includes(snap.id)) {
@@ -111,13 +132,15 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
       setPicked(picked.filter((snapId) => snapId !== snap.id));
       return;
     }
-    // Snaps already in the tray take no new room, so they never hit the cap.
-    const wouldTake = picked.filter((snapId) => !trayIds.has(snapId)).length;
-    if (!trayIds.has(snap.id) && wouldTake >= room) {
+    // Snaps the target already holds take no new room, so they never hit the cap.
+    const wouldTake = picked.filter((snapId) => !heldIds.has(snapId)).length;
+    if (!heldIds.has(snap.id) && wouldTake >= room) {
       setNotice(
         room === 0
-          ? '트레이가 가득 찼어요. 스튜디오에서 먼저 비워주세요.'
-          : `한 편에는 스냅 ${TrayCapacity}개까지 들어가요. 지금은 ${room}개만 더 담을 수 있어요.`,
+          ? targetMovie
+            ? `이 무비는 이미 스냅 ${MovieSnapLimit}개를 갖고 있어요.`
+            : '트레이가 가득 찼어요. 스튜디오에서 먼저 비워주세요.'
+          : `한 편에는 스냅 ${MovieSnapLimit}개까지 들어가요. 지금은 ${room}개만 더 담을 수 있어요.`,
       );
       return;
     }
@@ -136,7 +159,23 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
     setPicked([snap.id]);
   };
 
-  const addToTray = () => {
+  const confirmPicks = () => {
+    if (targetMovie) {
+      const outcome = appendSnaps(targetMovie.id, picked);
+      if (outcome.refused) {
+        setNotice(
+          outcome.refused === 'full'
+            ? `이 무비에는 ${room}개만 더 넣을 수 있어요.`
+            : '이 무비는 더 이상 컷을 고칠 수 없어요.',
+        );
+        return;
+      }
+      exitSelection();
+      // Back to the editor the user came from, where the new cuts are waiting.
+      router.back();
+      return;
+    }
+
     const outcome = addSnapsToTray(picked);
     exitSelection();
     // The studio is where the tray lives, so land there — the user should see
@@ -257,9 +296,12 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
       {selecting ? (
         <SnapSelectionBar
           selectedCount={picked.length}
-          trayCount={traySnapIds.length}
+          heldCount={heldCount}
+          capacity={capacity}
+          targetLabel={targetMovie ? targetMovie.title : '트레이'}
+          confirmLabel={targetMovie ? '이 무비에 넣기' : '트레이에 담기'}
           onClear={() => setPicked([])}
-          onAddToTray={addToTray}
+          onConfirm={confirmPicks}
           onDelete={() => setDeleteOpen(true)}
         />
       ) : null}

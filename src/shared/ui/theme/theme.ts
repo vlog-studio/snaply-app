@@ -58,24 +58,24 @@ export const Fonts = Platform.select({
  * size from here rather than inlining a literal.
  *
  * Sizes step about 1.25× from `heading` up (21 → 26 → 32 → 42) and tighten
- * below it (11 → 12 → 14 → 16). Leading is size + 4..8, so the leading *ratio*
- * falls as the size grows — 1.5 at 16px down to 1.14 at 42px, which is what
- * keeps large type from reading as gappy.
+ * below it (11 → 12 → 14 → 16); they follow the ratio, not a grid.
  *
- * `micro`, `subtitle`, and `title` still carry leading off the 4px grid (15,
- * 34, 39). That is inherited rather than chosen: the body steps came from the
- * Expo starter and the display steps from the darkroom reskin, and the two were
- * never reconciled. Rounding them changes every row height in the app, so it
- * waits for a pass that can be checked on a device.
+ * Every leading, on the other hand, is a multiple of 4, so a row's height stays
+ * predictable and stacked text keeps a vertical rhythm. Within that grid the
+ * leading is loosest where text wraps and is read as prose (1.43–1.5 at 14–16px)
+ * and tightens as the type grows (1.25 at `title`, 1.14 at `display`), because
+ * large type reads as gappy at body leading. `micro` and `xsmall` share 16: it is
+ * the smallest grid step that clears 12px, which makes 11px the looser of the two
+ * by arithmetic rather than by choice.
  */
 export const Typography = {
-  micro: { fontSize: 11, lineHeight: 15 },
+  micro: { fontSize: 11, lineHeight: 16 },
   xsmall: { fontSize: 12, lineHeight: 16 },
   small: { fontSize: 14, lineHeight: 20 },
   body: { fontSize: 16, lineHeight: 24 },
   heading: { fontSize: 21, lineHeight: 28 },
-  subtitle: { fontSize: 26, lineHeight: 34 },
-  title: { fontSize: 32, lineHeight: 39 },
+  subtitle: { fontSize: 26, lineHeight: 32 },
+  title: { fontSize: 32, lineHeight: 40 },
   display: { fontSize: 42, lineHeight: 48 },
 } as const;
 

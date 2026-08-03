@@ -58,9 +58,9 @@ export function ThemedText({
 }
 
 // Each variant is a step of `Typography` plus the things that make it a role —
-// family, weight, letter spacing, casing. Sizes and leading belong to the scale,
-// so no size or lineHeight literal is written here; a variant that has to
-// deviate says why.
+// family, weight, letter spacing, casing. No variant writes a size or a leading
+// of its own: those belong to the scale, and a role that needs different ones
+// needs a new step there instead.
 const styles = StyleSheet.create({
   xsmall: { ...Typography.xsmall, fontWeight: 500 },
   small: { ...Typography.small, fontWeight: 500 },
@@ -86,9 +86,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  // A single-line label inside a pill: `body`'s size, but tighter leading so the
-  // button's height comes from its own padding rather than from the text box.
-  button: { ...Typography.body, lineHeight: 21, fontWeight: 800 },
+  button: { ...Typography.body, fontWeight: 800 },
   // Links are body-small text, not a step of their own. They used to carry
   // lineHeight 30 at 14px (ratio 2.14) — the Expo starter's 16/30 with the size
   // cut and the leading left behind — and `link` declared no weight at all, so

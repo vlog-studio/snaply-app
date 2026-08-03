@@ -629,9 +629,13 @@ export function XPage() {
 ```
 
 **Rules**
-- Read colors from `useTheme()`; use `Spacing`, `Radius`, `MaxContentWidth` tokens
-  instead of magic numbers.
+- Read colors from `useTheme()`; use `Spacing`, `Radius`, `Typography`, `MaxContentWidth`
+  tokens instead of magic numbers.
 - Render text with `ThemedText` (`type` + `themeColor`) rather than raw `Text`.
+- `Typography` owns the size steps and their leading; `ThemedText` variants add only
+  family, weight, letter spacing, and casing on top of a step. Text that cannot be a
+  `ThemedText` — a `TextInput`, a glyph drawn over video — still reads its size from
+  `Typography` (`Typography.body.fontSize`) rather than a literal.
 - Respect insets with `useTopContentInset()` / `useTabBarHeight()`.
 
 ---

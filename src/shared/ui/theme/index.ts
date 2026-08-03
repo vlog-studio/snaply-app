@@ -1,4 +1,4 @@
-export { Colors, Fonts, MaxContentWidth, Radius, Spacing } from './theme';
+export { Colors, Fonts, MaxContentWidth, Radius, Spacing, Typography } from './theme';
 export type { ThemeColor } from './theme';
 export { useReducedMotion } from './use-reduced-motion';
 export { TabBarContentHeight, useTabBarHeight } from './use-tab-bar-height';

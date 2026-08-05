@@ -28,6 +28,7 @@ Imitate the closest existing implementation instead of inventing a new shape.
 | Mount fade/slide-in | `src/shared/ui/fade-in-view/fade-in-view.tsx` | Shared value driven by `withTiming` in a mount effect; reusable wrapper with `delay`/`duration` props |
 | One-shot choreography with a completion callback | `src/pages/capture-record/ui/capture-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
 | Gesture/state-driven progress indicator | `src/pages/capture-record/ui/hold-ring.tsx` | Shared value + `useAnimatedProps` on an SVG element; fills while a prop is true, rewinds on release |
+| Positional reflow of in-flow items (FLIP) | `src/pages/movie/ui/timeline-cut.tsx` (`shiftX`) | Flex still owns placement; when an item's slot index changes, an effect pulls it back by `oldX - newX` via a translate shared value and springs it to 0. Keyed to the *slot* changing — not the coordinate — so layout shifts that already animated live (a neighbour's trim drag) are not replayed |
 | Splash exit | `src/_app/routes/animated-splash-overlay.tsx` | The one `Keyframe`/`entering` usage in the app (see the Expo Go caveat below before adding another) |
 
 > The drag-reorder grid (`cut-sheet-grid.tsx` + `reorder-layout.ts`) was removed with
@@ -105,6 +106,22 @@ from the roll sheet:
 - Thumbnails: `useVideoThumbnail` answers synchronously for frames already resolved
   this session, and `VideoFrame` uses `cachePolicy="memory-disk"` and skips its
   fade when the frame was known at mount. Keep those properties intact.
+- `expo-video`'s `useVideoPlayer` keys the native player on its *serialized source
+  argument*: hand it a source expression that can change across renders and the
+  player is torn down and rebuilt in place — a remount-blink issued by a hook, with
+  every ref that described the old player left dangling. Pin the hook's source to a
+  mount-time value (lazy `useState`) and make every later source change through
+  `player.replaceAsync(...)` (`cut-player.tsx` is the canonical shape; the same
+  reload blanks the frame even for an unchanged file, so avoid it when the player
+  already holds the file).
+- Two more Android facts from the same file: a `VideoView` renders on a
+  SurfaceView by default, which the system composites *outside* the view
+  hierarchy — view `opacity` does not apply, so any show/hide-by-opacity
+  choreography (the stage's double buffer) silently shows the top view instead;
+  pass `surfaceType="textureView"` where opacity has to work. And a player's
+  `timeUpdate` fires on its interval **even while paused**, reporting the parked
+  position — position-driven logic (boundary advances, follow-up seeks) must be
+  gated on "meant to be playing" or it acts on parked frames four times a second.
 
 ### Motion values
 

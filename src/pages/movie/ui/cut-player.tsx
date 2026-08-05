@@ -90,13 +90,26 @@ export function CutPlayer({
   style,
 }: CutPlayerProps) {
   const theme = useTheme();
+  // What each slot's player opens on, pinned at mount. `useVideoPlayer` keys
+  // the native player on its serialized source argument — hand it a source
+  // that changes and the player is torn down and rebuilt, which is exactly the
+  // remount-blink this component exists to avoid: the view blanks, the new
+  // list's first file flashes in at its own start position, and every slot
+  // ref below describes a player that no longer exists. A reorder or removal
+  // changes `cuts[0]`/`cuts[1]`, so the live playlist must never be read
+  // here; every later source change goes through `loadSlot`'s `replaceAsync`.
+  const [initialSource] = useState(() => ({
+    a: { uri: cuts[0].uri, startSec: cuts[0].startSec },
+    b: { uri: cuts[1]?.uri ?? cuts[0].uri, startSec: cuts[1]?.startSec ?? cuts[0].startSec },
+  }));
   // Which cut each slot currently holds; slot 1 preloads the second cut.
   const slotCutRef = useRef<[number, number]>([0, cuts.length > 1 ? 1 : -1]);
   // Which file each slot's player was last asked to load, and whether that
-  // load is still in flight. A slot counts as *holding* a cut only when all
-  // three agree — the cut index alone lies right after a reorder (same index,
-  // different file), and a slot mid-replace ignores seeks.
-  const slotUriRef = useRef<[string, string]>([cuts[0].uri, cuts[1]?.uri ?? cuts[0].uri]);
+  // load is still in flight. The *file* is what identifies a held cut — a
+  // reorder renumbers cuts without touching their files, so the playlist index
+  // is only bookkeeping for the boundary watch, re-pointed freely. A slot
+  // mid-replace holds nothing yet and ignores seeks.
+  const slotUriRef = useRef<[string, string]>([initialSource.a.uri, initialSource.b.uri]);
   const slotLoadingRef = useRef<[boolean, boolean]>([false, false]);
   const activeSlotRef = useRef<0 | 1>(0);
   const currentIndexRef = useRef(0);
@@ -114,16 +127,16 @@ export function CutPlayer({
     setIsPlaying(playing);
   };
 
-  const playerA = useVideoPlayer(cuts[0].uri, (instance) => {
+  const playerA = useVideoPlayer(initialSource.a.uri, (instance) => {
     instance.muted = muted;
     instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
-    instance.currentTime = cuts[0].startSec;
+    instance.currentTime = initialSource.a.startSec;
   });
   // Second slot preloads the next cut (paused) so its first frame is ready.
-  const playerB = useVideoPlayer(cuts[1]?.uri ?? cuts[0].uri, (instance) => {
+  const playerB = useVideoPlayer(initialSource.b.uri, (instance) => {
     instance.muted = muted;
     instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
-    instance.currentTime = cuts[1]?.startSec ?? cuts[0].startSec;
+    instance.currentTime = initialSource.b.startSec;
   });
   const players = [playerA, playerB] as const;
 
@@ -139,36 +152,35 @@ export function CutPlayer({
   };
 
   /**
-   * Loads a cut into a slot and parks it `secIntoCut` past its trim window
-   * start, paused — every source change goes through here, always via
+   * Points a slot at a cut and parks it `secIntoCut` past its trim window
+   * start, paused. A slot that already holds the cut's *file* — however it got
+   * there: a preload, or a reorder that renumbered the cut it was showing — is
+   * re-pointed and seeked in place; only a file the slot does not hold costs a
+   * `replaceAsync`. Replacing a source blanks the frame for an instant even
+   * when it is the same file, and until the post-load seek lands the player
+   * shows the file's frame zero — for a trimmed cut, footage the user cut off —
+   * so an avoidable replace is a visible blink and a wrong frame
+   * (`docs/frameworks/animations-and-gestures.md`). Replacement is always
    * `replaceAsync`, because the synchronous `replace` loads the file on the
    * iOS main thread and freezes the app for the duration.
    *
    * The seek is `seekBy` written as a delta from wherever the player reports
    * itself — the equivalent `currentTime` assignment is a property write on a
-   * value a hook returned, which the React Compiler lint rejects. The delta
-   * form also makes the load idempotent: a slot that already holds the file
-   * mid-cut (it was on stage a moment ago) parks on the window start rather
-   * than double-seeking past it. Seeking at load time rather than at the
-   * swap is what keeps a trimmed cut from showing its own frame zero for an
-   * instant when it comes on.
+   * value a hook returned, which the React Compiler lint rejects. Seeking at
+   * load time rather than at the swap is what keeps a trimmed cut from showing
+   * its own frame zero for an instant when it comes on.
    *
-   * Whether the slot then plays is not an argument but a question asked when
-   * the load completes: a slot that is by then on stage, on the current cut,
-   * with the stage meant to be playing, starts itself. That one rule covers a
-   * preload still in flight when `advance` swaps to it, a jump the user paused
-   * during, and a plain background preload (never active, never plays).
+   * Whether the slot then plays is not an argument but a question asked once
+   * the slot holds the file (immediately, or when the replace completes): a
+   * slot that is by then on stage, on the current cut, with the stage meant to
+   * be playing, starts itself. That one rule covers a preload still in flight
+   * when `advance` swaps to it, a jump the user paused during, and a plain
+   * background preload (never active, never plays).
    */
   const loadSlot = (slot: 0 | 1, index: number, secIntoCut = 0) => {
     const cut = cuts[index];
     slotCutRef.current[slot] = index;
-    slotUriRef.current[slot] = cut.uri;
-    slotLoadingRef.current[slot] = true;
-    void players[slot].replaceAsync(cut.uri).then(() => {
-      // A completion the slot has moved past parks nothing.
-      if (slotUriRef.current[slot] !== cut.uri) return;
-      slotLoadingRef.current[slot] = false;
-      players[slot].seekBy(cut.startSec + secIntoCut - players[slot].currentTime);
+    const playIfDue = () => {
       if (
         activeSlotRef.current === slot &&
         currentIndexRef.current === index &&
@@ -176,30 +188,45 @@ export function CutPlayer({
       ) {
         players[slot].play();
       }
+    };
+    if (slotUriRef.current[slot] === cut.uri && !slotLoadingRef.current[slot]) {
+      players[slot].seekBy(cut.startSec + secIntoCut - players[slot].currentTime);
+      playIfDue();
+      return;
+    }
+    slotUriRef.current[slot] = cut.uri;
+    slotLoadingRef.current[slot] = true;
+    void players[slot].replaceAsync(cut.uri).then(() => {
+      // A completion the slot has moved past parks nothing.
+      if (slotUriRef.current[slot] !== cut.uri) return;
+      slotLoadingRef.current[slot] = false;
+      players[slot].seekBy(cut.startSec + secIntoCut - players[slot].currentTime);
+      playIfDue();
     });
   };
 
   /**
    * Points the stage at `index` — the jump behind a strip tap, a strip scrub
    * (`secIntoCut` past the trim window's start), and the playlist changing
-   * underneath. A slot that already holds the cut is seeked in place and made
-   * active — replacing a source blanks the frame for an instant even when it
-   * is the same file (the remount-blink of
-   * `docs/frameworks/animations-and-gestures.md`), and a scrub inside one cut
-   * would blink on every settle. Only a cut no slot holds costs a replace.
+   * underneath. Held by *file*, not by playlist position: a reorder renumbers
+   * the cut on the stage without touching its file, and a slot that holds the
+   * right file is seeked in place (or swapped in, when it is the idle one)
+   * rather than reloaded — replacing a source blanks the frame for an instant
+   * even when it is the same file (the remount-blink of
+   * `docs/frameworks/animations-and-gestures.md`), so an index-keyed check
+   * here made every reorder blink the stage. Only a file no slot holds costs
+   * a replace, inside `loadSlot`.
    */
   const loadCut = (index: number, play: boolean, secIntoCut = 0) => {
     const cut = cuts[index];
     const offset = Math.min(Math.max(secIntoCut, 0), cut.endSec - cut.startSec);
-    const holdsCut = (s: 0 | 1) =>
-      slotCutRef.current[s] === index &&
-      slotUriRef.current[s] === cut.uri &&
-      !slotLoadingRef.current[s];
+    const holdsFile = (s: 0 | 1) =>
+      slotUriRef.current[s] === cut.uri && !slotLoadingRef.current[s];
     let slot = activeSlotRef.current;
-    if (!holdsCut(slot)) {
+    if (!holdsFile(slot)) {
       const idle: 0 | 1 = slot === 0 ? 1 : 0;
-      if (holdsCut(idle)) {
-        // The preloaded slot has the cut's frame ready — swap instead of reload.
+      if (holdsFile(idle)) {
+        // The idle slot has the cut's file ready — swap instead of reload.
         slot = idle;
         activeSlotRef.current = slot;
         setActiveSlot(slot);
@@ -211,20 +238,13 @@ export function CutPlayer({
     setIndex(index, offset);
     setIsEnded(false);
     setPlaying(play);
-    if (holdsCut(slot)) {
-      // Same cut on the stage: an absolute-position seek, written as the delta
-      // `seekBy` wants, from wherever the player currently sits.
-      players[slot].seekBy(cut.startSec + offset - players[slot].currentTime);
-      if (play) players[slot].play();
-    } else {
-      // Not loaded yet: the load's completion plays it, if `play` still stands.
-      loadSlot(slot, index, offset);
-    }
-    if (index + 1 < cuts.length) {
-      loadSlot(other, index + 1);
-    } else {
-      slotCutRef.current[other] = -1;
-    }
+    // `loadSlot` seeks a slot that already holds the file in place and plays it
+    // if the stage is meant to be playing (`isPlayingRef`, set just above); a
+    // slot that has to replace plays on the load's completion, same rule. The
+    // idle slot's preload is not issued here — the preload effect below runs
+    // it after this land's render commits, because when this call swapped
+    // slots, `other` is still the on-screen surface until the commit.
+    loadSlot(slot, index, offset);
   };
 
   // The playlist changed under the player — a reorder, a trim, a removal. Land
@@ -246,11 +266,39 @@ export function CutPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
+  // Keeps the idle slot preloaded with the cut after the current one. An
+  // effect on purpose, not a call inside `advance`/`loadCut`: those run while
+  // the slot being preloaded may still be the *visible* surface — the opacity
+  // swap they just asked for is a state update that has not committed — and
+  // `replaceAsync` blanks its surface immediately, which blanked the stage for
+  // the load's duration at every cut transition. By effect time the swap is
+  // committed and the idle slot is actually off screen. `loadSlot` skips the
+  // replace when the slot already holds the file, so re-runs are cheap.
+  useEffect(() => {
+    const idle: 0 | 1 = activeSlot === 0 ? 1 : 0;
+    // Past the last cut the natural "next" is the replay, so cut 0 preloads
+    // and playing the ended movie again starts on a ready frame.
+    loadSlot(idle, (currentIndex + 1) % cuts.length);
+    // `loadSlot` and `cuts` are rebuilt every render; what the idle slot should
+    // hold changes exactly with the inputs below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlot, currentIndex, signature]);
+
   const advance = (endedSlot: 0 | 1) => {
+    // Only a *playing* stage advances. On Android `timeUpdate` keeps firing
+    // while paused, at whatever position the player is parked on — advancing
+    // on those reports auto-played the movie on entry (a parked position past
+    // a boundary) and re-fired forever on the ended state.
+    if (!isPlayingRef.current) return;
     if (endedSlot !== activeSlotRef.current) return; // ignore the idle slot
-    const nextIndex = slotCutRef.current[endedSlot] + 1;
+    const endedIndex = slotCutRef.current[endedSlot];
+    const nextIndex = endedIndex + 1;
     if (nextIndex >= cuts.length) {
       players[endedSlot].pause();
+      // The last report landed up to one interval short of the boundary; the
+      // movie is over, so put the playhead on its actual final moment.
+      const last = cuts[endedIndex];
+      if (last) onProgress?.(endedIndex, last.endSec - last.startSec);
       setIsEnded(true);
       setPlaying(false);
       return;
@@ -274,14 +322,22 @@ export function CutPlayer({
       players[nextSlot].play();
     }
     // A preload still in flight plays itself on completion, now that this slot
-    // is the active one on the current cut.
-
-    // Preload the cut after that into the slot that just finished.
-    if (nextIndex + 1 < cuts.length) loadSlot(endedSlot, nextIndex + 1);
+    // is the active one on the current cut. The slot that just finished gets
+    // the cut after this one from the preload effect, once the swap commits —
+    // its surface is still the visible one right now.
   };
 
-  /** Keeps the active player inside the current cut's window. */
+  /**
+   * Keeps the active player inside the current cut's window — while the stage
+   * is playing. Paused reports are dropped whole: on Android `timeUpdate`
+   * fires on its interval regardless of play state, so a paused stage would
+   * otherwise re-report its parked position four times a second, "catch up" a
+   * seek that is still in flight (the delta lands on top of it, overshooting
+   * past the trim boundary), and advance — which is how the stage used to
+   * start playing on entry all by itself.
+   */
   const watchBoundary = (slot: 0 | 1, currentTime: number) => {
+    if (!isPlayingRef.current) return;
     if (slot !== activeSlotRef.current) return;
     const cut = cuts[slotCutRef.current[slot]];
     if (!cut) return;
@@ -354,11 +410,19 @@ export function CutPlayer({
 
   return (
     <View style={[styles.stage, { backgroundColor: theme.media }, style]}>
+      {/* `surfaceType="textureView"`, because the double buffer swaps by
+          opacity: Android's default SurfaceView is composited by the system
+          outside the view hierarchy and ignores view alpha, which left the
+          top view's video visible no matter which slot was active — every
+          preload replace flashed on screen as a blink into another cut. A
+          TextureView is an ordinary composited view, so opacity actually
+          selects which slot the stage shows. */}
       <VideoView
         allowsPictureInPicture={false}
         contentFit="cover"
         nativeControls={false}
         player={playerA}
+        surfaceType="textureView"
         style={[StyleSheet.absoluteFill, { opacity: activeSlot === 0 ? 1 : 0 }]}
       />
       <VideoView
@@ -366,6 +430,7 @@ export function CutPlayer({
         contentFit="cover"
         nativeControls={false}
         player={playerB}
+        surfaceType="textureView"
         style={[StyleSheet.absoluteFill, { opacity: activeSlot === 1 ? 1 : 0 }]}
       />
 

@@ -342,8 +342,10 @@ type XState = { value: T | null; hasHydrated: boolean };
 export const useXStore = create<XState>()(() => ({ value: null, hasHydrated: false }));
 
 // One authoritative writer per source of change (subscribe once from the root layout).
+// The external source is reached through the slice's own `api` gateway, so this file
+// stays in domain terms — see `entities/session/api/session-gateway.ts`.
 export function initX(): () => void {
-  /* subscribe to the external source, setState on change, return cleanup */
+  return subscribeToX((change) => useXStore.setState({ ...change, hasHydrated: true }));
 }
 
 // Focused selector hooks are the public surface.
@@ -363,6 +365,12 @@ export { initX, useXValue } from './model/x-store';
 - Concentrate writes: one function is the authoritative writer for a given source.
   Expose domain actions, not a bag of setters.
 - Components subscribe through selectors, never to the whole store.
+- Keep the SDK out of `model`. When the store mirrors an external system, put the calls
+  and the DTO mapping in the slice's `api` segment
+  ([`session-gateway.ts`](../../src/entities/session/api/session-gateway.ts),
+  [`map-user.ts`](../../src/entities/session/api/map-user.ts)) and let the store see only
+  domain values. One implementation needs no interface — the module boundary is already
+  the seam the store's test substitutes.
 
 ---
 
@@ -522,8 +530,10 @@ export function useLocalX() {
 
 **Canonical:** raw native in [`shared/lib/location`](../../src/shared/lib/location) vs.
 product flow in [`geofence-monitor.ts`](../../src/features/geofence-monitor/model/geofence-monitor.ts);
-same split for [`recording-files`](../../src/shared/lib/recording-files) and
-[`notifications`](../../src/shared/lib/notifications).
+same split for [`recording-files`](../../src/shared/lib/recording-files),
+[`notifications`](../../src/shared/lib/notifications), and
+[`haptics`](../../src/shared/lib/haptics) — the last one absorbs the project's iOS-only
+guard so no caller repeats `process.env.EXPO_OS === 'ios'`.
 
 ```ts
 // shared/lib/location — narrow native primitive, no product rules, no copy

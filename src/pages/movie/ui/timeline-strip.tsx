@@ -153,9 +153,13 @@ function syncFollow(follow: FollowState, restX: number) {
  * also where the cut's length is set: while editable it grows trim handles at
  * its edges (`TimelineCut`) and resizes under the drag, and the strip neither
  * scrolls nor follows while a handle is down, so the drag owns the axis. Tapping
- * the strip's empty space lets the cut go again (`onDeselect`). A cut whose
- * original was deleted keeps its clip (marked, selectable) — a cut the user
- * cannot see is a cut they cannot remove.
+ * the strip's empty space lets the cut go again (`onDeselect`), and so does
+ * tapping the focused clip itself — the second tap folds the handles back in.
+ * The toggle keys off the *focused* clip, not the selected one: selection
+ * follows playback, and a tap on the playing clip must keep meaning "jump
+ * here", not "deselect". A cut whose original was deleted keeps its clip
+ * (marked, selectable) — a cut the user cannot see is a cut they cannot
+ * remove.
  */
 export function TimelineStrip({
   cuts,
@@ -236,6 +240,14 @@ export function TimelineStrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playheadX, isPlaying, trimming, scrubbing, reducedMotion, stripWidth]);
 
+  // Tapping the focused clip again releases it — the same let-go as tapping
+  // empty space. Keyed to `focusedIndex`, not `selectedIndex`: while playing,
+  // selection tracks the playhead, and a tap there must stay a jump.
+  const handleSelect = (index: number) => {
+    if (index === focusedIndex) onDeselect();
+    else onSelect(index);
+  };
+
   // The scrub settles where the strip rests: at the drag's release, or — when
   // the release still carries momentum — where the momentum runs out. The
   // scroll offset *is* the strip coordinate under the playhead (see below), so
@@ -308,7 +320,7 @@ export function TimelineStrip({
                 focused={index === focusedIndex}
                 width={metrics[index].width}
                 pxPerSec={TimelinePxPerSec}
-                onSelect={onSelect}
+                onSelect={handleSelect}
                 onTrim={onTrim}
                 onTrimmingChange={setTrimming}
               />

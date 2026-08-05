@@ -14,7 +14,6 @@ jest.mock('@/entities/movie', () => {
   // which of them it applies and what it commits.
   const trim = jest.requireActual('@/entities/movie/lib/movie-trim');
   return {
-    MovieSnapLimit: 10,
     useMovieById: () => mockMovie(),
     cutDurationSec: trim.cutDurationSec,
     cutsDurationSec: trim.cutsDurationSec,
@@ -172,13 +171,16 @@ describe('useMovieCuts', () => {
     expect(result.current.canEdit).toBe(false);
   });
 
-  it.each(['draft', 'ready', 'failed'] as const)('reports a %s movie as editable', async (status) => {
-    mockMovie.mockReturnValue(makeMovie({ status }));
+  it.each(['draft', 'ready', 'failed'] as const)(
+    'reports a %s movie as editable',
+    async (status) => {
+      mockMovie.mockReturnValue(makeMovie({ status }));
 
-    const { result } = await renderHook(() => useMovieCuts('m1'));
+      const { result } = await renderHook(() => useMovieCuts('m1'));
 
-    expect(result.current.canEdit).toBe(true);
-  });
+      expect(result.current.canEdit).toBe(true);
+    },
+  );
 });
 
 describe('undo and redo', () => {

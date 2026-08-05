@@ -50,7 +50,7 @@ describe('withTrim', () => {
       2,
       2,
       {
-        startSec: 1,
+        startSec: 1.6,
         endSec: 2,
       },
     ],
@@ -59,7 +59,7 @@ describe('withTrim', () => {
       4,
       1,
       {
-        startSec: 0,
+        startSec: 0.6,
         endSec: 1,
       },
     ],

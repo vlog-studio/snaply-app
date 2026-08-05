@@ -32,8 +32,10 @@ export type MoviePageProps = {
  * studio rather than a long scroll.
  *
  * The stage (the player) is always on screen, the cuts run under it as a
- * timeline, and the selected cut's controls sit between the two, so an edit
- * and its result are one glance apart instead of a scroll apart. Edits commit
+ * timeline, and the selected cut's controls stand in for the footer's generate
+ * button while a cut is held, so an edit and its result are one glance apart
+ * instead of a scroll apart — and taking or releasing a cut swaps a fixed
+ * slot's occupant instead of adding and removing a row. Edits commit
  * as they land and the transport under the stage walks them back and forward
  * (되돌리기/복원) — there is no staged copy and no save button. Style and 세부
  * live in sheets opened from chips — settings are visited, cuts are worked on.
@@ -248,22 +250,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
       />
 
       <View style={styles.content}>
-        {canEdit && selected >= 0 ? (
-          <CutInspector
-            cut={cuts[selected]}
-            index={selected}
-            count={cuts.length}
-            canEdit={canEdit}
-            canRemove={cuts.length > 1}
-            onMove={(index, direction) => {
-              list.moveCut(index, direction);
-              setSelectedIndex(index + direction);
-            }}
-            onRemove={list.removeCut}
-            onResetTrim={list.resetTrim}
-          />
-        ) : null}
-
         {/* Settings are visited, cuts are worked on: the chips carry the current
             values so the sheets only need opening to change something. */}
         <View style={styles.chips}>
@@ -326,6 +312,26 @@ export function MoviePage({ movieId }: MoviePageProps) {
             cutsRefusal={refusal}
             sharing={sharing}
             onStart={runGeneration}
+            // The selected cut's controls take the generate button's slot
+            // rather than a row of their own: the slot's height is fixed, so
+            // selecting and releasing a cut cannot resize the zones the stage
+            // is sized against.
+            inspector={
+              canEdit && selected >= 0 ? (
+                <CutInspector
+                  cut={cuts[selected]}
+                  index={selected}
+                  count={cuts.length}
+                  canRemove={cuts.length > 1}
+                  onMove={(index, direction) => {
+                    list.moveCut(index, direction);
+                    setSelectedIndex(index + direction);
+                  }}
+                  onRemove={list.removeCut}
+                  onResetTrim={list.resetTrim}
+                />
+              ) : undefined
+            }
           />
         )}
       </View>

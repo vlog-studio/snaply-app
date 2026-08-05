@@ -1,50 +1,45 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import {
+  exchangeAuthCode,
   initSession,
   useClearSession,
   useCurrentUser,
   useIsAuthenticated,
+  useIsRecovering,
   useSessionHydrated,
   useSessionStore,
   useSetSession,
 } from './session-store';
 import type { User } from './user';
 
-let mockAuthCallback: ((event: string, session: unknown) => void) | undefined;
-const mockUnsubscribe = jest.fn();
-const mockStopAutoRefresh = jest.fn();
-const mockSignOut = jest.fn().mockResolvedValue({ error: null });
+type SessionChange = { user: User | null; isRecovery: boolean };
 
-jest.mock('@/shared/lib/supabase', () => ({
-  supabase: {
-    auth: {
-      onAuthStateChange: (callback: (event: string, session: unknown) => void) => {
-        mockAuthCallback = callback;
-        return { data: { subscription: { unsubscribe: mockUnsubscribe } } };
-      },
-      signOut: () => mockSignOut(),
-    },
+let mockSessionListener: ((change: SessionChange) => void) | undefined;
+const mockUnsubscribe = jest.fn();
+const mockEndSession = jest.fn().mockResolvedValue(undefined);
+const mockExchangeSessionCode = jest.fn().mockResolvedValue(true);
+
+// The gateway is the store's only backend dependency, so it is also the seam
+// the test substitutes — no Supabase shape appears here.
+jest.mock('../api/session-gateway', () => ({
+  subscribeToSession: (listener: (change: SessionChange) => void) => {
+    mockSessionListener = listener;
+    return mockUnsubscribe;
   },
-  startAuthAutoRefresh: () => mockStopAutoRefresh,
+  endSession: () => mockEndSession(),
+  exchangeSessionCode: (code: string) => mockExchangeSessionCode(code),
 }));
 
 const user: User = { id: 'user-1', displayName: 'Google User', provider: 'google' };
 
-const supabaseSession = {
-  user: {
-    id: 'user-1',
-    app_metadata: { provider: 'google' },
-    user_metadata: { full_name: 'Google User' },
-  },
-};
-
 describe('session store', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockAuthCallback = undefined;
+    mockSessionListener = undefined;
+    mockExchangeSessionCode.mockResolvedValue(true);
     // The store is a module-level singleton; reset it so tests stay independent.
-    useSessionStore.setState({ user: null, hasHydrated: false });
+    useSessionStore.setState({ user: null, hasHydrated: false, isRecovering: false });
   });
 
   it('starts unauthenticated and unhydrated', async () => {
@@ -70,7 +65,7 @@ describe('session store', () => {
     expect(result.current.currentUser).toEqual(user);
   });
 
-  it('signs out of Supabase and returns to unauthenticated after clearSession', async () => {
+  it('ends the backend session and returns to unauthenticated after clearSession', async () => {
     const { result } = await renderHook(() => ({
       authed: useIsAuthenticated(),
       setSession: useSetSession(),
@@ -80,30 +75,52 @@ describe('session store', () => {
     await act(async () => result.current.setSession(user));
     await act(async () => result.current.clearSession());
 
-    expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockEndSession).toHaveBeenCalledTimes(1);
     expect(result.current.authed).toBe(false);
   });
 
-  it('mirrors Supabase auth changes and flips hydration on the first event', async () => {
+  it('mirrors backend session changes and flips hydration on the first event', async () => {
     const { result } = await renderHook(() => ({
       currentUser: useCurrentUser(),
       hydrated: useSessionHydrated(),
     }));
 
     const cleanup = initSession();
-    expect(mockAuthCallback).toBeDefined();
+    expect(mockSessionListener).toBeDefined();
 
-    await act(async () => mockAuthCallback!('SIGNED_IN', supabaseSession));
-    expect(result.current.currentUser).toEqual(
-      expect.objectContaining({ id: 'user-1', provider: 'google' }),
-    );
+    await act(async () => mockSessionListener!({ user, isRecovery: false }));
+    expect(result.current.currentUser).toEqual(user);
     expect(result.current.hydrated).toBe(true);
 
-    await act(async () => mockAuthCallback!('SIGNED_OUT', null));
+    await act(async () => mockSessionListener!({ user: null, isRecovery: false }));
     expect(result.current.currentUser).toBeNull();
 
     cleanup();
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
-    expect(mockStopAutoRefresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('enters recovery when the backend reports a password-recovery session', async () => {
+    const { result } = await renderHook(() => ({ recovering: useIsRecovering() }));
+
+    initSession();
+    await act(async () => mockSessionListener!({ user, isRecovery: true }));
+
+    expect(result.current.recovering).toBe(true);
+  });
+
+  it('holds the recovery flag across a code exchange and drops it when the exchange fails', async () => {
+    const { result } = await renderHook(() => ({ recovering: useIsRecovering() }));
+
+    await act(async () => {
+      await expect(exchangeAuthCode('code-1', { recovery: true })).resolves.toBe(true);
+    });
+    expect(mockExchangeSessionCode).toHaveBeenCalledWith('code-1');
+    expect(result.current.recovering).toBe(true);
+
+    mockExchangeSessionCode.mockResolvedValue(false);
+    await act(async () => {
+      await expect(exchangeAuthCode('code-2', { recovery: true })).resolves.toBe(false);
+    });
+    expect(result.current.recovering).toBe(false);
   });
 });

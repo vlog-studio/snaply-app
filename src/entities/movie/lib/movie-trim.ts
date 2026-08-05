@@ -9,7 +9,7 @@ import type { SnapRef } from '../model/movie';
 export const CutTrimStepSec = 0.1;
 
 /** Shortest a cut may be. Below this a cut is a flicker, not a shot. */
-export const MinCutSec = 1;
+export const MinCutSec = 0.4;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);

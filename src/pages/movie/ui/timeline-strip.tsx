@@ -115,9 +115,9 @@ function followPlayhead(follow: FollowState, input: FollowInput) {
  *
  * Tapping a clip selects the cut — the stage jumps there and the inspector below
  * picks it up — and the strip runs to that cut's start. The selected clip is
- * also where the cut's length is set: while editable it expands to its whole
- * snap and grows trim handles (`TimelineCut`), and the strip neither scrolls nor
- * follows while a handle is down, so the drag owns the axis. A cut whose
+ * also where the cut's length is set: while editable it grows trim handles at
+ * its edges (`TimelineCut`) and resizes under the drag, and the strip neither
+ * scrolls nor follows while a handle is down, so the drag owns the axis. A cut whose
  * original was deleted keeps its clip (marked, selectable) — a cut the user
  * cannot see is a cut they cannot remove.
  */
@@ -140,20 +140,19 @@ export function TimelineStrip({
   // True while a trim handle is down; the scroll hands the axis to the drag.
   const [trimming, setTrimming] = useState(false);
 
-  // The selected clip opens up to its whole snap only while the stage is
-  // stopped. Selection follows playback, so a clip that expanded on the way past
-  // would re-scale the strip under the playhead once per cut — and trim handles
-  // are not something anyone reaches for mid-play anyway.
-  const expandedIndex =
+  // The selected clip grows its trim handles only while the stage is stopped.
+  // Selection follows playback, so handles that appeared on the way past would
+  // flicker across the strip once per cut — and trim handles are not something
+  // anyone reaches for mid-play anyway.
+  const focusedIndex =
     canEdit && !isPlaying && selectedIndex >= 0 && cuts[selectedIndex]?.snap !== undefined
       ? selectedIndex
       : -1;
   const sizes: TimelineCutSize[] = cuts.map((cut) => ({
     usedSec: cut.usedSec,
     fullSec: cut.snap?.durationSec,
-    leadSec: cut.ref.trim?.startSec,
   }));
-  const metrics = timelineCutMetrics(sizes, expandedIndex, TimelinePxPerSec);
+  const metrics = timelineCutMetrics(sizes, TimelinePxPerSec);
   const lastMetric = metrics.length > 0 ? metrics[metrics.length - 1] : undefined;
   const stripWidth = lastMetric ? lastMetric.x + lastMetric.width : 0;
   const ticks = rulerTicks(stripWidth, TimelinePxPerSec);
@@ -167,13 +166,7 @@ export function TimelineStrip({
   // same number, because the content leads with exactly half a viewport.
   const playheadMetric = playhead.index >= 0 ? metrics[playhead.index] : undefined;
   const playheadX = playheadMetric
-    ? playheadXPx(
-        playheadMetric,
-        sizes[playhead.index],
-        playhead.index === expandedIndex,
-        playhead.secIntoCut,
-        TimelinePxPerSec,
-      )
+    ? playheadXPx(playheadMetric, playhead.secIntoCut, TimelinePxPerSec)
     : undefined;
 
   // Per-frame scrolling stays on the UI thread: the position is a shared value
@@ -241,7 +234,7 @@ export function TimelineStrip({
                 cut={cut}
                 index={index}
                 selected={index === selectedIndex}
-                expanded={index === expandedIndex}
+                focused={index === focusedIndex}
                 width={metrics[index].width}
                 pxPerSec={TimelinePxPerSec}
                 onSelect={onSelect}

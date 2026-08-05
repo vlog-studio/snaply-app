@@ -81,7 +81,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
   // Mirrors the stage, for the transport's play/pause button.
   const [isPlaying, setIsPlaying] = useState(false);
   // Where the stage is, for the strip's playhead. The player reports it; a strip
-  // tap sets it up front so the timeline starts running to the tapped cut
+  // tap or scrub sets it up front so the timeline settles on the picked moment
   // without waiting for the seek to land, and so a dead cut — which the stage
   // cannot follow — still moves the playhead.
   const [playhead, setPlayhead] = useState<TimelinePlayhead>({ index: 0, secIntoCut: 0 });
@@ -121,6 +121,19 @@ export function MoviePage({ movieId }: MoviePageProps) {
     setPlayhead({ index, secIntoCut: 0 });
     const playbackIndex = toPlaybackIndex(cuts, index);
     if (playbackIndex !== undefined) playerRef.current?.jumpTo(playbackIndex);
+  };
+
+  // A strip drag come to rest: whatever moment stopped under the playhead
+  // becomes the playback position, paused on its frame — playing stays the
+  // transport's job. Selection follows so the inspector talks about the cut
+  // being scrubbed. A dead cut can be landed on but not shown; the playhead
+  // and selection still move so the inspector can offer its removal.
+  const scrubTo = (target: TimelinePlayhead) => {
+    if (target.index < 0) return;
+    setSelectedIndex(target.index);
+    setPlayhead(target);
+    const playbackIndex = toPlaybackIndex(cuts, target.index);
+    if (playbackIndex !== undefined) playerRef.current?.seekTo(playbackIndex, target.secIntoCut);
   };
 
   return (
@@ -223,6 +236,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
         isPlaying={isPlaying}
         canEdit={canEdit}
         onSelect={selectCut}
+        onScrub={scrubTo}
         onTrim={list.trimCut}
         onAddSnaps={addSnaps}
       />

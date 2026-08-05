@@ -18,6 +18,7 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { PlaybackProgressIntervalSec } from '../model/playback-cuts';
 import {
   TimelinePxPerSec,
+  playheadAtX,
   playheadXPx,
   rulerTicks,
   timelineCutMetrics,
@@ -38,6 +39,11 @@ export type TimelineStripProps = {
   /** False while a job owns the movie — thumbs stay tappable, the add tile hides. */
   canEdit: boolean;
   onSelect: (index: number) => void;
+  /**
+   * A hand-drag of the strip come to rest: the moment now under the playhead,
+   * for the stage to seek to. Never fired with an empty cut list.
+   */
+  onScrub: (playhead: TimelinePlayhead) => void;
   /** A settled trim-handle drag; the cut list holds it locally until a save. */
   onTrim: (index: number, startSec: number, endSec: number) => void;
   onAddSnaps: () => void;
@@ -45,6 +51,13 @@ export type TimelineStripProps = {
 
 const TickLabelWidth = 48;
 const PlayheadWidth = 12;
+
+/**
+ * A drag released faster than this (points/ms, from the scroll event) keeps
+ * going as momentum, so the scrub settles at `onMomentumScrollEnd` instead of
+ * at the release.
+ */
+const ScrubMomentumMinVelocity = 0.05;
 
 /** How long a jump — a strip tap, an edit landing — takes to settle. */
 const JumpMs = 260;
@@ -59,8 +72,11 @@ type FollowInput = {
   /** Where the playhead sits, or `undefined` when there is nothing to point at. */
   targetX: number | undefined;
   playing: boolean;
-  /** True while a trim handle is down: the drag owns the axis, not the playhead. */
-  trimming: boolean;
+  /**
+   * True while a trim handle is down or the strip itself is being hand-scrolled:
+   * the drag owns the axis, not the playhead.
+   */
+  dragging: boolean;
   reducedMotion: boolean;
   /** The last cut's right edge — the furthest the strip may be aimed. */
   stripWidth: number;
@@ -76,8 +92,8 @@ type FollowInput = {
  * (`docs/frameworks/animations-and-gestures.md`).
  */
 function followPlayhead(follow: FollowState, input: FollowInput) {
-  const { targetX, playing, trimming, reducedMotion, stripWidth } = input;
-  if (targetX === undefined || trimming) {
+  const { targetX, playing, dragging, reducedMotion, stripWidth } = input;
+  if (targetX === undefined || dragging) {
     follow.active.value = false;
     return;
   }
@@ -113,6 +129,12 @@ function followPlayhead(follow: FollowState, input: FollowInput) {
  * exactly one report interval, so the motion is continuous rather than four
  * steps a second.
  *
+ * The strip is also the scrubber: hand-scrolling it drags the movie under the
+ * fixed playhead, and when the drag (and its momentum) comes to rest, whatever
+ * moment stopped under the line is reported through `onScrub` for the stage to
+ * seek to. While the hand is on the strip the playhead's own following is off —
+ * the drag owns the axis — and it takes the axis back when the scrub settles.
+ *
  * Tapping a clip selects the cut — the stage jumps there and the inspector below
  * picks it up — and the strip runs to that cut's start. The selected clip is
  * also where the cut's length is set: while editable it grows trim handles at
@@ -128,6 +150,7 @@ export function TimelineStrip({
   isPlaying,
   canEdit,
   onSelect,
+  onScrub,
   onTrim,
   onAddSnaps,
 }: TimelineStripProps) {
@@ -139,6 +162,9 @@ export function TimelineStrip({
 
   // True while a trim handle is down; the scroll hands the axis to the drag.
   const [trimming, setTrimming] = useState(false);
+  // True from a hand-scroll's first move until it (and its momentum) rests;
+  // the playhead's following stays off so the drag owns the axis.
+  const [scrubbing, setScrubbing] = useState(false);
 
   // The selected clip grows its trim handles only while the stage is stopped.
   // Selection follows playback, so handles that appeared on the way past would
@@ -186,14 +212,24 @@ export function TimelineStrip({
     followPlayhead(follow, {
       targetX: playheadX,
       playing: isPlaying,
-      trimming,
+      dragging: trimming || scrubbing,
       reducedMotion,
       stripWidth,
     });
     // `follow` holds the same two shared values every render; the inputs above
     // are what actually moves the strip.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playheadX, isPlaying, trimming, reducedMotion, stripWidth]);
+  }, [playheadX, isPlaying, trimming, scrubbing, reducedMotion, stripWidth]);
+
+  // The scrub settles where the strip rests: at the drag's release, or — when
+  // the release still carries momentum — where the momentum runs out. The
+  // scroll offset *is* the strip coordinate under the playhead (see below), so
+  // the rest offset converts straight into a cut and a moment inside it.
+  const settleScrub = (offsetX: number) => {
+    setScrubbing(false);
+    if (cuts.length === 0) return;
+    onScrub(playheadAtX(metrics, offsetX, TimelinePxPerSec));
+  };
 
   return (
     <View>
@@ -201,6 +237,16 @@ export function TimelineStrip({
         ref={scrollRef}
         horizontal
         scrollEnabled={!trimming}
+        onScrollBeginDrag={() => setScrubbing(true)}
+        onScrollEndDrag={(event) => {
+          // A fast release keeps going as momentum; settle when that ends.
+          if (Math.abs(event.nativeEvent.velocity?.x ?? 0) > ScrubMomentumMinVelocity) return;
+          settleScrub(event.nativeEvent.contentOffset.x);
+        }}
+        onMomentumScrollEnd={(event) => {
+          // Guarded so a programmatic follow settling never reads as a scrub.
+          if (scrubbing) settleScrub(event.nativeEvent.contentOffset.x);
+        }}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={[styles.strip, { paddingHorizontal: halfViewport }]}
       >

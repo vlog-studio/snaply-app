@@ -13,6 +13,11 @@ import { PlaybackProgressIntervalSec, type PlaybackCut } from '../model/playback
 export type CutPlayerHandle = {
   /** Shows a cut's first frame, paused — the answer to a strip tap. */
   jumpTo: (index: number) => void;
+  /**
+   * Shows a moment inside a cut, paused — the answer to a strip scrub. The
+   * offset is seconds past the cut's trim window start, clamped into the window.
+   */
+  seekTo: (index: number, secIntoCut: number) => void;
   /** Plays or pauses; after the last cut, replays from the first. */
   togglePlayback: () => void;
 };
@@ -109,13 +114,14 @@ export function CutPlayer({
   const players = [playerA, playerB] as const;
 
   // Landing on a cut is also a position: whatever put the stage here — a strip
-  // tap, the end of the previous cut, a replay — it now sits at the cut's start,
-  // and the timeline's playhead has to be told before the first `timeUpdate`.
-  const setIndex = (index: number) => {
+  // tap, the end of the previous cut, a replay, a scrub — it now sits somewhere
+  // in the cut, and the timeline's playhead has to be told before the first
+  // `timeUpdate`.
+  const setIndex = (index: number, secIntoCut = 0) => {
     currentIndexRef.current = index;
     setCurrentIndex(index);
     onCutChange?.(index);
-    onProgress?.(index, 0);
+    onProgress?.(index, secIntoCut);
   };
 
   /**
@@ -135,19 +141,22 @@ export function CutPlayer({
   };
 
   /**
-   * Points the stage at `index` — the jump behind a strip tap and behind the
-   * playlist changing underneath. The active slot is reloaded in place (its
-   * current cut is usually wrong now) and the idle slot preloads the cut after.
+   * Points the stage at `index` — the jump behind a strip tap, a strip scrub
+   * (`secIntoCut` past the trim window's start), and the playlist changing
+   * underneath. The active slot is reloaded in place (its current cut is
+   * usually wrong now) and the idle slot preloads the cut after.
    */
-  const loadCut = (index: number, play: boolean) => {
+  const loadCut = (index: number, play: boolean, secIntoCut = 0) => {
+    const cut = cuts[index];
+    const offset = Math.min(Math.max(secIntoCut, 0), cut.endSec - cut.startSec);
     const slot = activeSlotRef.current;
     const other: 0 | 1 = slot === 0 ? 1 : 0;
     players[other].pause();
     players[slot].pause();
-    players[slot].replace(cuts[index].uri);
-    players[slot].seekBy(cuts[index].startSec);
+    players[slot].replace(cut.uri);
+    players[slot].seekBy(cut.startSec + offset);
     slotCutRef.current[slot] = index;
-    setIndex(index);
+    setIndex(index, offset);
     setIsEnded(false);
     setIsPlaying(play);
     if (play) players[slot].play();
@@ -277,6 +286,10 @@ export function CutPlayer({
     jumpTo: (index: number) => {
       if (index < 0 || index >= cuts.length) return;
       loadCut(index, false);
+    },
+    seekTo: (index: number, secIntoCut: number) => {
+      if (index < 0 || index >= cuts.length) return;
+      loadCut(index, false, secIntoCut);
     },
     togglePlayback,
   }));

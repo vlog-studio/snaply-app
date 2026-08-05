@@ -1,6 +1,7 @@
 import {
   DeadCutSec,
   cutDisplaySec,
+  playheadAtX,
   playheadXPx,
   rulerTicks,
   timelineCutMetrics,
@@ -60,6 +61,42 @@ describe('playheadXPx', () => {
 
   it('never points before the clip on a negative report', () => {
     expect(playheadXPx(metric, -1, 60)).toBe(120);
+  });
+});
+
+describe('playheadAtX', () => {
+  // Two cuts: [0, 120) and [120, 360), at 60 px per second.
+  const metrics = [
+    { x: 0, width: 120 },
+    { x: 120, width: 240 },
+  ];
+
+  it('finds the cut under the point and measures into it in seconds', () => {
+    expect(playheadAtX(metrics, 180, 60)).toEqual({ index: 1, secIntoCut: 1 });
+  });
+
+  it('gives a boundary point to the cut that starts there', () => {
+    expect(playheadAtX(metrics, 120, 60)).toEqual({ index: 1, secIntoCut: 0 });
+  });
+
+  it('lands an overscroll past the end on the last moment', () => {
+    expect(playheadAtX(metrics, 999, 60)).toEqual({ index: 1, secIntoCut: 4 });
+  });
+
+  it('lands an overscroll before the start on the first moment', () => {
+    expect(playheadAtX(metrics, -50, 60)).toEqual({ index: 0, secIntoCut: 0 });
+  });
+
+  it('round-trips with playheadXPx', () => {
+    const at = playheadAtX(metrics, 210, 60);
+    expect(playheadXPx(metrics[at.index], at.secIntoCut, 60)).toBe(210);
+  });
+
+  it.each([
+    ['an empty strip', [], 60],
+    ['a degenerate scale', metrics, 0],
+  ])('points at nothing on %s', (_name, input, pxPerSec) => {
+    expect(playheadAtX(input, 100, pxPerSec)).toEqual({ index: -1, secIntoCut: 0 });
   });
 });
 

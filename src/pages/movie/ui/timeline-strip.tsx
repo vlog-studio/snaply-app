@@ -319,6 +319,7 @@ export function TimelineStrip({
                 selected={index === selectedIndex}
                 focused={index === focusedIndex}
                 width={metrics[index].width}
+                x={metrics[index].x}
                 pxPerSec={TimelinePxPerSec}
                 onSelect={handleSelect}
                 onTrim={onTrim}

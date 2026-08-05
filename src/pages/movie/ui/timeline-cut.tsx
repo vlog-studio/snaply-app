@@ -6,13 +6,14 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
 
 import { CutTrimStepSec, MinCutSec } from '@/entities/movie';
 import { formatSeconds } from '@/shared/lib/datetime';
-import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
 
@@ -39,6 +40,13 @@ const HandleWidth = 18;
 const EdgeSlackSec = CutTrimStepSec / 2;
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/**
+ * How a reordered clip glides into its new slot — the project's positional
+ * reflow spring (`docs/frameworks/animations-and-gestures.md`): near-critically
+ * damped, so the clip settles with no visible bounce.
+ */
+const ReorderSpring = { damping: 44, stiffness: 300 };
 
 /** Which end of the trim window a handle moves. */
 type TrimEdge = 'start' | 'end';
@@ -144,6 +152,13 @@ export type TimelineCutProps = {
    * handle is down); this is what a dead cut is drawn at.
    */
   width: number;
+  /**
+   * Where this cut starts in the strip, from the shared layout metrics. Not
+   * used to place the clip — flex does that — but to *animate* a reorder: when
+   * the cut lands in a new slot, the difference between the old and new `x` is
+   * how far it glides.
+   */
+  x: number;
   pxPerSec: number;
   onSelect: (index: number) => void;
   /** Called with a settled trim window; the cut list holds it until a save. */
@@ -178,12 +193,14 @@ export function TimelineCut({
   selected,
   focused,
   width,
+  x,
   pxPerSec,
   onSelect,
   onTrim,
   onTrimmingChange,
 }: TimelineCutProps) {
   const theme = useTheme();
+  const reducedMotion = useReducedMotion();
   const snap = cut.snap;
   const missing = snap === undefined;
   const durationSec = snap?.durationSec ?? 0;
@@ -208,6 +225,38 @@ export function TimelineCut({
     // `track` is rebuilt every render; its real inputs are listed instead.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startSec, endSec, durationSec, reelWidth, startX, endX, reported]);
+
+  // A reorder moves this clip to a new slot in one commit, so without help it
+  // teleports — on a strip longer than the screen, unreadably. FLIP: flex has
+  // already placed the clip at its new `x`, so it is pulled back by the
+  // distance it jumped and springs to rest at zero, gliding from the old slot
+  // to the new one. Keyed to the *index* changing, not `x`: an upstream trim
+  // also shifts `x`, but the clip already moved live under the drag, and
+  // re-animating that shift would replay motion that has happened. Added onto
+  // any offset still in flight, so a second ▶ mid-glide carries over instead
+  // of snapping. The whole decision runs *inside the animated style* — the
+  // worklet re-evaluates on the UI thread in the same update that delivers the
+  // new layout, where a JS effect runs after paint and let the clip flash at
+  // its destination for a frame before the pull-back landed.
+  const shiftX = useSharedValue(0);
+  const slot = useSharedValue({ index, x });
+  // While gliding, the two crossing clips overlap; the selected one — the cut
+  // the user is moving — draws on top. A focused frame keeps its own stacking
+  // (its handles overhang the neighbours) whether or not it is in flight.
+  const shiftStyle = useAnimatedStyle(() => {
+    const last = slot.value;
+    if (last.index !== index || last.x !== x) {
+      slot.value = { index, x };
+      if (last.index !== index && !reducedMotion) {
+        shiftX.value = shiftX.value + (last.x - x);
+        shiftX.value = withSpring(0, ReorderSpring);
+      }
+    }
+    return {
+      transform: [{ translateX: shiftX.value }],
+      zIndex: focused ? 2 : shiftX.value !== 0 && selected ? 1 : 0,
+    };
+  });
 
   // Live numbers while a handle is down; the props are the truth otherwise.
   const [dragged, setDragged] = useState<{ startSec: number; endSec: number }>();
@@ -243,7 +292,7 @@ export function TimelineCut({
     // negative horizontal margins of exactly the handles' width, so the clip
     // itself stays at the strip position and width the layout metrics assign —
     // the handles hang over the neighbouring clips instead of pushing them.
-    <View style={[styles.frame, focused ? styles.frameFocused : null]}>
+    <Animated.View style={[styles.frame, focused ? styles.frameFocused : null, shiftStyle]}>
       {focused ? (
         <GestureDetector
           gesture={buildTrimGesture(handles, 'start', track, report, onTrimmingChange)}
@@ -318,7 +367,7 @@ export function TimelineCut({
           </View>
         </GestureDetector>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -326,11 +375,11 @@ const styles = StyleSheet.create({
   frame: {
     flexDirection: 'row',
   },
-  // Above the flat siblings, so the overhanging handles draw over the
-  // neighbouring clips rather than sliding under the next one.
+  // The focused frame's z-order (above the flat siblings, so the overhanging
+  // handles draw over the neighbouring clips) lives in `shiftStyle`, which owns
+  // all of the frame's stacking.
   frameFocused: {
     marginHorizontal: -HandleWidth,
-    zIndex: 2,
   },
   clip: {
     height: TimelineCutHeight,

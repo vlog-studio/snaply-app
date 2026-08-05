@@ -68,13 +68,14 @@ by hand:    Snap tab → 선택 → pick snaps → 트레이에 담기
 by template: Studio → 템플릿으로 시작 → the app matches one outing into the slots
             → 지금 찍기 fills what is missing → 이대로 만들기
 
-  → the movie screen: AI로 생성 시작 → a progress ring the user may walk away from
-  → the finished movie plays on the same screen, and only now can it be changed:
-    reorder cuts, drop them, trim them, add more, change the style
+  → the movie screen, an editable draft: reorder cuts, drop them, trim them,
+    add more, change the style — settled before the run is paid for
+  → AI로 생성 시작 → a progress ring the user may walk away from
+  → the finished movie plays on the same screen, with the same controls
   → 이 구성으로 다시 만들기 runs it again with what was changed
 ```
 
-**Every edit happens after generation.** Before it there is nothing to react to, so a draft shows its cuts and one button. That inversion is what the 2026-08-03 planning round asked for, and it replaced the three-step wizard (조립 → 스타일 → 생성) that used to run before a movie was ever made.
+**Every edit happens outside a run.** A draft is editable — generation becomes slow remote work once the backend runs it, so the composition (cut order, lengths, style) is settled before the run is paid for — and a result is edited with the same controls on the same screen. Only a `generating` movie is frozen. This replaced the 2026-08-03 edit-after-generation inversion on 2026-08-05, which itself replaced the three-step wizard (조립 → 스타일 → 생성).
 
 **Generation is a local simulation.** The steps are paced by a clock, nothing is composited, and a finished movie is played by running its cuts in order. **Matching is real but narrow**: it reads capture times and coordinates and nothing else — no part of the app has looked at a picture. See [The movie screen](movie.md) and [Movie templates](movie-templates.md) for exactly what is and is not real.
 
@@ -87,8 +88,8 @@ Because the job is local, so is everything built on top of it: a job that ends a
 | [Application shell and navigation](app-shell-and-navigation.md) | Providers, splash, root stack, four-tab navigation, capture button, route adapters, theme | `Functional` |
 | [Authentication](authentication.md) | Supabase email/password sign-in, sign-up with email confirmation, password reset (both via deep link), Google OAuth (Apple deferred), Supabase-owned session persistence, route guard, sign-out | `Functional` |
 | [Studio and movies](studio.md) | The 담기 tray (pick order, ten-snap cap, persistence), the work-in-progress and finished lanes with job progress and failure recovery, the movie tab grid, and the movie data model | `Functional` |
-| [The movie screen](movie.md) | One screen per movie: running it, the progress, watching it, and — only after it has been generated — reordering, trimming, adding cuts, changing the style, the 순서 고정 rule, and regenerating. Plus renaming, failure, retry, the end-of-job notification, and the (blocked) export | `Prototype` |
-| [Movie templates](movie-templates.md) | The template catalog on the studio, matching one outing into its slots with a confidence per slot, shooting for an empty slot, and turning the result into a movie that generates immediately | `Partial` |
+| [The movie screen](movie.md) | One screen per movie: settling the draft (reordering, trimming, adding cuts, changing the style, the 순서 고정 rule), running it, the progress, watching it, fixing the result with the same controls, and regenerating. Plus renaming, failure, retry, the end-of-job notification, and the (blocked) export | `Prototype` |
+| [Movie templates](movie-templates.md) | The template catalog on the studio, matching one outing into its slots with a confidence per slot, shooting for an empty slot, and turning the result into an editable movie draft | `Partial` |
 | [Snap library](snaps.md) | Day-grouped snap grid, playback, selection → tray or a movie, cascading deletion, the file and thumbnail model | `Functional` |
 | [Capture flow](capture-flow.md) | Inline duration option, permissions, press-and-hold recording, saving a snap, in-camera feedback, recording library | `Functional` |
 | [Me tab](me.md) | Profile, snap/movie/tray stats, reminder, notification, social-connection, and account controls | `Partial` |

@@ -21,9 +21,7 @@ import { useClearTray, useTraySnapIds } from '@/entities/tray';
 /**
  * Why a cut edit was refused, or `undefined` when it landed.
  *
- * `frozen` — the movie has not been generated yet, or a job owns it right now.
- * Fixing a movie is something the user does to a result (see
- * {@link canEditMovie}).
+ * `frozen` — a job owns the movie right now (see {@link canEditMovie}).
  * `empty` — a movie must keep at least one cut; deleting the movie is offered for
  * the case where the user really wants none.
  * `full` — the change would push past {@link MovieSnapLimit}.
@@ -51,16 +49,17 @@ export type GenerationOutcome = {
 };
 
 /**
- * A movie's cuts and settings may only be edited **after** it has been generated.
+ * A movie's cuts and settings may be edited whenever a job does not own it.
  *
- * This is the inversion the product asked for: before generation there is
- * nothing to react to, so the user only picks material and runs it; fixing the
- * order, dropping a cut, or trying another style are things you do to a result
- * you have seen. `failed` counts as a result — it is the state a fix is most
- * urgently needed in — while `draft` and `generating` do not.
+ * `draft` is editable on purpose: generation is remote, slow work once a real
+ * backend runs it, so the draft is where the user settles the order, the cut
+ * lengths, and the style **before** paying for a run — and fixing what a run
+ * produced (`ready`, `failed`) is the same act on the same screen. Only
+ * `generating` freezes the movie, because editing under a job would make the
+ * result describe a cut list that no longer exists.
  */
 export function canEditMovie(movie: Movie): boolean {
-  return movie.status === 'ready' || movie.status === 'failed';
+  return movie.status !== 'generating';
 }
 
 /**
@@ -114,7 +113,7 @@ function arrangeByCaptureTime(
  * It spans the tray and the movie — starting a movie empties the tray — which is
  * what makes it a feature rather than page code. Concentrating it here also
  * concentrates the rules that guard it: at least one cut, at most
- * {@link MovieSnapLimit}, no edits until a movie has been generated, and no
+ * {@link MovieSnapLimit}, no edits while a job owns the movie, and no
  * generation while one is already running. Enforcing those only in the UI would
  * leave each one a forgotten `disabled` prop away from being bypassed.
  *
@@ -245,8 +244,8 @@ export function useComposeMovie() {
 
   /**
    * Writes the style settings. Returns whether the write landed, which is false
-   * only for a movie that has not come back from generation yet — the single
-   * reason there is, so the caller needs no refusal code to tell the user why.
+   * only while a job owns the movie — the single reason there is, so the caller
+   * needs no refusal code to tell the user why.
    */
   const saveStyle = useCallback(
     (movieId: string, patch: MovieStylePatch): boolean => {

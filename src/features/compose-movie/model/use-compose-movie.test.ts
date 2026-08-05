@@ -43,8 +43,6 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
   return {
     id: 'm1',
     title: '무비',
-    // Editing happens after generation, so the movie under test is a finished
-    // one unless a case says otherwise.
     status: 'ready',
     createdAt: 1,
     updatedAt: 1,
@@ -189,21 +187,29 @@ describe('saveCuts', () => {
     expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
   });
 
-  it.each(['draft', 'generating'] as const)(
-    'refuses a %s movie, which has no result to fix yet',
-    async (status) => {
-      mockGetMovieById.mockReturnValue(makeMovie({ status }));
-      const { result } = await renderHook(() => useComposeMovie());
+  it('refuses a generating movie, which a job owns right now', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'generating' }));
+    const { result } = await renderHook(() => useComposeMovie());
 
-      let outcome;
-      await act(async () => {
-        outcome = result.current.saveCuts('m1', [{ snapId: 's1', order: 0 }]);
-      });
+    let outcome;
+    await act(async () => {
+      outcome = result.current.saveCuts('m1', [{ snapId: 's1', order: 0 }]);
+    });
 
-      expect(outcome).toEqual({ cutCount: 2, refused: 'frozen' });
-      expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
-    },
-  );
+    expect(outcome).toEqual({ cutCount: 2, refused: 'frozen' });
+    expect(mockUpdateMovieCuts).not.toHaveBeenCalled();
+  });
+
+  it('lets a draft be edited, so the composition is settled before the run', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'draft' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      result.current.saveCuts('m1', [{ snapId: 's1', order: 0 }]);
+    });
+
+    expect(mockUpdateMovieCuts).toHaveBeenCalled();
+  });
 
   it('lets a failed movie be edited, so a broken generation can be fixed', async () => {
     mockGetMovieById.mockReturnValue(makeMovie({ status: 'failed' }));
@@ -273,8 +279,8 @@ describe('setArranger', () => {
     expect(mockSetMovieArranger).toHaveBeenCalledWith('m1', 'ai');
   });
 
-  it('refuses a movie that has not come back from generation', async () => {
-    mockGetMovieById.mockReturnValue(makeMovie({ status: 'draft' }));
+  it('refuses a movie a job owns right now', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'generating' }));
     const { result } = await renderHook(() => useComposeMovie());
 
     let applied;
@@ -347,8 +353,21 @@ describe('saveStyle', () => {
     expect(applied).toBe(true);
   });
 
-  it.each(['draft', 'generating'] as const)('refuses a %s movie', async (status) => {
-    mockGetMovieById.mockReturnValue(makeMovie({ status }));
+  it('writes the settings of a draft, so the look is settled before the run', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'draft' }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let applied;
+    await act(async () => {
+      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+    });
+
+    expect(applied).toBe(true);
+    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'upbeat' });
+  });
+
+  it('refuses a generating movie', async () => {
+    mockGetMovieById.mockReturnValue(makeMovie({ status: 'generating' }));
     const { result } = await renderHook(() => useComposeMovie());
 
     let applied;

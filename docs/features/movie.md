@@ -8,20 +8,21 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 /  (스튜디오)  이 스냅으로 새 무비        →  /movie/[id]
 /  (스튜디오)  작업 중 / 최근 완성 row    →  /movie/[id]
 /movies       any tile                  →  /movie/[id]
-/template/[id]  이대로 만들기            →  /movie/[id]   (already generating)
+/template/[id]  이대로 만들기            →  /movie/[id]   (an editable draft)
 
 /movie/[id]  (무비)
 ├── 이름                 rename sheet
-├── player              ready / failed only — the cuts in order, tap to pause or replay
+├── player              not while generating — the cuts in order, tap to pause or replay
+│                        a preview on a draft, the result once one exists
 ├── 컷 순서와 길이         the cut list: ▲▼ reorder, ✕ drop, trim bar, + 스냅 더 넣기
-│                        a read-out until the movie has been generated
-├── 순서 고정             ready / failed only — whether generation may re-arrange
-├── 스타일               ready / failed only — style ×4, 배경 음악, 자동 자막, 비율, 길이
+│                        a read-out while a job owns the movie
+├── 순서 고정             not while generating — whether generation may re-arrange
+├── 스타일               not while generating — style ×4, 배경 음악, 자동 자막, 비율, 길이
 ├── 생성                 AI로 생성 시작 / 진행 링 / 다시 시도 / 이 구성으로 다시 만들기
 └── 무비 공유             ready only — disabled while no rendered file exists
 ```
 
-**Editing happens after generation, never before.** Picking the material is one decision and reacting to a result is another, and only the second one has anything to react to. A `draft` therefore shows its cut list as a read-out and one button; the controls appear once there is a movie to point at. This is the inversion the 2026-08-03 planning round asked for, and it replaced the three-step wizard (조립 → 스타일 → 생성) that used to run before generation.
+**Editing happens outside a run, never under one.** Generation becomes slow remote work once a real backend runs it (the LLM integration), so a `draft` is where the user settles the cut order, the cut lengths, and the style **before** paying for a run — and fixing a result afterwards is the same controls on the same screen. Only a `generating` movie is frozen, because an edit under a job would make the result describe a cut list that no longer exists. This replaced the edit-after-generation rule from the 2026-08-03 planning round on 2026-08-05, which itself had replaced the three-step wizard (조립 → 스타일 → 생성).
 
 There is no separate playback route. Watching a finished movie and fixing it are the same visit, and two routes would have meant two places that can edit one cut list.
 
@@ -29,7 +30,7 @@ There is no separate playback route. Watching a finished movie and fixing it are
 
 | Status | What is on the screen |
 | --- | --- |
-| `draft` | The cut list as a read-out, and `AI로 생성 시작`. Nothing is editable. |
+| `draft` | The player as a preview of the cuts, the cut list as controls, 순서 고정, the style panel, and `AI로 생성 시작`. |
 | `generating` | The progress ring and the five-step checklist, then the cut list as a read-out. Leaving is expected. |
 | `ready` | The player, the cut list as controls, 순서 고정, the style panel, `이 구성으로 다시 만들기`, and 무비 공유. |
 | `failed` | The stored reason and `다시 시도` at the top, then the same controls as `ready`. |
@@ -55,7 +56,7 @@ There is no remote work to break, so `failed` is not a simulated coin flip. It i
 
 ## Watching it
 
-**There is no rendered video file.** No compositing backend exists, so a finished movie is played by running its cuts back to back, each inside its trim window. That is deliberate rather than a placeholder: the order and lengths the user settled on are exactly what they get back.
+**There is no rendered video file.** No compositing backend exists, so a finished movie is played by running its cuts back to back, each inside its trim window. That is deliberate rather than a placeholder: the order and lengths the user settled on are exactly what they get back. The same player previews a `draft`, so a trim can be judged before the run is started.
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
@@ -69,9 +70,9 @@ There is no remote work to break, so `failed` is not a simulated coin flip. It i
 
 Playback is native media, so it is verified on a device rather than in JavaScript tests — the resolution from a movie to its playlist is what the unit test covers (`model/use-movie-playback.test.ts`).
 
-## Fixing it
+## Composing and fixing it
 
-Available on `ready` and `failed` movies only.
+Available whenever no job owns the movie — the same controls settle a `draft` before its first run and fix a `ready` or `failed` result after one. Only a `generating` movie shows them as a read-out.
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
@@ -82,7 +83,7 @@ Available on `ready` and `failed` movies only.
 | Add snaps | `Functional` | `+ 스냅 더 넣기` opens the Snap tab in selection mode bound to this movie (`?select=1&for=<movieId>`). Confirming appends the picks to the end of the cut list and returns. The control shows the remaining room and is disabled at ten cuts. |
 | Local edits, one commit | `Functional` | Reordering, removing, and trimming are local until `컷 구성 저장`. This is what lets "a movie keeps at least one cut" be a disabled control rather than a write refused mid-gesture. `되돌리기` drops the working copy. |
 | Store moved underneath | `Functional` | If the stored cut list changes while a working copy exists — a save landing, or a snap deleted from the Snap tab — the working copy is abandoned rather than replayed onto a list it no longer describes. |
-| Style, BGM, subtitles | `Functional` | Four style cards, a BGM sheet of five tracks (`무음` included), and a captions switch. Each writes straight through; there is nothing to stage. A movie's first run always uses the defaults or, for a template, what the template asked for — changing them is a thing you do to a result. |
+| Style, BGM, subtitles | `Functional` | Four style cards, a BGM sheet of five tracks (`무음` included), and a captions switch. Each writes straight through; there is nothing to stage. A draft starts from the defaults or, for a template, what the template asked for, and can be changed before the first run. |
 | Ratio, target length | `Functional` | Read-outs. 9:16 is the only ratio the product has, and the length follows the trims. |
 | Catalogs | `Prototype` | Both catalogs are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
 | Rename | `Functional` | `이름` opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
@@ -105,8 +106,8 @@ The switch is offered rather than required: **rearranging a cut by hand already 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
 | Lock on manual reorder | `Functional` | `saveCuts` compares the committed snap sequence with the stored one and writes `arranger: 'user'` when they differ. |
-| AI arrangement at generation | `Partial` | For an `ai` movie, `startGeneration` re-sorts the cut list by the snaps' capture times and stores it before starting the job. **That is the whole of "AI arranges" today** — chronological is a real arrangement and the one template matching produces, but no model looks at the pictures. It is visible when a snap is appended to an AI-arranged movie: the new cut drops into its place in the day instead of sitting at the end. A cut whose original is gone stops the re-sort entirely rather than being dropped. |
-| Hand it back | `Functional` | Turning the switch off writes `arranger: 'ai'` again, on a `ready` or `failed` movie. |
+| AI arrangement at generation | `Partial` | For an `ai` movie, `startGeneration` re-sorts the cut list by the snaps' capture times and stores it before starting the job. **That is the whole of "AI arranges" today** — chronological is a real arrangement and the one template matching produces, but no model looks at the pictures. It is visible when a snap is appended to an AI-arranged movie: the new cut drops into its place in the day instead of sitting at the end. Because a draft is reviewed before the run, the 순서 고정 row states that an `ai` order will be re-arranged at run time — and rearranging by hand locks it. A cut whose original is gone stops the re-sort entirely rather than being dropped. |
+| Hand it back | `Functional` | Turning the switch off writes `arranger: 'ai'` again, on any movie no job owns. |
 
 ## Sharing
 
@@ -122,7 +123,7 @@ A movie's cuts are the user's own originals; the movie is the composition of the
 
 | Rule | Refusal |
 | --- | --- |
-| No cut or style edits until the movie has been generated (`draft` / `generating`) | `saveCuts` → `frozen`, `saveStyle` → `false` |
+| No cut or style edits while a job owns the movie (`generating`) | `saveCuts` → `frozen`, `saveStyle` → `false` |
 | At least one cut | `saveCuts` → `empty` |
 | At most ten cuts (`MovieSnapLimit`) | `saveCuts` / `appendSnaps` → `full` |
 | No second job while one is running | `startGeneration` → `frozen` |
@@ -148,7 +149,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 
 - **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays.
 - Regeneration keeps no history. The previous render is dropped when the new job starts, so there is no way back to the version the user just replaced.
-- A `draft` cannot be adjusted at all. A movie started from the wrong snaps has to be generated once before it can be fixed — or left, since there is still no movie-deletion UI (`useDeleteMovie` has no caller).
+- There is still no movie-deletion UI (`useDeleteMovie` has no caller), so a movie started from the wrong snaps can be emptied down to one cut but never removed.
 - Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.
 - AI arrangement is capture-time order, not a model's judgement.
 - Reordering is button-based, not drag-based, and trim is set on a half-second grid.

@@ -13,7 +13,7 @@ Users pick the shape of the movie first — 동네 산책, 하루 요약 — and
 │   ├── dropped          지금 찍기 · 되돌리기
 │   └── empty            지금 찍기        → /capture, and back into this row
 ├── 고친 것 되돌리기        shown once anything is dropped, shot, or reordered
-└── 이대로 만들기          → /movie/[id], already generating
+└── 이대로 만들기          → /movie/[id], an editable draft
 ```
 
 This is the second way into a movie and it sits beside the tray rather than replacing it: the tray is "make a movie out of *these*", a template is "make me something like *this*". Both stay on the studio ([Studio and movies](studio.md)).
@@ -52,7 +52,7 @@ The number used to carry its own caption, `같은 외출 확신 NN%`. That was d
 | Rows that cannot be reordered | `Functional` | A row the user shot for, or dropped, is bound to its slot rather than to a position in the running order, so no swap could move it. Both arrows either side of such a row are drawn dimmed and inert rather than silently doing nothing. The arrows are also absent from an empty row, which has nothing to move. |
 | 고친 것 되돌리기 | `Functional` | Puts every slot back the way the match proposed it, order included. Shown only once something has been dropped, shot, or reordered. |
 | Nothing to propose | `Functional` | A library with no outing in it says so and leaves every slot empty with its `지금 찍기`. The screen is still useful — that is the case it was designed for. |
-| 이대로 만들기 | `Functional` | Creates a movie from the filled slots in slot order, with the template's style and BGM, marked `arranger: 'ai'`, **starts generation immediately**, and replaces the screen with the movie. The cut list is settled here — dropped, shot, reordered — so what is left needs a made movie to judge against and is fixed on the result ([The movie screen](movie.md)). |
+| 이대로 만들기 | `Functional` | Creates a movie from the filled slots in slot order, with the template's style and BGM, marked `arranger: 'ai'`, and replaces the screen with the movie — **an editable draft, not a running job**. Generation is slow remote work once a real backend runs it, so cut lengths, order, and style are settled on the movie screen first and the run starts there ([The movie screen](movie.md)). |
 | Manual changes are not stored | `Functional` | Dropping and shooting are held on the screen. Nothing exists to write to until the movie is created, and leaving costs nothing. |
 | One snap, one slot | `Functional` | A snap shot for an empty slot joins the library, so the next match would happily propose it for another slot as well. The slot it was shot for claims it, and the other one stays empty — a duplicate would have become two cuts of the same three seconds. |
 | The tray is untouched | `Functional` | Making a movie from a template does not empty the tray. Two ways of gathering material must not consume each other. |

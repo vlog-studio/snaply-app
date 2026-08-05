@@ -48,7 +48,6 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
   return {
     id: 'm1',
     title: '무비',
-    // Editing happens after generation, so a movie under edit is a finished one.
     status: 'ready',
     createdAt: 1,
     updatedAt: 1,
@@ -199,12 +198,20 @@ describe('useMovieCuts', () => {
     expect(result.current.isDirty).toBe(false);
   });
 
-  it.each(['draft', 'generating'] as const)('reports a %s movie as read-only', async (status) => {
-    mockMovie.mockReturnValue(makeMovie({ status }));
+  it('reports a generating movie as read-only', async () => {
+    mockMovie.mockReturnValue(makeMovie({ status: 'generating' }));
 
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     expect(result.current.canEdit).toBe(false);
+  });
+
+  it.each(['draft', 'ready', 'failed'] as const)('reports a %s movie as editable', async (status) => {
+    mockMovie.mockReturnValue(makeMovie({ status }));
+
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    expect(result.current.canEdit).toBe(true);
   });
 
   it('answers that there is nothing to commit when the list is untouched', async () => {

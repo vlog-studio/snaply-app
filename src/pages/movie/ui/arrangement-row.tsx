@@ -33,7 +33,7 @@ export function ArrangementRow({ movie, onChange }: ArrangementRowProps) {
         <ThemedText type="small" themeColor="textSecondary">
           {isLocked
             ? '지금 순서 그대로 만들어져요.'
-            : 'AI가 정한 순서예요. 다시 만들 때 찍은 시각 순서로 다시 배치돼요.'}
+            : 'AI가 정한 순서예요. 만들 때 찍은 시각 순서로 다시 배치돼요.'}
         </ThemedText>
       </View>
       <Switch

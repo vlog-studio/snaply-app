@@ -46,7 +46,7 @@ The tray is the concept's one invention (concept §5): choosing a snap does not 
 | Remove one snap / empty the tray | `Functional` | The ✕ on a tray thumbnail removes one; `비우기` empties it. |
 | Empty state | `Functional` | With nothing in it the panel keeps its place and explains what to do, with `스냅 고르러 가기` opening the Snap tab in selection mode. The studio never shows a blank workbench (concept §7). |
 | Cascading removal | `Functional` | Deleting a snap original removes it from the tray as well as from every movie (see [Snap library](snaps.md#deleting-an-original)). |
-| Start a movie from the tray | `Functional` | `이 스냅으로 새 무비` creates a draft from the whole tray in pick order, empties the tray, and opens [the movie screen](movie.md) on it. The draft is not editable — the next thing to do with it is run it. |
+| Start a movie from the tray | `Functional` | `이 스냅으로 새 무비` creates a draft from the whole tray in pick order, empties the tray, and opens [the movie screen](movie.md) on it. The draft is editable there — order, trims, and style are settled before the run. |
 
 ## Movie lanes
 
@@ -101,6 +101,6 @@ Two of these are deliberately identity-preserving: a write that changes nothing 
 - Generation is a local simulation and nothing is composited (see [The movie screen](movie.md)). A `ready` movie is real state, but its "render" is a length and a timestamp.
 - There is no movie-deletion UI, so a movie made by mistake stays on the board.
 - The tray is single. Collecting for two movies at once is not possible (concept §11 leaves this open).
-- A draft made from the tray cannot be adjusted before it is generated — that is deliberate (see [The movie screen](movie.md)), but it means a tray emptied into the wrong movie has to be generated once before it can be fixed.
+- A tray emptied into the wrong movie can be fixed on the movie screen (a draft is editable), but the movie itself cannot be deleted — there is still no movie-deletion UI.
 - `MovieSummary.dateLabel` reads the clock through `formatDayHeading`, so a movie edited just before midnight keeps reading "오늘" until the screen re-renders.
 - Movies are local-only. There is no upload, no server-side composition, and no sync between devices.

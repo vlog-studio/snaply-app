@@ -17,7 +17,7 @@ export type StylePanelProps = {
   movie: Movie;
   /** How long the cut list plays — what the target length reports. */
   totalSec: number;
-  /** False until the movie has been generated; the settings become a read-out. */
+  /** False while a job owns the movie; the settings become a read-out. */
   canEdit: boolean;
   onChange: (patch: MovieStylePatch) => void;
 };
@@ -30,10 +30,11 @@ export type StylePanelProps = {
  * buffers its edits for a different reason — its rule about a minimum cut count
  * has to be expressible as a disabled control.
  *
- * A movie is first generated with the defaults, so this panel is where the user
- * says "not like that, like this" and runs it again. Ratio and target length are
- * read-outs, not controls: 9:16 is the only ratio the product has, and the length
- * follows the trims set in the cut list.
+ * On a draft this panel is where the look is settled before the run is paid
+ * for; on a result it is where the user says "not like that, like this" and
+ * runs it again. Ratio and target length are read-outs, not controls: 9:16 is
+ * the only ratio the product has, and the length follows the trims set in the
+ * cut list.
  */
 export function StylePanel({ movie, totalSec, canEdit, onChange }: StylePanelProps) {
   const theme = useTheme();

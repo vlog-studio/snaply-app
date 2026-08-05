@@ -36,8 +36,8 @@ const RowInset = Spacing.two * 2 + 2;
  * same cut list. What changes with the status is only which parts are here, and
  * whether they are controls or a read-out:
  *
- * - `draft` — the cut list as a read-out, and the button that runs it. There is
- *   nothing to fix before there is a result to react to (concept §6).
+ * - `draft` — the composition as controls: cut order, lengths, and style are
+ *   settled here, before the slow run is paid for, and the button runs it.
  * - `generating` — the progress the user came back to see. Leaving is expected.
  * - `ready` — the movie plays, and the cut list, the style panel, and "다시
  *   만들기" become the way to say "not like that".
@@ -142,9 +142,10 @@ export function MoviePage({ movieId }: MoviePageProps) {
 
         {leadWithGeneration ? generatePanel : null}
 
-        {/* Watching comes before fixing: the player is what the cut list and the
-            style panel below it are reactions to. A movie that has never run has
-            nothing to show yet, and one whose originals are all gone says so. */}
+        {/* Watching comes before fixing: on a draft the player previews the cuts
+            the run will be built from, and on a result it is what the cut list
+            and the style panel below it are reactions to. A movie whose
+            originals are all gone says so instead. */}
         {canEdit ? (
           playback.cuts.length > 0 ? (
             <CutPlayer cuts={playback.cuts} />

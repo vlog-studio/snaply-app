@@ -12,7 +12,7 @@ import { CutRow } from './cut-row';
 export type CutListProps = {
   cuts: Cut[];
   totalSec: number;
-  /** False until the movie has been generated; the rows become a read-out. */
+  /** False while a job owns the movie; the rows become a read-out. */
   canEdit: boolean;
   refusal: CutsRefusal | undefined;
   /** Width of each row's trim track, derived by the page. */
@@ -27,16 +27,16 @@ export type CutListProps = {
 const RefusalMessages: Record<CutsRefusal, string> = {
   empty: '컷이 최소 1개는 있어야 해요.',
   full: `한 편에는 스냅 ${MovieSnapLimit}개까지 들어가요.`,
-  frozen: '완성된 뒤에 컷을 고칠 수 있어요.',
+  frozen: '만드는 동안에는 컷을 고칠 수 없어요.',
 };
 
 /**
  * The cut list: order, length, and membership.
  *
- * Read-only until the movie has been generated — before that there is nothing to
- * react to, so the list is a preview of what is about to be made. Once a result
- * exists the same rows become the controls for fixing it, and what they commit
- * is what the next generation is built from.
+ * The same rows settle a draft before its first run and fix a result after one;
+ * what they commit is what the next generation is built from. Only while a job
+ * owns the movie do they become a read-out — editing under a run would make the
+ * result describe a cut list that no longer exists.
  */
 export function CutList({
   cuts,
@@ -106,8 +106,8 @@ export function CutList({
 
       <ThemedText type="small" themeColor="textSecondary">
         {canEdit
-          ? '고친 순서와 길이는 그대로 유지돼요. 다시 만들면 이 구성 그대로 만들어집니다.'
-          : '컷을 고치는 건 완성된 뒤부터예요. 지금은 이 순서 그대로 만들어집니다.'}
+          ? '고친 순서와 길이는 그대로 유지돼요. 만들 때 이 구성 그대로 만들어집니다.'
+          : '만드는 동안에는 컷을 고칠 수 없어요. 끝나면 다시 고칠 수 있습니다.'}
       </ThemedText>
     </View>
   );

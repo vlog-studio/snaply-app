@@ -29,9 +29,10 @@ export type MovieTemplatePageProps = {
  * what to go and shoot, and `지금 찍기` walks them to the camera and puts the
  * result in that exact row on the way back.
  *
- * Making the movie starts generation straight away. The cut list is settled here
- * — dropped, shot, and reordered — so what is left to change is everything that
- * needs a made movie to judge against, and that lives on the movie screen.
+ * Making the movie lands on an editable draft rather than starting generation:
+ * generation is slow remote work once a real backend runs it, so the movie
+ * screen is where the user settles the cut lengths and the style first and then
+ * pays for the run once. This screen only gathers the material.
  */
 export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
   const theme = useTheme();
@@ -41,7 +42,7 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
   const template = getMovieTemplateById(templateId);
   const fill = useTemplateFill(template);
   const { fillSlot } = fill;
-  const { startMovieFromTemplate, startGeneration } = useComposeMovie();
+  const { startMovieFromTemplate } = useComposeMovie();
   const [error, setError] = useState<string>();
 
   // Which row sent the user to the camera, and what the newest snap was when
@@ -94,7 +95,6 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
       setError('채워진 컷이 하나도 없어요. 빈 자리를 찍어서 채워주세요.');
       return;
     }
-    startGeneration(movie.id);
     router.replace({ pathname: '/movie/[id]', params: { id: movie.id } });
   };
 

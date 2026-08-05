@@ -33,7 +33,7 @@ export type MovieCuts = {
   totalSec: number;
   /** Whether the working list differs from what is stored. */
   isDirty: boolean;
-  /** False until the movie has been generated, and while a job owns it. */
+  /** False while a job owns the movie. */
   canEdit: boolean;
   /** Set when the last commit or edit was refused. */
   refusal: CutsRefusal | undefined;

@@ -20,6 +20,7 @@ import { CutPlayer, type CutPlayerHandle } from './cut-player';
 import { DetailSheet } from './detail-sheet';
 import { GenerateFooter } from './generate-footer';
 import { GenerationProgress } from './generation-progress';
+import { CutsRefusalMessages, RefusalNotice } from './refusal-notice';
 import { StylePickerSheet } from './style-picker-sheet';
 import { TimelineStrip } from './timeline-strip';
 
@@ -293,16 +294,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
       >
         {/* An edit refused while the footer's own notices are hidden (a job
             owns the movie) still has to be answered somewhere. */}
-        {isGenerating && refusal ? (
-          <View
-            style={[
-              styles.notice,
-              { borderColor: theme.border, backgroundColor: theme.warmSurface },
-            ]}
-          >
-            <ThemedText type="small">만드는 동안에는 컷을 고칠 수 없어요.</ThemedText>
-          </View>
-        ) : null}
+        {isGenerating && refusal ? <RefusalNotice message={CutsRefusalMessages[refusal]} /> : null}
 
         {isGenerating ? null : (
           <GenerateFooter
@@ -425,12 +417,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     paddingTop: Spacing.three,
     gap: Spacing.two,
-  },
-  notice: {
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.three,
   },
   transport: {
     width: '100%',

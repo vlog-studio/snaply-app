@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 
 import {
-  MovieSnapLimit,
   cutDurationSec,
   cutsDurationSec,
   useMovieById,
@@ -10,8 +9,8 @@ import {
   type Movie,
   type SnapRef,
 } from '@/entities/movie';
-import { canEditMovie, useComposeMovie, type CutsRefusal } from '@/features/compose-movie';
 import { useSnapIndex, type Snap } from '@/entities/snap';
+import { canEditMovie, useComposeMovie, type CutsRefusal } from '@/features/compose-movie';
 
 /** One row of the cut list: the cut, the snap behind it, and its position. */
 export type Cut = {
@@ -227,9 +226,4 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
     undo,
     redo,
   };
-}
-
-/** How many more snaps this movie can take. */
-export function remainingCutRoom(cutCount: number): number {
-  return Math.max(MovieSnapLimit - cutCount, 0);
 }

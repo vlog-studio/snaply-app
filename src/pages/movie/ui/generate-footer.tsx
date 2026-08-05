@@ -8,6 +8,7 @@ import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import type { MovieSharing } from '../model/use-share-movie';
+import { CutsRefusalMessages, GenerationRefusalMessages, RefusalNotice } from './refusal-notice';
 
 export type GenerateFooterProps = {
   movie: Movie;
@@ -25,17 +26,6 @@ export type GenerateFooterProps = {
    */
   inspector?: ReactNode;
   onStart: () => void;
-};
-
-const GenerationRefusalMessages: Record<GenerationRefusal, string> = {
-  empty: '컷이 하나도 없어서 만들 수 없어요. 스냅을 먼저 넣어주세요.',
-  frozen: '이미 만드는 중이에요.',
-};
-
-const CutsRefusalMessages: Record<CutsRefusal, string> = {
-  empty: '컷이 최소 1개는 있어야 해요.',
-  full: '한 편에 들어가는 스냅 수를 넘었어요.',
-  frozen: '만드는 동안에는 컷을 고칠 수 없어요.',
 };
 
 /**
@@ -88,21 +78,9 @@ export function GenerateFooter({
         </View>
       ) : null}
 
-      {cutsRefusal ? (
-        <View
-          style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}
-        >
-          <ThemedText type="small">{CutsRefusalMessages[cutsRefusal]}</ThemedText>
-        </View>
-      ) : null}
+      {cutsRefusal ? <RefusalNotice message={CutsRefusalMessages[cutsRefusal]} /> : null}
 
-      {refusal ? (
-        <View
-          style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}
-        >
-          <ThemedText type="small">{GenerationRefusalMessages[refusal]}</ThemedText>
-        </View>
-      ) : null}
+      {refusal ? <RefusalNotice message={GenerationRefusalMessages[refusal]} /> : null}
 
       <View style={styles.actionSlot}>
         {inspector ?? (
@@ -117,7 +95,9 @@ export function GenerateFooter({
               />
             ) : null}
             <SnaplyButton
-              title={hasFailed ? '다시 시도' : isReady ? '이 구성으로 다시 만들기' : 'AI로 생성 시작'}
+              title={
+                hasFailed ? '다시 시도' : isReady ? '이 구성으로 다시 만들기' : 'AI로 생성 시작'
+              }
               variant="ai"
               disabled={cutCount === 0}
               onPress={onStart}

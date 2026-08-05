@@ -25,7 +25,6 @@ export type CutPlayerHandle = {
 export type CutPlayerProps = {
   /** The cuts to run, in order. Must be non-empty; the page guards the empty case. */
   cuts: PlaybackCut[];
-  muted?: boolean;
   /**
    * Where to land when the playlist changes under the player — the selected
    * cut's playlist position. An edit is about the cut the user is on, so the
@@ -81,7 +80,6 @@ function playlistSignature(cuts: PlaybackCut[]): string {
  */
 export function CutPlayer({
   cuts,
-  muted = false,
   editIndex,
   onCutChange,
   onProgress,
@@ -127,14 +125,16 @@ export function CutPlayer({
     setIsPlaying(playing);
   };
 
+  // Both slots play their cut's own recorded sound — no track is mixed and
+  // nothing on this screen mutes the stage, so neither player is muted.
   const playerA = useVideoPlayer(initialSource.a.uri, (instance) => {
-    instance.muted = muted;
+    instance.muted = false;
     instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
     instance.currentTime = initialSource.a.startSec;
   });
   // Second slot preloads the next cut (paused) so its first frame is ready.
   const playerB = useVideoPlayer(initialSource.b.uri, (instance) => {
-    instance.muted = muted;
+    instance.muted = false;
     instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
     instance.currentTime = initialSource.b.startSec;
   });
@@ -220,8 +220,7 @@ export function CutPlayer({
   const loadCut = (index: number, play: boolean, secIntoCut = 0) => {
     const cut = cuts[index];
     const offset = Math.min(Math.max(secIntoCut, 0), cut.endSec - cut.startSec);
-    const holdsFile = (s: 0 | 1) =>
-      slotUriRef.current[s] === cut.uri && !slotLoadingRef.current[s];
+    const holdsFile = (s: 0 | 1) => slotUriRef.current[s] === cut.uri && !slotLoadingRef.current[s];
     let slot = activeSlotRef.current;
     if (!holdsFile(slot)) {
       const idle: 0 | 1 = slot === 0 ? 1 : 0;

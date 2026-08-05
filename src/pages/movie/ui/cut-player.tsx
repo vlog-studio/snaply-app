@@ -1,17 +1,33 @@
 import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-import type { PlaybackCut } from '../model/use-movie-playback';
+import type { PlaybackCut } from '../model/playback-cuts';
+
+/** What the timeline may ask of the stage. */
+export type CutPlayerHandle = {
+  /** Jumps to a cut and plays it — the answer to a strip tap. */
+  jumpTo: (index: number) => void;
+};
 
 export type CutPlayerProps = {
   /** The cuts to run, in order. Must be non-empty; the page guards the empty case. */
   cuts: PlaybackCut[];
   muted?: boolean;
+  /**
+   * Where to land when the playlist changes under the player — the selected
+   * cut's playlist position. An edit is about the cut the user is on, so the
+   * stage pauses there rather than wherever playback happened to be.
+   */
+  editIndex?: number;
+  /** Reports which cut the stage is showing, so the timeline can follow. */
+  onCutChange?: (index: number) => void;
+  ref?: Ref<CutPlayerHandle>;
+  style?: StyleProp<ViewStyle>;
 };
 
 /**
@@ -21,8 +37,13 @@ export type CutPlayerProps = {
  */
 const TimeUpdateSec = 0.25;
 
+/** What one playlist entry plays, for telling two playlists apart. */
+function playlistSignature(cuts: PlaybackCut[]): string {
+  return cuts.map((cut) => `${cut.snapId}:${cut.startSec}:${cut.endSec}`).join('|');
+}
+
 /**
- * Plays a movie's cuts back to back.
+ * Plays a movie's cuts back to back — the stage of the timeline layout.
  *
  * **Double buffered.** Two players alternate: while one plays, the other holds the
  * next cut preloaded and paused on its first frame, so the swap is instant with no
@@ -33,6 +54,14 @@ const TimeUpdateSec = 0.25;
  * position reaches its end, rather than waiting for the file to run out — `playToEnd`
  * still catches the untrimmed case and any cut whose window reaches the file's end.
  *
+ * **Linked to the timeline, both ways.** The `jumpTo` handle moves the stage to
+ * the cut the strip picked; `onCutChange` reports every cut the stage moves onto, so the
+ * strip's highlight follows playback. When the playlist itself changes under the
+ * player — a reorder, a trim, a removal — the stage holds its place (clamped) and
+ * pauses on the edited list's frame rather than remounting, because a remounted
+ * video cannot paint its first frame without a blink
+ * (`docs/frameworks/animations-and-gestures.md`).
+ *
  * This is what a finished movie *is* for now: a playlist, not a rendered file. When
  * a compositing backend exists, a movie with `render.uri` plays as one video and this
  * stays for the ones generated before it.
@@ -40,11 +69,12 @@ const TimeUpdateSec = 0.25;
  * Slot bookkeeping lives in refs so the native callbacks always read the latest
  * state. Only mounted with a non-empty `cuts`, so slot 0 always has a valid source.
  */
-export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
+export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, style }: CutPlayerProps) {
   const theme = useTheme();
   // Which cut each slot currently holds; slot 1 preloads the second cut.
   const slotCutRef = useRef<[number, number]>([0, cuts.length > 1 ? 1 : -1]);
   const activeSlotRef = useRef<0 | 1>(0);
+  const currentIndexRef = useRef(0);
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
@@ -64,6 +94,12 @@ export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
   });
   const players = [playerA, playerB] as const;
 
+  const setIndex = (index: number) => {
+    currentIndexRef.current = index;
+    setCurrentIndex(index);
+    onCutChange?.(index);
+  };
+
   /**
    * Loads a cut into a slot and parks it on the cut's first frame, paused.
    *
@@ -79,6 +115,60 @@ export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
       players[slot].seekBy(cuts[index].startSec);
     });
   };
+
+  /**
+   * Points the stage at `index` — the jump behind a strip tap and behind the
+   * playlist changing underneath. The active slot is reloaded in place (its
+   * current cut is usually wrong now) and the idle slot preloads the cut after.
+   */
+  const loadCut = (index: number, play: boolean) => {
+    const slot = activeSlotRef.current;
+    const other: 0 | 1 = slot === 0 ? 1 : 0;
+    players[other].pause();
+    players[slot].pause();
+    players[slot].replace(cuts[index].uri);
+    players[slot].seekBy(cuts[index].startSec);
+    slotCutRef.current[slot] = index;
+    setIndex(index);
+    setIsEnded(false);
+    setIsPlaying(play);
+    if (play) players[slot].play();
+    if (index + 1 < cuts.length) {
+      preload(other, index + 1);
+    } else {
+      slotCutRef.current[other] = -1;
+    }
+  };
+
+  // The playlist changed under the player — a reorder, a trim, a removal. Land
+  // on the cut the edit was about (the page's selection) and pause on its
+  // frame, so the edit is seen exactly where the user is looking. Without a
+  // selection to follow, hold the place, clamped into the new list. The effect
+  // keys on the signature alone, but its closure is rebuilt every render, so
+  // `editIndex` is current whenever it fires.
+  const signature = playlistSignature(cuts);
+  const signatureRef = useRef(signature);
+  useEffect(() => {
+    if (signatureRef.current === signature) return;
+    signatureRef.current = signature;
+    const held = Math.min(currentIndexRef.current, cuts.length - 1);
+    const target = editIndex !== undefined && editIndex >= 0 && editIndex < cuts.length;
+    loadCut(target ? editIndex : held, false);
+    // `loadCut`, `cuts`, and `editIndex` are rebuilt or re-read every render;
+    // the signature is the one real input.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signature]);
+
+  // The timeline picked a cut: jump there and play, so the tap answers with
+  // motion. A handle rather than a prop-driven effect — the jump is an event,
+  // and routing an event through state and an effect is a render-cascade the
+  // compiler lint rightly rejects.
+  useImperativeHandle(ref, () => ({
+    jumpTo: (index: number) => {
+      if (index < 0 || index >= cuts.length) return;
+      loadCut(index, true);
+    },
+  }));
 
   const advance = (endedSlot: 0 | 1) => {
     if (endedSlot !== activeSlotRef.current) return; // ignore the idle slot
@@ -103,7 +193,7 @@ export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
     }
     activeSlotRef.current = nextSlot;
     setActiveSlot(nextSlot);
-    setCurrentIndex(nextIndex);
+    setIndex(nextIndex);
     players[nextSlot].play();
 
     // Preload the cut after that into the slot that just finished.
@@ -137,7 +227,7 @@ export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
     slotCutRef.current = [0, cuts.length > 1 ? 1 : -1];
     activeSlotRef.current = 0;
     setActiveSlot(0);
-    setCurrentIndex(0);
+    setIndex(0);
     setIsEnded(false);
     setIsPlaying(true);
     playerB.pause();
@@ -166,7 +256,7 @@ export function CutPlayer({ cuts, muted = false }: CutPlayerProps) {
   const overlayLabel = isEnded ? '무비 다시 재생' : isPlaying ? '일시정지' : '재생';
 
   return (
-    <View style={[styles.stage, { backgroundColor: theme.media }]}>
+    <View style={[styles.stage, { backgroundColor: theme.media }, style]}>
       <VideoView
         allowsPictureInPicture={false}
         contentFit="cover"

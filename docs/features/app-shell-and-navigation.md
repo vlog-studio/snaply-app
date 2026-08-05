@@ -32,12 +32,12 @@ Snaply opens into a four-tab application — 스튜디오 (`/`), 스냅 (`/snaps
 | `/movies` | 무비 tab | `pages/movies` |
 | `/me` | 나 tab | `pages/me` |
 | `/capture` | Headerless root-stack full-screen modal (opened by the center capture button); the viewfinder | `pages/capture-record` |
-| `/movie/[id]` | Headerless root-stack screen with its own `BackBar`; one movie at any point of its life | `pages/movie` |
+| `/movie/[id]` | Headerless root-stack screen with its own `BackBar`, titled with the movie and carrying its rename action; one movie at any point of its life | `pages/movie` |
 | `/template/[id]` | Headerless root-stack screen with its own `BackBar`; a template matched against the library | `pages/movie-template` |
 
 `src/app` parses string search parameters where needed and passes them to page components as explicit props (`snaps.tsx` turns `?select=1` and `?for=<movieId>` into `startSelecting` and `forMovieId`). The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
 
-Both are pushed stack screens rather than tabs: each is a task with a beginning and an end, and each needs its own back affordance — which since 2026-08-03 is a bare back arrow the page draws itself (`shared/ui/back-bar`) rather than a navigation bar. There is deliberately **one** movie route — watching a finished movie and fixing it are the same visit, so a second one would have meant two places that can edit one cut list. A movie tile or studio row therefore has nothing to branch on: every movie, at every status, opens on `/movie/[id]` ([The movie screen](movie.md)).
+Both are pushed stack screens rather than tabs: each is a task with a beginning and an end, and each needs its own back affordance — which since 2026-08-03 is a back arrow the page draws itself (`shared/ui/back-bar`) rather than a navigation bar. The bar is bare where the screen can name itself in its content (`/template/[id]`, a scroll with a large title); a screen with no row to spare passes it a `title` and one `action` instead, which is how `/movie/[id]` shows the movie's name and its ✎ without taking height from the stage. There is deliberately **one** movie route — watching a finished movie and fixing it are the same visit, so a second one would have meant two places that can edit one cut list. A movie tile or studio row therefore has nothing to branch on: every movie, at every status, opens on `/movie/[id]` ([The movie screen](movie.md)).
 
 ## Composition and ownership
 

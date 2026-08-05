@@ -21,8 +21,10 @@ const RingSize = 132;
  * picks up where it left off on the way back.
  *
  * **Nothing is composited.** No renderer exists yet, so the steps are paced by
- * the job clock; the footer's prototype line says so rather than implying a
- * file was produced.
+ * the job clock and a finished movie is played by running its cuts in order.
+ * The screen no longer says so in prose — the footer's caveat line went with
+ * the rest of the summary — so [the feature doc](../../../../docs/features/movie.md)
+ * is where that limit is written down.
  */
 export function GenerationProgress({ movie }: GenerationProgressProps) {
   const theme = useTheme();

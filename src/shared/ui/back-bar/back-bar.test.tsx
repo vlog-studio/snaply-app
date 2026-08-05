@@ -30,4 +30,36 @@ describe('BackBar', () => {
 
     expect(screen.getByRole('button', { name: label })).toBeTruthy();
   });
+
+  it('shows the title as a header when the screen names itself on the bar', async () => {
+    const title = '동네 산책'; // 동네 산책
+    await renderInSafeArea(<BackBar title={title} onPress={jest.fn()} />);
+
+    expect(screen.getByRole('header', { name: title })).toBeTruthy();
+  });
+
+  it('stays bare without a title or an action', async () => {
+    await renderInSafeArea(<BackBar onPress={jest.fn()} />);
+
+    expect(screen.queryByRole('header')).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('calls the action rather than going back when the trailing button is pressed', async () => {
+    const actionLabel = '무비 이름 바꾸기'; // 무비 이름 바꾸기
+    const onPress = jest.fn();
+    const onAction = jest.fn();
+    await renderInSafeArea(
+      <BackBar
+        title="동네 산책" // 동네 산책
+        action={{ icon: 'pencil', label: actionLabel, onPress: onAction }}
+        onPress={onPress}
+      />,
+    );
+
+    fireEvent.press(screen.getByRole('button', { name: actionLabel }));
+
+    expect(onAction).toHaveBeenCalledTimes(1);
+    expect(onPress).not.toHaveBeenCalled();
+  });
 });

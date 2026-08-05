@@ -6,7 +6,7 @@ import {
   type Movie,
   type MovieStylePatch,
 } from '@/entities/movie';
-import { formatSeconds } from '@/shared/lib/datetime';
+import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -25,7 +25,8 @@ export type DetailSheetProps = {
 
 /**
  * Everything about the movie that is not a cut and not the look: the sound,
- * the subtitles, who owns the cut order, and the two read-outs.
+ * the subtitles, who owns the cut order, and the read-outs — 비율, 목표 길이,
+ * and, once there is a render, when it was finished.
  *
  * Every control writes straight through — nothing here is staged, so the sheet
  * can be opened, flipped, and dismissed without a save step. BGM is a row of
@@ -140,6 +141,21 @@ export function DetailSheet({
               컷 합계 ({formatSeconds(totalSec)})
             </ThemedText>
           </View>
+
+          {/* When the movie was last finished. It reads out here rather than on
+              the screen, where a whole row under the title bought one date. */}
+          {movie.render ? (
+            <>
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              <View style={styles.row}>
+                <ThemedText type="small">완성</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {formatDateTime(movie.render.renderedAt)}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
         </View>
       </View>
     </BottomSheet>

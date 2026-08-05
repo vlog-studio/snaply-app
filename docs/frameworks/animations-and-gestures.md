@@ -28,13 +28,16 @@ Imitate the closest existing implementation instead of inventing a new shape.
 | Mount fade/slide-in | `src/shared/ui/fade-in-view/fade-in-view.tsx` | Shared value driven by `withTiming` in a mount effect; reusable wrapper with `delay`/`duration` props |
 | One-shot choreography with a completion callback | `src/pages/capture-record/ui/capture-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
 | Gesture/state-driven progress indicator | `src/pages/capture-record/ui/hold-ring.tsx` | Shared value + `useAnimatedProps` on an SVG element; fills while a prop is true, rewinds on release |
-| Positional reflow of in-flow items (FLIP) | `src/pages/movie/ui/timeline-cut.tsx` (`shiftX`) | Flex still owns placement; when an item's slot index changes, an effect pulls it back by `oldX - newX` via a translate shared value and springs it to 0. Keyed to the *slot* changing — not the coordinate — so layout shifts that already animated live (a neighbour's trim drag) are not replayed |
+| Positional reflow of in-flow items (FLIP) | `src/pages/movie/ui/timeline-cut.tsx` (`shiftX`) | Flex still owns placement; when an item's slot index changes it is pulled back by `oldX - newX` via a translate shared value and sprung to 0. The comparison and the write happen **inside `useAnimatedStyle`**, not in a JS effect: the worklet re-evaluates on the UI thread in the same update that delivers the new layout, where an effect runs after paint and flashes the item at its destination for a frame first. Keyed to the *slot* changing — not the coordinate — so layout shifts that already animated live (a neighbour's trim drag) are not replayed |
 | Splash exit | `src/_app/routes/animated-splash-overlay.tsx` | The one `Keyframe`/`entering` usage in the app (see the Expo Go caveat below before adding another) |
 
 > The drag-reorder grid (`cut-sheet-grid.tsx` + `reorder-layout.ts`) was removed with
-> the roll sheet in the studio rebuild. The rules it taught are kept below, because the
-> movie editor's cut list is the same problem; recover the implementation from git
-> history (`git show f3324b1:src/pages/roll-detail/ui/cut-sheet-grid.tsx`) rather than
+> the roll sheet in the studio rebuild, and nothing in the app drags to reorder today:
+> the movie timeline moves a cut with ◀ ▶ and animates the result as a FLIP reflow
+> (above). The rules it taught are kept below because they are the rules for *any*
+> drag inside a scrollable; if a drag-reorder strip is ever wanted back, recover the
+> implementation from git history
+> (`git show f3324b1:src/pages/roll-detail/ui/cut-sheet-grid.tsx`) rather than
 > reinventing it.
 
 ## Rules
@@ -82,15 +85,40 @@ a plain module-level factory that takes the shared values as arguments
 
 ### Gestures inside scrollables
 
+Which of the two shapes below applies is decided by one question: **can the
+gesture be told apart from the scroll by direction?**
+
+*A gesture on a different axis, or one that may wait to begin* —
+`.activateAfterLongPress(...)`:
+
 - Use `.activateAfterLongPress(...)` so the scroll gesture keeps working; on
   activation give haptic feedback (`Haptics.impactAsync(Medium)` — the established
   lift/collect cue) and lock the scroll (`scrollEnabled={!dragActive}` via a
   `runOnJS` state flip) until the gesture settles.
 - Match the long-press delay to the sibling `Pressable`'s `delayLongPress` (260ms
   today) so gesture entries feel like one family.
-- Build gestures inline in render (no memo): `GestureDetector` reconciles the
-  native handler on re-render without cancelling an active gesture, and the inline
-  build keeps worklet captures fresh.
+
+*A gesture that wants the scroll's own axis and must respond to the first pixel*
+— lock the scroll on touch-down (`timeline-cut.tsx`'s `buildTrimGesture` is the
+canonical shape). A trim handle sits inside a horizontal scroll and drags
+horizontally, so no offset-based or long-press arbitration can separate them,
+and a handle that needed a long press before it moved would not feel like a
+handle:
+
+- Lock the scroll from `.onTouchesDown(...)` (`runOnJS` a `setTrimming(true)`
+  the scrollable reads as `scrollEnabled={!trimming}`), before either gesture
+  can claim the axis. Pair it with `.minDistance(0)` so the pan owns the finger
+  immediately.
+- Release the lock in **`.onFinalize(...)`**, not `.onEnd(...)`: a cancelled
+  gesture must still hand the scroll back, and must still commit whatever the
+  drag had reached.
+- The lock is per-handle, so the strip still scrolls everywhere else — the
+  scrollable is disabled only for the duration of a touch that started on a
+  handle.
+
+Both shapes: build gestures inline in render (no memo). `GestureDetector`
+reconciles the native handler on re-render without cancelling an active gesture,
+and the inline build keeps worklet captures fresh.
 
 ### Never let a mode change remount animated content
 
@@ -129,9 +157,15 @@ The house style is fast and settled — film equipment, not rubber:
 
 - Fades/mount motion: `withTiming`, 280–600ms, `Easing.out(Easing.cubic)`.
 - Micro state changes (lift scale): ~120ms timing.
-- Positional reflow (drag grids): near-critically-damped springs — reference
-  `{ damping: 44, stiffness: 300 }` from `cut-sheet-grid.tsx`; items glide into
-  place with no visible bounce. Start from these values and tune on device.
+- Positional reflow (a reordered item gliding to its new slot):
+  near-critically-damped springs — `{ damping: 44, stiffness: 300 }`, live in the
+  app as `timeline-cut.tsx`'s `ReorderSpring` (carried over from the removed
+  `cut-sheet-grid.tsx`); items glide into place with no visible bounce. Start
+  from these values and tune on device.
+- Following playback with a continuous position (the timeline strip under its
+  playhead): aim one report interval ahead and take exactly that long to get
+  there, with `Easing.linear` — each report arrives as the previous glide lands,
+  so the motion runs at the content's speed instead of stepping once per report.
 
 ## Verification
 

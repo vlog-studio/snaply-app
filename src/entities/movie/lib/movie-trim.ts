@@ -1,12 +1,12 @@
 import type { SnapRef } from '../model/movie';
 
 /**
- * Granularity a trim is set at. The trim bar is dragged continuously but lands
- * on a multiple of this, so every length the app prints is a value the user could
- * have aimed at — and a half second is the smallest cut worth making out of a
- * three-second snap.
+ * Granularity a trim is set at. The trim handles are dragged continuously but
+ * land on a multiple of this, so every length the app prints is a value the user
+ * could have aimed at — and a tenth of a second is fine enough to shave a beat
+ * off a three-second snap.
  */
-export const CutTrimStepSec = 0.5;
+export const CutTrimStepSec = 0.1;
 
 /** Shortest a cut may be. Below this a cut is a flicker, not a shot. */
 export const MinCutSec = 1;
@@ -16,7 +16,9 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function snapToStep(sec: number): number {
-  return Math.round(sec / CutTrimStepSec) * CutTrimStepSec;
+  // Multiples of a tenth pick up float noise (3 * 0.1 !== 0.3); rounding to a
+  // millisecond keeps stored windows printable.
+  return Math.round(Math.round(sec / CutTrimStepSec) * CutTrimStepSec * 1000) / 1000;
 }
 
 /** How long a cut plays: its trim window, or the whole snap when untrimmed. */

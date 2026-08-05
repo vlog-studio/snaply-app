@@ -35,7 +35,9 @@ export function xToSec(x: number, track: TrimTrack): number {
   'worklet';
   if (track.width <= 0 || track.stepSec <= 0) return 0;
   const raw = (clampPx(x, 0, track.width) / track.width) * track.durationSec;
-  return Math.round(raw / track.stepSec) * track.stepSec;
+  // Multiples of a tenth pick up float noise (3 * 0.1 !== 0.3); rounding to a
+  // millisecond keeps every reported window printable.
+  return Math.round(Math.round(raw / track.stepSec) * track.stepSec * 1000) / 1000;
 }
 
 /** How far apart the two handles must stay for the cut to keep a minimum length. */
@@ -47,8 +49,8 @@ export function minGapPx(minSec: number, track: TrimTrack): number {
 /**
  * A one-number stand-in for the window the handles currently describe, so the
  * drag can tell a step change from a frame and cross to JS only for the former.
- * Both values are multiples of half a second on a track of a few seconds, so the
- * shift is far larger than any pair it has to separate.
+ * Both values are multiples of a tenth of a second on a track of a few seconds,
+ * so the shift is far larger than any pair it has to separate.
  */
 export function windowSignature(startSec: number, endSec: number): number {
   'worklet';

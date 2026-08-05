@@ -39,7 +39,10 @@ describe('cutsDurationSec', () => {
 
 describe('withTrim', () => {
   it.each([
-    ['snaps to the half second', 0.8, 3.1, { startSec: 1, endSec: 3 }],
+    ['snaps to the tenth of a second', 0.84, 3.16, { startSec: 0.8, endSec: 3.2 }],
+    // Naive step arithmetic renders 0.8 as 0.8000000000000001; the stored
+    // window must be the printable value.
+    ['lands on a printable tenth', 0.8, 3.1, { startSec: 0.8, endSec: 3.1 }],
     ['holds the start inside the snap', -2, 3, { startSec: 0, endSec: 3 }],
     ['holds the end inside the snap', 1, 9, { startSec: 1, endSec: 5 }],
     [

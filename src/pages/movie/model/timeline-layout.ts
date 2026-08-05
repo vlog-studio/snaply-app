@@ -8,8 +8,12 @@
  * decides how wide each cut is drawn and where the ruler's ticks fall.
  */
 
-/** How many points one second of playback occupies in the strip. */
-export const TimelinePxPerSec = 60;
+/**
+ * How many points one second of playback occupies in the strip. Wide enough
+ * that one trim step (`CutTrimStepSec`) is a draggable distance, so a short cut
+ * can still be adjusted by tenths.
+ */
+export const TimelinePxPerSec = 120;
 
 /**
  * The stand-in length for a cut whose original was deleted. It plays nothing,
@@ -23,12 +27,6 @@ export type TimelineCutSize = {
   usedSec: number;
   /** The whole snap's length, or `undefined` when the original was deleted. */
   fullSec: number | undefined;
-  /**
-   * Seconds trimmed off the front, absent when the cut plays from the start.
-   * Only an expanded cut needs it: that clip draws the whole snap, so the moment
-   * being played sits this much past the clip's left edge instead of at it.
-   */
-  leadSec?: number;
 };
 
 /** Where one cut sits in the strip, in points from the first cut's left edge. */
@@ -38,13 +36,13 @@ export type TimelineCutMetric = {
 };
 
 /**
- * How many seconds of strip one cut occupies. A cut being trimmed (`expanded`)
- * shows its whole snap — the window is dragged over the full reel — and a dead
- * cut gets the stand-in length.
+ * How many seconds of strip one cut occupies: what it plays. A cut being
+ * trimmed widens and narrows live on the UI thread (`TimelineCut` drives its
+ * own width from the handles); these metrics catch up when the window settles.
+ * A dead cut gets the stand-in length.
  */
-export function cutDisplaySec(size: TimelineCutSize, expanded: boolean): number {
-  if (size.fullSec === undefined) return DeadCutSec;
-  return expanded ? size.fullSec : size.usedSec;
+export function cutDisplaySec(size: TimelineCutSize): number {
+  return size.fullSec === undefined ? DeadCutSec : size.usedSec;
 }
 
 /**
@@ -54,12 +52,11 @@ export function cutDisplaySec(size: TimelineCutSize, expanded: boolean): number 
  */
 export function timelineCutMetrics(
   sizes: readonly TimelineCutSize[],
-  expandedIndex: number,
   pxPerSec: number,
 ): TimelineCutMetric[] {
   let x = 0;
-  return sizes.map((size, index) => {
-    const width = cutDisplaySec(size, index === expandedIndex) * pxPerSec;
+  return sizes.map((size) => {
+    const width = cutDisplaySec(size) * pxPerSec;
     const metric = { x, width };
     x += width;
     return metric;
@@ -81,20 +78,16 @@ export type TimelinePlayhead = {
  * Where the moment being played sits in the strip, in points from the first
  * cut's left edge.
  *
- * A collapsed clip draws only the trim window, so the offset lands as it is; an
- * expanded clip draws the whole snap behind the window, so the trimmed-off lead
- * is added back. Held inside the clip either way — a report that arrives a beat
- * after a cut ended must not push the playhead into the next cut's clip.
+ * A clip draws exactly its trim window, so the offset into the cut lands as it
+ * is. Held inside the clip — a report that arrives a beat after a cut ended
+ * must not push the playhead into the next cut's clip.
  */
 export function playheadXPx(
   metric: TimelineCutMetric,
-  size: TimelineCutSize,
-  expanded: boolean,
   secIntoCut: number,
   pxPerSec: number,
 ): number {
-  const lead = expanded ? (size.leadSec ?? 0) : 0;
-  const offsetPx = (lead + Math.max(secIntoCut, 0)) * pxPerSec;
+  const offsetPx = Math.max(secIntoCut, 0) * pxPerSec;
   return metric.x + Math.min(offsetPx, metric.width);
 }
 

@@ -75,8 +75,8 @@ export function formatDayHeading(epochMs: number, now: number = Date.now()): str
 /**
  * A short length as a label: `4초`, `4.5초`.
  *
- * Trims are set at half seconds, so a cut's or a movie's length is not always
- * whole — but most are, and `4.0초` reads as a measurement rather than a
+ * Trims are set at tenths of a second, so a cut's or a movie's length is not
+ * always whole — but many are, and `4.0초` reads as a measurement rather than a
  * duration. For anything that can pass a minute, use {@link formatDuration}.
  */
 export function formatSeconds(totalSec: number): string {

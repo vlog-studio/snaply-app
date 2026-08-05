@@ -1,6 +1,6 @@
 import { clampPx, minGapPx, secToX, windowSignature, xToSec } from './trim-geometry';
 
-const track = { width: 200, durationSec: 4, stepSec: 0.5 };
+const track = { width: 200, durationSec: 4, stepSec: 0.1 };
 
 describe('secToX', () => {
   it.each([
@@ -25,11 +25,16 @@ describe('xToSec', () => {
     [50, 1],
     [200, 4],
     // Between two steps, the nearer one wins.
-    [30, 0.5],
-    [45, 1],
+    [7, 0.1],
+    [12, 0.2],
     [400, 4],
   ])('reads %p points as %p seconds', (x, expected) => {
     expect(xToSec(x, track)).toBe(expected);
+  });
+
+  it('lands on a printable tenth, not a float-noise neighbour', () => {
+    // 15pt is 0.3s here, which naive step arithmetic renders 0.30000000000000004.
+    expect(xToSec(15, track)).toBe(0.3);
   });
 
   it.each([
@@ -60,11 +65,11 @@ describe('minGapPx', () => {
 });
 
 describe('windowSignature', () => {
-  it('separates every window a half-second grid can produce', () => {
+  it('separates every window a tenth-second grid can produce', () => {
     const windows: number[] = [];
-    for (let start = 0; start <= 5; start += 0.5) {
-      for (let end = start + 1; end <= 5; end += 0.5) {
-        windows.push(windowSignature(start, end));
+    for (let startTenths = 0; startTenths <= 50; startTenths += 1) {
+      for (let endTenths = startTenths + 10; endTenths <= 50; endTenths += 1) {
+        windows.push(windowSignature(startTenths / 10, endTenths / 10));
       }
     }
     expect(new Set(windows).size).toBe(windows.length);

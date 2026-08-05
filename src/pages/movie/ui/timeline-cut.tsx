@@ -30,6 +30,15 @@ export const TimelineCutHeight = 56;
 const TileWidth = TimelineCutHeight;
 const HandleWidth = 18;
 
+/**
+ * Slack under which a window edge counts as touching the file's end — half a
+ * trim step, so a stored value one step away never reads as "at the end" and a
+ * measured duration a hair off a step never reads as "footage left".
+ */
+const EdgeSlackSec = CutTrimStepSec / 2;
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 /** Which end of the trim window a handle moves. */
 type TrimEdge = 'start' | 'end';
 
@@ -105,11 +114,14 @@ export type TimelineCutProps = {
   selected: boolean;
   /**
    * True when this cut is being trimmed in place: selected, editable, and its
-   * original alive. The clip widens to the whole snap and grows handles. Must
-   * agree with the `width` the strip's metrics computed.
+   * original alive. The clip grows a handle at each edge.
    */
-  expanded: boolean;
-  /** Width this cut occupies in the strip, from the shared layout metrics. */
+  focused: boolean;
+  /**
+   * Width this cut occupies in the strip, from the shared layout metrics. A
+   * live clip drives its own width from the handles (the two agree whenever no
+   * handle is down); this is what a dead cut is drawn at.
+   */
   width: number;
   pxPerSec: number;
   onSelect: (index: number) => void;
@@ -123,23 +135,24 @@ export type TimelineCutProps = {
  * One cut in the timeline strip, drawn as long as it plays.
  *
  * The clip's width is its duration on the strip's seconds scale, filled with
- * repeating thumbnail tiles like a reel. A collapsed clip shows only its trim
- * window (the reel slides left by the trimmed-off lead); the expanded clip —
- * the selected one, while editable — shows the *whole* snap with the window
- * framed on top of it, so trimming is dragging the frame's edges over footage
- * that stays put, and footage outside the window is visible (dimmed) rather
- * than gone. That is what makes the trim live on the timeline itself instead
- * of on a separate bar.
+ * repeating thumbnail tiles like a reel — the reel spans the whole snap and
+ * slides left by the trimmed-off lead, so the clip always shows exactly its
+ * window. The focused clip grows a handle at each edge: a chevron pointing
+ * outward where trimmed-off footage remains (drag to lengthen or shorten), a
+ * plain bar where the window already touches the file's end (drag inward
+ * only). Dragging a handle resizes the clip itself on the timeline — the width
+ * and the reel's slide follow the finger on the UI thread — instead of opening
+ * the whole snap up.
  *
- * The handles follow the finger on the UI thread; React state only hears about
- * half-second boundary crossings (for the duration badge) and the settled
- * window (per `docs/frameworks/animations-and-gestures.md`).
+ * React state only hears about trim-step boundary crossings (for the duration
+ * badge and the handle glyphs) and the settled window (per
+ * `docs/frameworks/animations-and-gestures.md`).
  */
 export function TimelineCut({
   cut,
   index,
   selected,
-  expanded,
+  focused,
   width,
   pxPerSec,
   onSelect,
@@ -185,23 +198,24 @@ export function TimelineCut({
     onTrim(index, nextStart, nextEnd);
   };
 
-  const leftDimStyle = useAnimatedStyle(() => ({ width: startX.value }));
-  const rightDimStyle = useAnimatedStyle(() => ({ left: endX.value }));
-  const frameStyle = useAnimatedStyle(() => ({
-    left: startX.value,
+  // The clip *is* the trim window: its width and the reel's slide are the
+  // handles' positions, so a drag resizes the clip live on the UI thread and
+  // the strip's metrics catch up when the window settles.
+  const clipWidthStyle = useAnimatedStyle(() => ({
     width: Math.max(endX.value - startX.value, 0),
   }));
-  const startHandleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: startX.value }],
+  const reelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: -startX.value }],
   }));
-  const endHandleStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: endX.value - HandleWidth }],
-  }));
+
+  // Which glyph each handle wears: a chevron points where footage remains.
+  const canExtendStart = shown.startSec > EdgeSlackSec;
+  const canExtendEnd = durationSec - shown.endSec > EdgeSlackSec;
 
   const tileCount = Math.max(Math.ceil(reelWidth / TileWidth), 1);
 
   return (
-    <Pressable
+    <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={`컷 ${index + 1}${missing ? ' · 원본 삭제됨' : ''} · ${formatSeconds(shown.endSec - shown.startSec)}`}
       accessibilityState={{ selected }}
@@ -209,48 +223,27 @@ export function TimelineCut({
       style={[
         styles.clip,
         {
-          width,
           backgroundColor: theme.media,
-          borderColor: missing ? theme.danger : selected && !expanded ? theme.amber : theme.border,
-          borderWidth: missing || (selected && !expanded) ? 2 : 1,
+          borderColor: missing ? theme.danger : selected ? theme.amber : theme.border,
+          borderWidth: missing || selected ? 2 : 1,
         },
+        // A dead cut has no handles to size it; the stand-in width applies.
+        missing ? { width } : clipWidthStyle,
       ]}
     >
       {snap ? (
-        <View
-          style={[
-            styles.reel,
-            { width: reelWidth },
-            // A collapsed clip shows only its window: the reel slides left by
-            // the trimmed-off lead and the clip's width crops the rest.
-            expanded ? null : { transform: [{ translateX: -secToX(startSec, track) }] },
-          ]}
-        >
+        <Animated.View style={[styles.reel, { width: reelWidth }, reelStyle]}>
           {Array.from({ length: tileCount }, (_, tile) => (
             <View key={tile} style={styles.tile}>
               <VideoFrame uri={snap.uri} />
             </View>
           ))}
-        </View>
+        </Animated.View>
       ) : (
         <View style={styles.missingMark}>
           <Ionicons name="alert-circle-outline" size={18} color={theme.danger} />
         </View>
       )}
-
-      {expanded ? (
-        <>
-          <Animated.View pointerEvents="none" style={[styles.dim, styles.dimLeft, leftDimStyle]} />
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.dim, styles.dimRight, rightDimStyle]}
-          />
-          <Animated.View
-            pointerEvents="none"
-            style={[styles.windowFrame, { borderColor: theme.amber }, frameStyle]}
-          />
-        </>
-      ) : null}
 
       <View style={styles.badges} pointerEvents="none">
         <ThemedText selectable={false} style={styles.number}>
@@ -261,45 +254,43 @@ export function TimelineCut({
         </ThemedText>
       </View>
 
-      {expanded ? (
+      {focused ? (
         <>
           <GestureDetector
             gesture={buildTrimGesture(handles, 'start', track, report, onTrimmingChange)}
           >
-            <Animated.View
+            <View
               accessibilityRole="adjustable"
               accessibilityLabel="컷 시작 지점"
               accessibilityValue={{ text: formatSeconds(shown.startSec) }}
-              style={[
-                styles.handle,
-                styles.handleStart,
-                { backgroundColor: theme.amber },
-                startHandleStyle,
-              ]}
+              style={[styles.handle, styles.handleStart, { backgroundColor: theme.amber }]}
             >
-              <View style={styles.grip} />
-            </Animated.View>
+              {canExtendStart ? (
+                <Ionicons name="chevron-back" size={13} color="#FFFFFF" />
+              ) : (
+                <View style={styles.grip} />
+              )}
+            </View>
           </GestureDetector>
           <GestureDetector
             gesture={buildTrimGesture(handles, 'end', track, report, onTrimmingChange)}
           >
-            <Animated.View
+            <View
               accessibilityRole="adjustable"
               accessibilityLabel="컷 끝 지점"
               accessibilityValue={{ text: formatSeconds(shown.endSec) }}
-              style={[
-                styles.handle,
-                styles.handleEnd,
-                { backgroundColor: theme.amber },
-                endHandleStyle,
-              ]}
+              style={[styles.handle, styles.handleEnd, { backgroundColor: theme.amber }]}
             >
-              <View style={styles.grip} />
-            </Animated.View>
+              {canExtendEnd ? (
+                <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+              ) : (
+                <View style={styles.grip} />
+              )}
+            </View>
           </GestureDetector>
         </>
       ) : null}
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -327,38 +318,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Fixed black over arbitrary video, like the badge shadows, rather than a
-  // palette color.
-  dim: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  dimLeft: { left: 0 },
-  dimRight: { right: 0 },
-  windowFrame: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    borderWidth: 2,
-    borderRadius: Radius.small,
-    borderCurve: 'continuous',
-  },
   handle: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    left: 0,
     width: HandleWidth,
     alignItems: 'center',
     justifyContent: 'center',
   },
   handleStart: {
+    left: 0,
     borderTopLeftRadius: Radius.small,
     borderBottomLeftRadius: Radius.small,
   },
   handleEnd: {
+    right: 0,
     borderTopRightRadius: Radius.small,
     borderBottomRightRadius: Radius.small,
   },

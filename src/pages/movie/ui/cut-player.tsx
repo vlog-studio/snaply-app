@@ -104,6 +104,13 @@ export function CutPlayer({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
+  // Mirrors `isPlaying` for the async load completions, which must ask "is the
+  // stage still supposed to be playing?" after an arbitrary delay.
+  const isPlayingRef = useRef(true);
+  const setPlaying = (playing: boolean) => {
+    isPlayingRef.current = playing;
+    setIsPlaying(playing);
+  };
 
   const playerA = useVideoPlayer(cuts[0].uri, (instance) => {
     instance.muted = muted;
@@ -131,26 +138,43 @@ export function CutPlayer({
   };
 
   /**
-   * Loads a cut into a slot and parks it on the cut's first frame, paused.
+   * Loads a cut into a slot and parks it `secIntoCut` past its trim window
+   * start, paused — every source change goes through here, always via
+   * `replaceAsync`, because the synchronous `replace` loads the file on the
+   * iOS main thread and freezes the app for the duration.
    *
    * The seek is `seekBy` written as a delta from wherever the player reports
    * itself — the equivalent `currentTime` assignment is a property write on a
    * value a hook returned, which the React Compiler lint rejects. The delta
-   * form also makes the preload idempotent: a slot that already holds the file
+   * form also makes the load idempotent: a slot that already holds the file
    * mid-cut (it was on stage a moment ago) parks on the window start rather
-   * than double-seeking past it. Seeking at preload time rather than at the
+   * than double-seeking past it. Seeking at load time rather than at the
    * swap is what keeps a trimmed cut from showing its own frame zero for an
    * instant when it comes on.
+   *
+   * Whether the slot then plays is not an argument but a question asked when
+   * the load completes: a slot that is by then on stage, on the current cut,
+   * with the stage meant to be playing, starts itself. That one rule covers a
+   * preload still in flight when `advance` swaps to it, a jump the user paused
+   * during, and a plain background preload (never active, never plays).
    */
-  const preload = (slot: 0 | 1, index: number) => {
+  const loadSlot = (slot: 0 | 1, index: number, secIntoCut = 0) => {
+    const cut = cuts[index];
     slotCutRef.current[slot] = index;
-    slotUriRef.current[slot] = cuts[index].uri;
+    slotUriRef.current[slot] = cut.uri;
     slotLoadingRef.current[slot] = true;
-    void players[slot].replaceAsync(cuts[index].uri).then(() => {
+    void players[slot].replaceAsync(cut.uri).then(() => {
       // A completion the slot has moved past parks nothing.
-      if (slotUriRef.current[slot] !== cuts[index].uri) return;
+      if (slotUriRef.current[slot] !== cut.uri) return;
       slotLoadingRef.current[slot] = false;
-      players[slot].seekBy(cuts[index].startSec - players[slot].currentTime);
+      players[slot].seekBy(cut.startSec + secIntoCut - players[slot].currentTime);
+      if (
+        activeSlotRef.current === slot &&
+        currentIndexRef.current === index &&
+        isPlayingRef.current
+      ) {
+        players[slot].play();
+      }
     });
   };
 
@@ -183,23 +207,20 @@ export function CutPlayer({
     const other: 0 | 1 = slot === 0 ? 1 : 0;
     players[other].pause();
     players[slot].pause();
+    setIndex(index, offset);
+    setIsEnded(false);
+    setPlaying(play);
     if (holdsCut(slot)) {
       // Same cut on the stage: an absolute-position seek, written as the delta
       // `seekBy` wants, from wherever the player currently sits.
       players[slot].seekBy(cut.startSec + offset - players[slot].currentTime);
+      if (play) players[slot].play();
     } else {
-      players[slot].replace(cut.uri);
-      players[slot].seekBy(cut.startSec + offset);
-      slotCutRef.current[slot] = index;
-      slotUriRef.current[slot] = cut.uri;
-      slotLoadingRef.current[slot] = false;
+      // Not loaded yet: the load's completion plays it, if `play` still stands.
+      loadSlot(slot, index, offset);
     }
-    setIndex(index, offset);
-    setIsEnded(false);
-    setIsPlaying(play);
-    if (play) players[slot].play();
     if (index + 1 < cuts.length) {
-      preload(other, index + 1);
+      loadSlot(other, index + 1);
     } else {
       slotCutRef.current[other] = -1;
     }
@@ -230,7 +251,7 @@ export function CutPlayer({
     if (nextIndex >= cuts.length) {
       players[endedSlot].pause();
       setIsEnded(true);
-      setIsPlaying(false);
+      setPlaying(false);
       return;
     }
 
@@ -239,21 +260,23 @@ export function CutPlayer({
     players[endedSlot].pause();
 
     const nextSlot: 0 | 1 = endedSlot === 0 ? 1 : 0;
-    if (slotCutRef.current[nextSlot] !== nextIndex) {
-      // Not preloaded (a single-cut movie, or a rapid change) — load now.
-      players[nextSlot].replace(cuts[nextIndex].uri);
-      players[nextSlot].seekBy(cuts[nextIndex].startSec);
-      slotCutRef.current[nextSlot] = nextIndex;
-      slotUriRef.current[nextSlot] = cuts[nextIndex].uri;
-      slotLoadingRef.current[nextSlot] = false;
-    }
+    const holdsNext =
+      slotCutRef.current[nextSlot] === nextIndex &&
+      slotUriRef.current[nextSlot] === cuts[nextIndex].uri;
     activeSlotRef.current = nextSlot;
     setActiveSlot(nextSlot);
     setIndex(nextIndex);
-    players[nextSlot].play();
+    if (!holdsNext) {
+      // Not preloaded (a rapid change) — load now; the completion plays it.
+      loadSlot(nextSlot, nextIndex);
+    } else if (!slotLoadingRef.current[nextSlot]) {
+      players[nextSlot].play();
+    }
+    // A preload still in flight plays itself on completion, now that this slot
+    // is the active one on the current cut.
 
     // Preload the cut after that into the slot that just finished.
-    if (nextIndex + 1 < cuts.length) preload(endedSlot, nextIndex + 1);
+    if (nextIndex + 1 < cuts.length) loadSlot(endedSlot, nextIndex + 1);
   };
 
   /** Keeps the active player inside the current cut's window. */
@@ -301,10 +324,10 @@ export function CutPlayer({
     const active = players[activeSlotRef.current];
     if (isPlaying) {
       active.pause();
-      setIsPlaying(false);
+      setPlaying(false);
     } else {
       active.play();
-      setIsPlaying(true);
+      setPlaying(true);
     }
   };
 

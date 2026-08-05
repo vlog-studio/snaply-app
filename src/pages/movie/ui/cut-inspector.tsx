@@ -81,18 +81,23 @@ export function CutInspector({
               ? `원본 ${formatSeconds(cut.snap!.durationSec)} → 사용 ${formatSeconds(cut.usedSec)}`
               : `사용 ${formatSeconds(cut.usedSec)}`}
         </ThemedText>
-        {canEdit && isTrimmed && cut.snap ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`컷 ${number} 전체 사용`}
-            hitSlop={6}
-            onPress={() => onResetTrim(index)}
-          >
-            <ThemedText selectable={false} type="edge" themeColor="primary">
-              전체 사용
-            </ThemedText>
-          </Pressable>
-        ) : null}
+        {/* The slot keeps its height when the action is absent: the stage above
+            is sized by what this zone leaves over, so an inspector that grew a
+            row on trimmed cuts made the video jump as playback crossed cuts. */}
+        <View style={styles.resetSlot}>
+          {canEdit && isTrimmed && cut.snap ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`컷 ${number} 전체 사용`}
+              hitSlop={6}
+              onPress={() => onResetTrim(index)}
+            >
+              <ThemedText selectable={false} type="edge" themeColor="primary">
+                전체 사용
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {canEdit ? (
@@ -123,6 +128,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   meta: { flex: 1, gap: Spacing.half },
+  // Matches the `edge` line's height (`Typography.micro`), reserved always.
+  resetSlot: { height: 16, justifyContent: 'center' },
   tools: { flexDirection: 'row', gap: Spacing.one },
   tool: {
     minWidth: 44,

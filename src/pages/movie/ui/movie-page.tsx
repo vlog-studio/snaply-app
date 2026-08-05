@@ -123,6 +123,11 @@ export function MoviePage({ movieId }: MoviePageProps) {
     if (playbackIndex !== undefined) playerRef.current?.jumpTo(playbackIndex);
   };
 
+  // A tap on the strip's empty space lets go of the cut: the trim handles
+  // retract and the inspector row closes. The playhead stays put — releasing
+  // a cut is not a seek. Playback re-selects on its own (`onCutChange`).
+  const deselectCut = () => setSelectedIndex(-1);
+
   // A strip drag come to rest: whatever moment stopped under the playhead
   // becomes the playback position, paused on its frame — playing stays the
   // transport's job. Selection follows so the inspector talks about the cut
@@ -237,6 +242,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
         canEdit={canEdit}
         onSelect={selectCut}
         onScrub={scrubTo}
+        onDeselect={deselectCut}
         onTrim={list.trimCut}
         onAddSnaps={addSnaps}
       />

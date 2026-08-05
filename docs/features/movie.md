@@ -86,7 +86,7 @@ There is no remote work to break, so `failed` is not a simulated coin flip. It i
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| Sequential playback | `Functional` | The cuts play in stored order with no gap between them. Two players alternate: while one plays, the other holds the next cut preloaded and paused on its first frame, so the swap is instant with no black flash. After each swap the freed player preloads the cut after that. |
+| Sequential playback | `Functional` | The stage opens paused on the first cut's frame — entering the screen is coming to work, not asking to watch, so playing is always asked for (the transport or a stage tap; 2026-08-05, replacing autoplay on entry). Once playing, the cuts run in stored order with no gap between them. Two players alternate: while one plays, the other holds the next cut preloaded and paused on its first frame, so the swap is instant with no black flash. After each swap the freed player preloads the cut after that. |
 | Trim-aware playback | `Functional` | A cut starts at its window's start and is advanced when the position reaches its end, rather than waiting for the file to run out. `playToEnd` still catches the untrimmed case. The outgoing player is paused at the boundary — a cut ends with file left over, and an unpaused one would keep playing unseen but audible. |
 | Pause, resume, replay | `Functional` | The transport's 재생/일시정지 button under the stage (leftmost, mirroring the stage's state through `onPlayingChange`), and tapping the stage does the same; after the last cut, either replays from the first. |
 | Progress | `Functional` | One segment per cut across the bottom, filled up to the cut playing now, plus a `컷 n / N` counter. |

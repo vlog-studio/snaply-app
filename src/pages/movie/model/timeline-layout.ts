@@ -91,6 +91,25 @@ export function playheadXPx(
   return metric.x + Math.min(offsetPx, metric.width);
 }
 
+/**
+ * The inverse of `playheadXPx`: which moment sits `x` points from the first
+ * cut's left edge — what a hand-scrolled strip has brought under the fixed
+ * playhead. Clamped into the strip, so an overscroll on either end lands on
+ * the movie's first or last moment. `index: -1` only for an empty strip.
+ */
+export function playheadAtX(
+  metrics: readonly TimelineCutMetric[],
+  x: number,
+  pxPerSec: number,
+): TimelinePlayhead {
+  if (metrics.length === 0 || pxPerSec <= 0) return { index: -1, secIntoCut: 0 };
+  const found = metrics.findIndex((metric) => x < metric.x + metric.width);
+  const index = found === -1 ? metrics.length - 1 : found;
+  const metric = metrics[index];
+  const offsetPx = Math.min(Math.max(x - metric.x, 0), metric.width);
+  return { index, secIntoCut: offsetPx / pxPerSec };
+}
+
 /** One ruler mark: a labelled second, or an unlabelled half-second dot. */
 export type RulerTick = {
   x: number;

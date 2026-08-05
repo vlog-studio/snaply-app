@@ -92,6 +92,12 @@ export function CutPlayer({
   const theme = useTheme();
   // Which cut each slot currently holds; slot 1 preloads the second cut.
   const slotCutRef = useRef<[number, number]>([0, cuts.length > 1 ? 1 : -1]);
+  // Which file each slot's player was last asked to load, and whether that
+  // load is still in flight. A slot counts as *holding* a cut only when all
+  // three agree — the cut index alone lies right after a reorder (same index,
+  // different file), and a slot mid-replace ignores seeks.
+  const slotUriRef = useRef<[string, string]>([cuts[0].uri, cuts[1]?.uri ?? cuts[0].uri]);
+  const slotLoadingRef = useRef<[boolean, boolean]>([false, false]);
   const activeSlotRef = useRef<0 | 1>(0);
   const currentIndexRef = useRef(0);
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
@@ -127,35 +133,67 @@ export function CutPlayer({
   /**
    * Loads a cut into a slot and parks it on the cut's first frame, paused.
    *
-   * The seek is `seekBy` from a freshly replaced source, which always sits at
-   * zero — the equivalent `currentTime` assignment is a property write on a value
-   * a hook returned, which the React Compiler lint rejects. Seeking at preload
-   * time rather than at the swap is what keeps a trimmed cut from showing its
-   * own frame zero for an instant when it comes on.
+   * The seek is `seekBy` written as a delta from wherever the player reports
+   * itself — the equivalent `currentTime` assignment is a property write on a
+   * value a hook returned, which the React Compiler lint rejects. The delta
+   * form also makes the preload idempotent: a slot that already holds the file
+   * mid-cut (it was on stage a moment ago) parks on the window start rather
+   * than double-seeking past it. Seeking at preload time rather than at the
+   * swap is what keeps a trimmed cut from showing its own frame zero for an
+   * instant when it comes on.
    */
   const preload = (slot: 0 | 1, index: number) => {
     slotCutRef.current[slot] = index;
+    slotUriRef.current[slot] = cuts[index].uri;
+    slotLoadingRef.current[slot] = true;
     void players[slot].replaceAsync(cuts[index].uri).then(() => {
-      players[slot].seekBy(cuts[index].startSec);
+      // A completion the slot has moved past parks nothing.
+      if (slotUriRef.current[slot] !== cuts[index].uri) return;
+      slotLoadingRef.current[slot] = false;
+      players[slot].seekBy(cuts[index].startSec - players[slot].currentTime);
     });
   };
 
   /**
    * Points the stage at `index` — the jump behind a strip tap, a strip scrub
    * (`secIntoCut` past the trim window's start), and the playlist changing
-   * underneath. The active slot is reloaded in place (its current cut is
-   * usually wrong now) and the idle slot preloads the cut after.
+   * underneath. A slot that already holds the cut is seeked in place and made
+   * active — replacing a source blanks the frame for an instant even when it
+   * is the same file (the remount-blink of
+   * `docs/frameworks/animations-and-gestures.md`), and a scrub inside one cut
+   * would blink on every settle. Only a cut no slot holds costs a replace.
    */
   const loadCut = (index: number, play: boolean, secIntoCut = 0) => {
     const cut = cuts[index];
     const offset = Math.min(Math.max(secIntoCut, 0), cut.endSec - cut.startSec);
-    const slot = activeSlotRef.current;
+    const holdsCut = (s: 0 | 1) =>
+      slotCutRef.current[s] === index &&
+      slotUriRef.current[s] === cut.uri &&
+      !slotLoadingRef.current[s];
+    let slot = activeSlotRef.current;
+    if (!holdsCut(slot)) {
+      const idle: 0 | 1 = slot === 0 ? 1 : 0;
+      if (holdsCut(idle)) {
+        // The preloaded slot has the cut's frame ready — swap instead of reload.
+        slot = idle;
+        activeSlotRef.current = slot;
+        setActiveSlot(slot);
+      }
+    }
     const other: 0 | 1 = slot === 0 ? 1 : 0;
     players[other].pause();
     players[slot].pause();
-    players[slot].replace(cut.uri);
-    players[slot].seekBy(cut.startSec + offset);
-    slotCutRef.current[slot] = index;
+    if (holdsCut(slot)) {
+      // Same cut on the stage: an absolute-position seek, written as the delta
+      // `seekBy` wants, from wherever the player currently sits.
+      players[slot].seekBy(cut.startSec + offset - players[slot].currentTime);
+    } else {
+      players[slot].replace(cut.uri);
+      players[slot].seekBy(cut.startSec + offset);
+      slotCutRef.current[slot] = index;
+      slotUriRef.current[slot] = cut.uri;
+      slotLoadingRef.current[slot] = false;
+    }
     setIndex(index, offset);
     setIsEnded(false);
     setIsPlaying(play);
@@ -206,6 +244,8 @@ export function CutPlayer({
       players[nextSlot].replace(cuts[nextIndex].uri);
       players[nextSlot].seekBy(cuts[nextIndex].startSec);
       slotCutRef.current[nextSlot] = nextIndex;
+      slotUriRef.current[nextSlot] = cuts[nextIndex].uri;
+      slotLoadingRef.current[nextSlot] = false;
     }
     activeSlotRef.current = nextSlot;
     setActiveSlot(nextSlot);
@@ -248,19 +288,10 @@ export function CutPlayer({
   useEventListener(playerA, 'timeUpdate', ({ currentTime }) => watchBoundary(0, currentTime));
   useEventListener(playerB, 'timeUpdate', ({ currentTime }) => watchBoundary(1, currentTime));
 
-  const replay = () => {
-    slotCutRef.current = [0, cuts.length > 1 ? 1 : -1];
-    activeSlotRef.current = 0;
-    setActiveSlot(0);
-    setIndex(0);
-    setIsEnded(false);
-    setIsPlaying(true);
-    playerB.pause();
-    playerA.replace(cuts[0].uri);
-    playerA.seekBy(cuts[0].startSec);
-    playerA.play();
-    if (cuts.length > 1) preload(1, 1);
-  };
+  // A replay is a load of the first cut that plays: `loadCut` already rewinds
+  // a slot still holding it instead of replacing the source, so replaying a
+  // movie whose first cut never left a slot shows no blank frame.
+  const replay = () => loadCut(0, true);
 
   const togglePlayback = () => {
     if (isEnded) {

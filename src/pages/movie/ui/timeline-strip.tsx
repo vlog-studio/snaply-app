@@ -115,6 +115,17 @@ function followPlayhead(follow: FollowState, input: FollowInput) {
 }
 
 /**
+ * Re-arms the follow position at where the strip actually rests. The follow
+ * position goes stale while a hand owns the axis (the strip moves, `follow.x`
+ * does not), so resuming without this makes the resume animation start from
+ * the pre-drag position — a visible jump back and re-glide. Module-level for
+ * the same React Compiler reason as `followPlayhead`.
+ */
+function syncFollow(follow: FollowState, restX: number) {
+  follow.x.value = restX;
+}
+
+/**
  * The movie as a timeline: every cut drawn as long as it plays, on one shared
  * seconds scale, under a ruler of second marks — running under a playhead that
  * does not move.
@@ -226,6 +237,7 @@ export function TimelineStrip({
   // scroll offset *is* the strip coordinate under the playhead (see below), so
   // the rest offset converts straight into a cut and a moment inside it.
   const settleScrub = (offsetX: number) => {
+    syncFollow(follow, offsetX);
     setScrubbing(false);
     if (cuts.length === 0) return;
     onScrub(playheadAtX(metrics, offsetX, TimelinePxPerSec));

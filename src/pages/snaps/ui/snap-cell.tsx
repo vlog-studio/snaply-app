@@ -8,7 +8,7 @@ import { VideoFrame } from '@/shared/ui/video-frame';
 
 export type SnapCellProps = {
   snap: Snap;
-  /** Cell width in points; the 9:16 height is derived from it. */
+  /** Cell width in points; the cell is square, so this is its height too. */
   width: number;
   /** Selection order, 1-based. Undefined when not selected. */
   pickNumber?: number;
@@ -56,7 +56,7 @@ export const SnapCell = memo(function SnapCell({
         styles.cell,
         {
           width,
-          height: Math.round((width * 16) / 9),
+          height: width,
           borderColor: isPicked ? theme.primary : theme.border,
         },
         isPicked && styles.picked,
@@ -97,13 +97,16 @@ export const SnapCell = memo(function SnapCell({
 });
 
 const styles = StyleSheet.create({
-  // A 9:16 cell whose width and height are both given in points by the caller.
+  // A square cell whose width and height are both given in points by the
+  // caller. A thumbnail only has to be recognizable, so the grid crops the 9:16
+  // frame to a square instead of standing three tall columns up: at 9/16 of
+  // their old height, nearly twice as many rows fit on one screen.
   // Sized rather than shaped with `aspectRatio` on purpose: a wrapped flex cell
   // whose only children are absolutely positioned collapses to zero height when
   // its size comes from a percentage width plus an aspect ratio. `overflow:
   // hidden` clips the absolutely-filled frame to the rounded corners.
   cell: {
-    borderRadius: Radius.medium,
+    borderRadius: Radius.xsmall,
     borderCurve: 'continuous',
     borderWidth: 1,
     overflow: 'hidden',

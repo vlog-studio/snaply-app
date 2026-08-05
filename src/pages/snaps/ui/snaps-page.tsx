@@ -92,7 +92,7 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
   // centered, capped at MaxContentWidth, and padded) so the cells lay out on
   // their very first frame.
   const gridWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
-  const cellWidth = Math.floor((gridWidth - Spacing.two * (Columns - 1)) / Columns);
+  const cellWidth = Math.floor((gridWidth - Spacing.one * (Columns - 1)) / Columns);
 
   // Arriving with `?select=1` (the studio's tray sending the user to pick)
   // opens selection mode. The tab stays mounted across visits, so the initial
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.two,
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
   empty: {
     borderWidth: 1.5,
     borderStyle: 'dashed',

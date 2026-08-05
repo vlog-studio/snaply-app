@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Movie } from '@/entities/movie';
@@ -17,6 +18,12 @@ export type GenerateFooterProps = {
   /** Why the last cut edit was refused, if it was. */
   cutsRefusal: CutsRefusal | undefined;
   sharing: MovieSharing;
+  /**
+   * The selected cut's controls, standing in for the action row while a cut
+   * is held. The notices above the slot stay either way — a refused cut edit
+   * has to be answered exactly while a cut is selected.
+   */
+  inspector?: ReactNode;
   onStart: () => void;
 };
 
@@ -37,6 +44,13 @@ const CutsRefusalMessages: Record<CutsRefusal, string> = {
  * are the same act on the same button; what changes is the label and, for a
  * failure, the stored reason above it.
  *
+ * The action row is a fixed-height slot: while a cut is selected it hands its
+ * place to the cut inspector instead of stacking above or below it, so taking
+ * and releasing a cut never changes this zone's height — the stage above is
+ * sized by what the zones below leave over, and a row that came and went made
+ * the video jump. Deselecting (a tap on the strip's empty space) brings the
+ * generate button back.
+ *
  * The button and what refused it, and nothing else. A summary line under it
  * used to restate the configuration (컷 수, 길이, 스타일, 음악) and the standing
  * caveats about how long a run takes and how little it really does; on a screen
@@ -49,6 +63,7 @@ export function GenerateFooter({
   refusal,
   cutsRefusal,
   sharing,
+  inspector,
   onStart,
 }: GenerateFooterProps) {
   const theme = useTheme();
@@ -89,23 +104,27 @@ export function GenerateFooter({
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        {isReady ? (
-          <SnaplyButton
-            title="공유"
-            variant="secondary"
-            disabled={sharing.blocked !== undefined}
-            onPress={sharing.share}
-            style={styles.share}
-          />
-        ) : null}
-        <SnaplyButton
-          title={hasFailed ? '다시 시도' : isReady ? '이 구성으로 다시 만들기' : 'AI로 생성 시작'}
-          variant="ai"
-          disabled={cutCount === 0}
-          onPress={onStart}
-          style={styles.generate}
-        />
+      <View style={styles.actionSlot}>
+        {inspector ?? (
+          <View style={styles.actions}>
+            {isReady ? (
+              <SnaplyButton
+                title="공유"
+                variant="secondary"
+                disabled={sharing.blocked !== undefined}
+                onPress={sharing.share}
+                style={styles.share}
+              />
+            ) : null}
+            <SnaplyButton
+              title={hasFailed ? '다시 시도' : isReady ? '이 구성으로 다시 만들기' : 'AI로 생성 시작'}
+              variant="ai"
+              disabled={cutCount === 0}
+              onPress={onStart}
+              style={styles.generate}
+            />
+          </View>
+        )}
       </View>
     </View>
   );
@@ -113,6 +132,8 @@ export function GenerateFooter({
 
 const styles = StyleSheet.create({
   footer: { gap: Spacing.two },
+  // One button tall (`SnaplyButton` minHeight), whichever occupant is in.
+  actionSlot: { minHeight: 56, justifyContent: 'center' },
   notice: {
     borderWidth: 1,
     borderRadius: Radius.medium,

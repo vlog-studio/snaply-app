@@ -11,8 +11,6 @@ export type CutInspectorProps = {
   cut: Cut;
   index: number;
   count: number;
-  /** False while a job owns the movie — the row becomes a read-out. */
-  canEdit: boolean;
   /** False for the last remaining cut: a movie must keep at least one. */
   canRemove: boolean;
   onMove: (index: number, direction: -1 | 1) => void;
@@ -24,18 +22,21 @@ export type CutInspectorProps = {
  * The selected cut's controls: where it sits, and the way out.
  *
  * One inspector for whichever cut the strip has picked, instead of one row of
- * controls per cut. The cut's *length* is not set here — the trim handles live
- * on the selected clip in the timeline itself — the inspector reads the result
- * out and offers `전체 사용` to drop a trim. Order is changed with ◀ ▶ rather
- * than by dragging: two buttons are reachable one-handed, work with assistive
- * touch, and need no gesture arbitration; a drag strip can replace them later
- * without changing what is committed.
+ * controls per cut. It renders in the footer's action slot, standing in for
+ * the generate button while a cut is held — the slot's height never changes,
+ * so selecting and releasing a cut cannot make the stage above jump. That slot
+ * is one button tall, which is why the read-out rides beside the position on
+ * a single line instead of under it. The cut's *length* is not set here — the
+ * trim handles live on the selected clip in the timeline itself — the
+ * inspector reads the result out and offers `전체 사용` to drop a trim. Order
+ * is changed with ◀ ▶ rather than by dragging: two buttons are reachable
+ * one-handed, work with assistive touch, and need no gesture arbitration; a
+ * drag strip can replace them later without changing what is committed.
  */
 export function CutInspector({
   cut,
   index,
   count,
-  canEdit,
   canRemove,
   onMove,
   onRemove,
@@ -71,21 +72,24 @@ export function CutInspector({
   return (
     <View style={styles.inspector}>
       <View style={styles.meta}>
-        <ThemedText type="smallBold">
-          컷 {number} / {count}
-        </ThemedText>
-        <ThemedText type="small" themeColor={missing ? 'danger' : 'textSecondary'}>
-          {missing
-            ? '원본이 삭제됐어요 · 빼주세요'
-            : isTrimmed
-              ? `원본 ${formatSeconds(cut.snap!.durationSec)} → 사용 ${formatSeconds(cut.usedSec)}`
-              : `사용 ${formatSeconds(cut.usedSec)}`}
-        </ThemedText>
-        {/* The slot keeps its height when the action is absent: the stage above
-            is sized by what this zone leaves over, so an inspector that grew a
-            row on trimmed cuts made the video jump as playback crossed cuts. */}
+        <View style={styles.metaLine}>
+          <ThemedText type="smallBold">
+            컷 {number}/{count}
+          </ThemedText>
+          <ThemedText
+            type="small"
+            numberOfLines={1}
+            themeColor={missing ? 'danger' : 'textSecondary'}
+            style={styles.readout}
+          >
+            {missing ? '원본이 삭제됐어요 · 빼주세요' : `사용 ${formatSeconds(cut.usedSec)}`}
+          </ThemedText>
+        </View>
+        {/* The slot keeps its height when the action is absent, so the row —
+            and the stage above, sized by what this zone leaves over — does not
+            move as playback crosses trimmed and untrimmed cuts. */}
         <View style={styles.resetSlot}>
-          {canEdit && isTrimmed && cut.snap ? (
+          {isTrimmed && cut.snap ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`컷 ${number} 전체 사용`}
@@ -100,22 +104,20 @@ export function CutInspector({
         </View>
       </View>
 
-      {canEdit ? (
-        <View style={styles.tools}>
-          {moveButton(-1)}
-          {moveButton(1)}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`컷 ${number} 빼기`}
-            accessibilityState={{ disabled: !canRemove }}
-            disabled={!canRemove}
-            onPress={() => onRemove(index)}
-            style={[styles.tool, { borderColor: theme.border }]}
-          >
-            <Ionicons name="close" size={18} color={canRemove ? theme.danger : theme.textSecondary} />
-          </Pressable>
-        </View>
-      ) : null}
+      <View style={styles.tools}>
+        {moveButton(-1)}
+        {moveButton(1)}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`컷 ${number} 빼기`}
+          accessibilityState={{ disabled: !canRemove }}
+          disabled={!canRemove}
+          onPress={() => onRemove(index)}
+          style={[styles.tool, { borderColor: theme.border }]}
+        >
+          <Ionicons name="close" size={18} color={canRemove ? theme.danger : theme.textSecondary} />
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -128,6 +130,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   meta: { flex: 1, gap: Spacing.half },
+  metaLine: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
+  readout: { flexShrink: 1 },
   // Matches the `edge` line's height (`Typography.micro`), reserved always.
   resetSlot: { height: 16, justifyContent: 'center' },
   tools: { flexDirection: 'row', gap: Spacing.one },

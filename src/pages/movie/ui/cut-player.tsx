@@ -103,10 +103,12 @@ export function CutPlayer({
   const [activeSlot, setActiveSlot] = useState<0 | 1>(0);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isEnded, setIsEnded] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
+  // Paused on arrival: the stage opens on the first cut's frame and waits —
+  // watching is asked for (the transport, a tap), never assumed on entry.
+  const [isPlaying, setIsPlaying] = useState(false);
   // Mirrors `isPlaying` for the async load completions, which must ask "is the
   // stage still supposed to be playing?" after an arbitrary delay.
-  const isPlayingRef = useRef(true);
+  const isPlayingRef = useRef(false);
   const setPlaying = (playing: boolean) => {
     isPlayingRef.current = playing;
     setIsPlaying(playing);
@@ -116,7 +118,6 @@ export function CutPlayer({
     instance.muted = muted;
     instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
     instance.currentTime = cuts[0].startSec;
-    instance.play();
   });
   // Second slot preloads the next cut (paused) so its first frame is ready.
   const playerB = useVideoPlayer(cuts[1]?.uri ?? cuts[0].uri, (instance) => {

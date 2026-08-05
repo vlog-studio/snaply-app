@@ -15,25 +15,36 @@ function makeSnap(id: string, durationSec = 3): Snap {
   };
 }
 
-function makeCut(id: string, options: { durationSec?: number; trim?: Cut['ref']['trim']; missing?: boolean } = {}): Cut {
+function makeCut(
+  id: string,
+  options: { durationSec?: number; trim?: Cut['ref']['trim']; missing?: boolean } = {},
+): Cut {
   const snap = options.missing ? undefined : makeSnap(id, options.durationSec ?? 3);
   return {
     ref: { snapId: id, order: 0, trim: options.trim },
     snap,
-    usedSec: snap ? (options.trim ? options.trim.endSec - options.trim.startSec : snap.durationSec) : 0,
+    usedSec: snap
+      ? options.trim
+        ? options.trim.endSec - options.trim.startSec
+        : snap.durationSec
+      : 0,
   };
 }
 
 describe('toPlaybackCuts', () => {
   it('plays every cut whole when nothing is trimmed', () => {
-    expect(toPlaybackCuts([makeCut('s1', { durationSec: 3 }), makeCut('s2', { durationSec: 5 })])).toEqual([
+    expect(
+      toPlaybackCuts([makeCut('s1', { durationSec: 3 }), makeCut('s2', { durationSec: 5 })]),
+    ).toEqual([
       { snapId: 's1', uri: 'file:///doc/recordings/s1.mp4', startSec: 0, endSec: 3 },
       { snapId: 's2', uri: 'file:///doc/recordings/s2.mp4', startSec: 0, endSec: 5 },
     ]);
   });
 
   it('plays a trimmed cut inside its window', () => {
-    const cuts = toPlaybackCuts([makeCut('s1', { durationSec: 5, trim: { startSec: 1.5, endSec: 4 } })]);
+    const cuts = toPlaybackCuts([
+      makeCut('s1', { durationSec: 5, trim: { startSec: 1.5, endSec: 4 } }),
+    ]);
     expect(cuts[0]).toMatchObject({ startSec: 1.5, endSec: 4 });
   });
 

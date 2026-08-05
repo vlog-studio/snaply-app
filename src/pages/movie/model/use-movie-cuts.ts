@@ -27,25 +27,26 @@ export type Cut = {
 
 export type MovieCuts = {
   movie: Movie | undefined;
-  /** The working cut list; edits are local until `save` commits them. */
+  /** The stored cut list; every edit commits into it immediately. */
   cuts: Cut[];
-  /** How long the working cut list plays, in seconds. */
+  /** How long the cut list plays, in seconds. */
   totalSec: number;
-  /** Whether the working list differs from what is stored. */
-  isDirty: boolean;
   /** False while a job owns the movie. */
   canEdit: boolean;
-  /** Set when the last commit or edit was refused. */
+  /** Set when the last edit was refused. */
   refusal: CutsRefusal | undefined;
+  canUndo: boolean;
+  canRedo: boolean;
   moveCut: (index: number, direction: -1 | 1) => void;
   removeCut: (index: number) => void;
   /** Sets a cut's trim window. The rules are the entity's; this only stores. */
   trimCut: (index: number, startSec: number, endSec: number) => void;
   /** Puts a cut back to playing whole. */
   resetTrim: (index: number) => void;
-  /** Commits the working list. Answers whether the commit landed. */
-  save: () => boolean;
-  discard: () => void;
+  /** Steps the cut list back to before the last edit made on this screen. */
+  undo: () => void;
+  /** Reapplies the edit the last undo stepped over. */
+  redo: () => void;
 };
 
 function sameTrim(left: SnapRef, right: SnapRef): boolean {
@@ -59,18 +60,33 @@ function sameRefs(left: readonly SnapRef[], right: readonly SnapRef[]): boolean 
   );
 }
 
+type CutHistory = {
+  /** Stored lists this screen wrote over, oldest first; `undo` walks back. */
+  past: readonly SnapRef[][];
+  /** Lists `undo` stepped over, next first; `redo` walks forward. */
+  future: readonly SnapRef[][];
+  /** The list this hook last committed, so its own write is not read as an
+   * outside change when the store reflects it back. */
+  written?: readonly SnapRef[];
+};
+
+const EmptyHistory: CutHistory = { past: [], future: [] };
+
 /**
- * The cut list's working state: reordered and pruned locally, committed as one
- * write.
+ * The cut list's edits: committed as they land, walked with undo/redo.
  *
- * Edits are local rather than written per tap for one reason — a movie must keep
- * at least one cut, and a per-tap store write would have to refuse the last
- * removal in the middle of a gesture. Held locally, the rule is a disabled
- * control instead, and the single commit is what `features/compose-movie`
- * validates.
+ * Every edit — a reorder, a removal, a trim — is written through
+ * `features/compose-movie` immediately, and this hook keeps the lists each
+ * write replaced so 되돌리기/복원 can replay them. There is no staged copy and
+ * no save button: what the stage previews *is* the movie, always. The rules
+ * that used to gate the one commit gate each edit instead — the last cut's ✕
+ * is a disabled control, and a refused write (`refusal`) changes nothing.
  *
- * The stored order is the source of truth on mount and after every save; local
- * edits are layered on top and dropped by `discard`.
+ * The history belongs to this visit of this screen. When the stored list
+ * changes for a reason other than this hook's own write — a snap deleted from
+ * the Snap tab, snaps appended by the picker — the history no longer describes
+ * states reachable from what is stored, so it is dropped rather than replayed
+ * onto a list it does not know.
  */
 export function useMovieCuts(movieId: string | undefined): MovieCuts {
   const movie = useMovieById(movieId);
@@ -82,20 +98,24 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
     [movie],
   );
 
-  // Local edits, or `undefined` while the working list still matches the store.
-  const [workingRefs, setWorkingRefs] = useState<SnapRef[]>();
   const [refusal, setRefusal] = useState<CutsRefusal>();
-  // The stored list this working copy was branched from. When the store moves
-  // underneath (a save, or a snap deleted elsewhere), the branch is abandoned
-  // rather than replayed onto a list it no longer describes.
-  const [branchedFrom, setBranchedFrom] = useState<readonly SnapRef[]>(storedRefs);
-  if (branchedFrom !== storedRefs) {
-    setBranchedFrom(storedRefs);
-    setWorkingRefs(undefined);
-    setRefusal(undefined);
+  const [history, setHistory] = useState<CutHistory>(EmptyHistory);
+
+  // The stored list as of the last render. When it moves and neither this
+  // hook's own write nor a content-preserving store update (a style save)
+  // explains it, the change came from outside — drop the history.
+  const [tracked, setTracked] = useState<readonly SnapRef[]>(storedRefs);
+  if (tracked !== storedRefs) {
+    setTracked(storedRefs);
+    if (!sameRefs(tracked, storedRefs)) {
+      const ours = history.written !== undefined && sameRefs(history.written, storedRefs);
+      if (!ours) {
+        setHistory(EmptyHistory);
+        setRefusal(undefined);
+      }
+    }
   }
 
-  const refs = workingRefs ?? storedRefs;
   // The rule is the feature's, not this hook's: a screen that decided for itself
   // which statuses are editable would be one release away from disagreeing with
   // the commit that has the final say.
@@ -103,85 +123,109 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
 
   const cuts = useMemo(
     () =>
-      refs.map((ref) => {
+      storedRefs.map((ref) => {
         const snap = snapIndex.get(ref.snapId);
         return { ref, snap, usedSec: snap ? cutDurationSec(ref, snap.durationSec) : 0 };
       }),
-    [refs, snapIndex],
+    [storedRefs, snapIndex],
   );
   const totalSec = useMemo(
-    () => cutsDurationSec(refs, (snapId) => snapIndex.get(snapId)?.durationSec),
-    [refs, snapIndex],
+    () => cutsDurationSec(storedRefs, (snapId) => snapIndex.get(snapId)?.durationSec),
+    [storedRefs, snapIndex],
   );
 
-  const moveCut = (index: number, direction: -1 | 1) => {
-    const target = index + direction;
-    if (target < 0 || target >= refs.length) return;
-    const next = [...refs];
-    [next[index], next[target]] = [next[target], next[index]];
-    setRefusal(undefined);
-    setWorkingRefs(next);
-  };
-
-  const removeCut = (index: number) => {
-    if (refs.length <= 1) {
-      setRefusal('empty');
+  /** Writes `next` as the stored list and remembers what it replaced. */
+  const commit = (next: SnapRef[]) => {
+    if (!movieId) return;
+    const outcome = saveCuts(movieId, next);
+    if (outcome.refused) {
+      setRefusal(outcome.refused);
       return;
     }
     setRefusal(undefined);
-    setWorkingRefs(refs.filter((_, position) => position !== index));
+    setHistory((current) => ({ past: [...current.past, storedRefs], future: [], written: next }));
+  };
+
+  /** Rewrites the stored list to a remembered one, for undo/redo. */
+  const restore = (target: readonly SnapRef[], step: (current: CutHistory) => CutHistory) => {
+    if (!movieId) return;
+    const outcome = saveCuts(movieId, [...target]);
+    if (outcome.refused) {
+      setRefusal(outcome.refused);
+      return;
+    }
+    setRefusal(undefined);
+    setHistory((current) => ({ ...step(current), written: target }));
+  };
+
+  const undo = () => {
+    const target = history.past[history.past.length - 1];
+    if (!target) return;
+    restore(target, (current) => ({
+      past: current.past.slice(0, -1),
+      future: [storedRefs, ...current.future],
+    }));
+  };
+
+  const redo = () => {
+    const target = history.future[0];
+    if (!target) return;
+    restore(target, (current) => ({
+      past: [...current.past, storedRefs],
+      future: current.future.slice(1),
+    }));
+  };
+
+  const moveCut = (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= storedRefs.length) return;
+    const next = [...storedRefs];
+    [next[index], next[target]] = [next[target], next[index]];
+    commit(next);
+  };
+
+  const removeCut = (index: number) => {
+    if (storedRefs.length <= 1) {
+      setRefusal('empty');
+      return;
+    }
+    commit(storedRefs.filter((_, position) => position !== index));
   };
 
   const replaceCut = (index: number, change: (ref: SnapRef, snap: Snap) => SnapRef) => {
-    const snap = snapIndex.get(refs[index]?.snapId ?? '');
+    const snap = snapIndex.get(storedRefs[index]?.snapId ?? '');
     if (!snap) return;
-    const next = [...refs];
+    const next = [...storedRefs];
     next[index] = change(next[index], snap);
-    if (next[index] === refs[index]) return;
-    setRefusal(undefined);
-    setWorkingRefs(next);
+    if (next[index] === storedRefs[index]) return;
+    commit(next);
   };
 
   const trimCut = (index: number, startSec: number, endSec: number) =>
     replaceCut(index, (ref, snap) => {
       const trimmed = withTrim(ref, startSec, endSec, snap.durationSec);
       // `withTrim` builds a new object even for an unchanged window; comparing the
-      // window keeps a settled drag that moved nothing from marking the list
-      // dirty and offering to save the same list back.
+      // window keeps a settled drag that moved nothing from committing the same
+      // list back and pushing a no-op history entry.
       return sameTrim(ref, trimmed) ? ref : trimmed;
     });
 
   const resetTrim = (index: number) => replaceCut(index, (ref) => withoutTrim(ref));
 
-  const save = (): boolean => {
-    if (!movieId) return false;
-    if (!workingRefs) return true;
-    const outcome = saveCuts(movieId, workingRefs);
-    setRefusal(outcome.refused);
-    // On success the store write moves `storedRefs`, which abandons the branch
-    // above; clearing here would race that. Only a refusal has to keep the
-    // working copy so the user can fix it.
-    return outcome.refused === undefined;
-  };
-
-  const discard = () => {
-    setWorkingRefs(undefined);
-    setRefusal(undefined);
-  };
-
   return {
     movie,
     cuts,
     totalSec,
-    isDirty: workingRefs !== undefined && !sameRefs(workingRefs, storedRefs),
     canEdit,
     refusal,
+    canUndo: history.past.length > 0,
+    canRedo: history.future.length > 0,
     moveCut,
     removeCut,
     trimCut,
     resetTrim,
-    save,
-    discard,
+    undo,
+    redo,
   };
 }
 

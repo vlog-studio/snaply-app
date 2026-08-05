@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEventListener } from 'expo';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
@@ -10,8 +11,10 @@ import type { PlaybackCut } from '../model/playback-cuts';
 
 /** What the timeline may ask of the stage. */
 export type CutPlayerHandle = {
-  /** Jumps to a cut and plays it — the answer to a strip tap. */
+  /** Shows a cut's first frame, paused — the answer to a strip tap. */
   jumpTo: (index: number) => void;
+  /** Plays or pauses; after the last cut, replays from the first. */
+  togglePlayback: () => void;
 };
 
 export type CutPlayerProps = {
@@ -26,6 +29,8 @@ export type CutPlayerProps = {
   editIndex?: number;
   /** Reports which cut the stage is showing, so the timeline can follow. */
   onCutChange?: (index: number) => void;
+  /** Reports whether the stage is playing, so the transport's button can say. */
+  onPlayingChange?: (playing: boolean) => void;
   ref?: Ref<CutPlayerHandle>;
   style?: StyleProp<ViewStyle>;
 };
@@ -69,7 +74,15 @@ function playlistSignature(cuts: PlaybackCut[]): string {
  * Slot bookkeeping lives in refs so the native callbacks always read the latest
  * state. Only mounted with a non-empty `cuts`, so slot 0 always has a valid source.
  */
-export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, style }: CutPlayerProps) {
+export function CutPlayer({
+  cuts,
+  muted = false,
+  editIndex,
+  onCutChange,
+  onPlayingChange,
+  ref,
+  style,
+}: CutPlayerProps) {
   const theme = useTheme();
   // Which cut each slot currently holds; slot 1 preloads the second cut.
   const slotCutRef = useRef<[number, number]>([0, cuts.length > 1 ? 1 : -1]);
@@ -159,17 +172,6 @@ export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, st
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature]);
 
-  // The timeline picked a cut: jump there and play, so the tap answers with
-  // motion. A handle rather than a prop-driven effect — the jump is an event,
-  // and routing an event through state and an effect is a render-cascade the
-  // compiler lint rightly rejects.
-  useImperativeHandle(ref, () => ({
-    jumpTo: (index: number) => {
-      if (index < 0 || index >= cuts.length) return;
-      loadCut(index, true);
-    },
-  }));
-
   const advance = (endedSlot: 0 | 1) => {
     if (endedSlot !== activeSlotRef.current) return; // ignore the idle slot
     const nextIndex = slotCutRef.current[endedSlot] + 1;
@@ -218,6 +220,13 @@ export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, st
     }
   };
 
+  // Playing/paused changes in many places (taps, jumps, edits, the end of the
+  // movie); reporting the state rather than the events keeps the transport's
+  // button from ever disagreeing with the stage.
+  useEffect(() => {
+    onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange]);
+
   useEventListener(playerA, 'playToEnd', () => advance(0));
   useEventListener(playerB, 'playToEnd', () => advance(1));
   useEventListener(playerA, 'timeUpdate', ({ currentTime }) => watchBoundary(0, currentTime));
@@ -252,7 +261,20 @@ export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, st
     }
   };
 
-  const overlayIcon = isEnded ? '↻' : isPlaying ? '❚❚' : '▶';
+  // The timeline picked a cut: show its frame, paused — selecting is choosing
+  // what to work on, not asking to watch; playing is the transport's job. A
+  // handle rather than a prop-driven effect — the jump is an event, and routing
+  // an event through state and an effect is a render-cascade the compiler lint
+  // rightly rejects.
+  useImperativeHandle(ref, () => ({
+    jumpTo: (index: number) => {
+      if (index < 0 || index >= cuts.length) return;
+      loadCut(index, false);
+    },
+    togglePlayback,
+  }));
+
+  const overlayIcon = isEnded ? 'refresh' : isPlaying ? 'pause' : 'play';
   const overlayLabel = isEnded ? '무비 다시 재생' : isPlaying ? '일시정지' : '재생';
 
   return (
@@ -286,9 +308,7 @@ export function CutPlayer({ cuts, muted = false, editIndex, onCutChange, ref, st
       >
         {!isPlaying || isEnded ? (
           <View style={styles.playButton}>
-            <ThemedText selectable={false} style={styles.playIcon}>
-              {overlayIcon}
-            </ThemedText>
+            <Ionicons name={overlayIcon} size={24} color="#F1E6DA" />
           </View>
         ) : null}
       </Pressable>
@@ -354,7 +374,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  playIcon: { color: '#F1E6DA', fontSize: 18 },
   segments: {
     position: 'absolute',
     left: Spacing.four,

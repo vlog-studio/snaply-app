@@ -14,7 +14,7 @@ The end-to-end product effect (an actual push landing on arrival) is decided and
 | Present a foreground push | `Partial` | A message arriving while the app is foregrounded is re-presented as a local notification (`expo-notifications`), because FCM suppresses the system banner in the foreground. Requires the `expo-notifications` native module to be present in the build. |
 | Start/stop geofence monitoring | `Functional` | Turning 위치 알림 받기 on (authenticated, with foreground **and** background location permission) resolves the current position, loads nearby points, and starts OS geofencing on the nearest ones; turning it off stops all monitoring. Native only. |
 | Report an arrival | `Partial` | On a geofence *enter* event the app posts the location id to `POST /notifications/geofence-enter`, even when relaunched headlessly in the background. Routes to a mock until an API origin is configured; the backend that turns a report into a push does not exist yet. |
-| Receive an arrival push | Not implemented | The backend owns the authoritative decision (30-minute per-(user, location) dedup, quiet hours, `notification_enabled`) and the send. No backend, so no arrival push is delivered end-to-end. |
+| Receive an arrival push | `Not implemented` | The backend owns the authoritative decision (30-minute per-(user, location) dedup, quiet hours, `notification_enabled`) and the send. No backend, so no arrival push is delivered end-to-end. |
 
 ## Route and entry points
 
@@ -43,7 +43,7 @@ There is no screen or route for this feature. It is composed headlessly at the a
 | `src/shared/lib/notifications` | `messaging.ts`, `local.ts` (+ `.web`) | Platform adapters for FCM (permission, remote registration, token, refresh/foreground subscriptions) and local notification presentation, including its own permission request (`requestLocalNotificationPermission`) — separate from the FCM one, which resolves false wherever the Firebase native module is absent. Firebase is loaded lazily and degrades to inert stubs when the native module is absent. |
 | `src/shared/lib/location` | `permissions.ts`, `geofencing.ts`, `current-position.ts` | Raw `expo-location` permission, geofencing, and current-position calls. |
 
-Backend fields these map to: `POST /auth/fcm-token` (raw token), `POST /notifications/geofence-enter` (`locationId`), `GET /locations` (`lat`/`lng`/`radius`), and the user-profile fields enforced server-side (`notificationEnabled`, `quietStart`, `quietEnd`, `interests`).
+Backend fields these map to: `POST /auth/fcm-token` (raw token), `POST /notifications/geofence-enter` (`locationId`), `GET /locations` (`lat`/`lng`/`radius`), and the user-profile fields enforced server-side (`notification_enabled`, `quiet_start`, `quiet_end`, `interests`).
 
 The `GET /locations` response carries `id`, `name`, `lat`, `lng`, `radiusMeters`, `category` (free-form text), and `distanceMeters`, ordered nearest-first. The app maps all but `distanceMeters`, because it re-derives distance against its own resolved position when it selects the regions to monitor. The response has **no notification-copy template**: the arrival message is composed and sent entirely by the backend.
 

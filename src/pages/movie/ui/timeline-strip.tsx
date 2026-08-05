@@ -46,6 +46,8 @@ export type TimelineStripProps = {
   onScrub: (playhead: TimelinePlayhead) => void;
   /** A settled trim-handle drag; the cut list holds it locally until a save. */
   onTrim: (index: number, startSec: number, endSec: number) => void;
+  /** A tap on the strip's empty space — anywhere that is not a clip or a tile. */
+  onDeselect: () => void;
   onAddSnaps: () => void;
 };
 
@@ -150,7 +152,8 @@ function syncFollow(follow: FollowState, restX: number) {
  * picks it up — and the strip runs to that cut's start. The selected clip is
  * also where the cut's length is set: while editable it grows trim handles at
  * its edges (`TimelineCut`) and resizes under the drag, and the strip neither
- * scrolls nor follows while a handle is down, so the drag owns the axis. A cut whose
+ * scrolls nor follows while a handle is down, so the drag owns the axis. Tapping
+ * the strip's empty space lets the cut go again (`onDeselect`). A cut whose
  * original was deleted keeps its clip (marked, selectable) — a cut the user
  * cannot see is a cut they cannot remove.
  */
@@ -163,6 +166,7 @@ export function TimelineStrip({
   onSelect,
   onScrub,
   onTrim,
+  onDeselect,
   onAddSnaps,
 }: TimelineStripProps) {
   const theme = useTheme();
@@ -260,9 +264,18 @@ export function TimelineStrip({
           if (scrubbing) settleScrub(event.nativeEvent.contentOffset.x);
         }}
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.strip, { paddingHorizontal: halfViewport }]}
       >
-        <View>
+        {/* The whole content area is the tap-away target: a tap that lands on a
+            clip or the add tile goes to them (the deeper responder wins), so
+            what reaches this Pressable is exactly the empty space — the ruler,
+            the gaps, the half-viewport lead-ins — and tapping it clears the
+            selection. A drag is not a tap: the scroll cancels the press, so
+            scrubbing never deselects. */}
+        <Pressable
+          accessible={false}
+          onPress={onDeselect}
+          style={[styles.strip, { paddingHorizontal: halfViewport }]}
+        >
           {/* The ruler shares the clips' origin and scale, so a mark is over the
               moment it names. */}
           <View style={[styles.ruler, { width: stripWidth }]}>
@@ -320,7 +333,7 @@ export function TimelineStrip({
               </Pressable>
             ) : null}
           </View>
-        </View>
+        </Pressable>
       </Animated.ScrollView>
 
       {/* Outside the scroll view on purpose: "now" is a fixed place on the

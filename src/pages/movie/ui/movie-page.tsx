@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel } from '@/entities/movie';
@@ -8,7 +9,6 @@ import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movi
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { BackBar } from '@/shared/ui/back-bar';
-import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -32,11 +32,11 @@ export type MoviePageProps = {
  * studio rather than a long scroll.
  *
  * The stage (the player) is always on screen, the cuts run under it as a
- * filmstrip, and the selected cut's controls sit between the two, so an edit
- * and its result are one glance apart instead of a scroll apart. The stage
- * previews the *working* cut list: a reorder, a trim, or a removal shows up in
- * it immediately, before the save commits anything. Style and 세부 live in
- * sheets opened from chips — settings are visited, cuts are worked on.
+ * timeline, and the selected cut's controls sit between the two, so an edit
+ * and its result are one glance apart instead of a scroll apart. Edits commit
+ * as they land and the transport under the stage walks them back and forward
+ * (되돌리기/복원) — there is no staged copy and no save button. Style and 세부
+ * live in sheets opened from chips — settings are visited, cuts are worked on.
  *
  * There is still no separate editor screen and no separate playback screen,
  * because there is no separate object: a movie is picked, run, watched, fixed,
@@ -54,10 +54,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
   const { saveStyle, setArranger, startGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
-  const { movie, cuts, totalSec, isDirty, canEdit, refusal } = list;
+  const { movie, cuts, totalSec, canEdit, refusal } = list;
   const sharing = useShareMovie(movie);
 
   const [renaming, setRenaming] = useState(false);
@@ -71,6 +70,8 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const playerRef = useRef<CutPlayerHandle>(null);
   const selected = cuts.length > 0 ? Math.min(selectedIndex, cuts.length - 1) : -1;
+  // Mirrors the stage, for the transport's play/pause button.
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // A direct link can land here with nothing behind it, and the screen has no
   // navigation bar to fall back on — so going back means the studio.
@@ -91,12 +92,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
 
-  // Derived rather than measured (the content column is centered, capped, and
-  // padded) so the trim bar lays out correctly on its first frame.
-  const trimWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
-
   const subtitle = () => {
-    if (isDirty) return '저장하지 않은 변경이 있어요';
     if (isGenerating) return '만드는 중이에요';
     if (movie.status === 'failed') return '만들지 못했어요';
     if (movie.status === 'ready' && movie.render) {
@@ -113,9 +109,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
     setGenerationRefusal(outcome.refused);
   };
 
-  // A strip tap selects the cut and jumps the stage to it. A dead cut is still
-  // selectable — the inspector is where it is removed — the stage just cannot
-  // follow it there.
+  // A strip tap selects the cut and shows its frame, paused — playing is the
+  // transport's job. A dead cut is still selectable — the inspector is where it
+  // is removed — the stage just cannot follow it there.
   const selectCut = (index: number) => {
     setSelectedIndex(index);
     const playbackIndex = toPlaybackIndex(cuts, index);
@@ -164,6 +160,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
               cuts={playbackCuts}
               editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
               onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
+              onPlayingChange={setIsPlaying}
               style={styles.player}
             />
           </View>
@@ -177,11 +174,64 @@ export function MoviePage({ movieId }: MoviePageProps) {
         )}
       </View>
 
+      {/* The transport, right under the stage: play on the left, the edit
+          history on the right — watching and undoing are both about what the
+          stage just showed. */}
+      {!isGenerating ? (
+        <View style={styles.transport}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isPlaying ? '일시정지' : '재생'}
+            accessibilityState={{ disabled: playbackCuts.length === 0 }}
+            disabled={playbackCuts.length === 0}
+            onPress={() => playerRef.current?.togglePlayback()}
+            style={[
+              styles.transportTool,
+              { borderColor: theme.border, opacity: playbackCuts.length === 0 ? 0.35 : 1 },
+            ]}
+          >
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={theme.text} />
+          </Pressable>
+
+          {canEdit ? (
+            <View style={styles.historyTools}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="되돌리기"
+                accessibilityState={{ disabled: !list.canUndo }}
+                disabled={!list.canUndo}
+                onPress={list.undo}
+                style={[
+                  styles.transportTool,
+                  { borderColor: theme.border, opacity: list.canUndo ? 1 : 0.35 },
+                ]}
+              >
+                <Ionicons name="arrow-undo" size={18} color={theme.text} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="복원하기"
+                accessibilityState={{ disabled: !list.canRedo }}
+                disabled={!list.canRedo}
+                onPress={list.redo}
+                style={[
+                  styles.transportTool,
+                  { borderColor: theme.border, opacity: list.canRedo ? 1 : 0.35 },
+                ]}
+              >
+                <Ionicons name="arrow-redo" size={18} color={theme.text} />
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <TimelineStrip
         cuts={cuts}
         selectedIndex={selected}
         canEdit={canEdit}
         onSelect={selectCut}
+        onTrim={list.trimCut}
         onAddSnaps={addSnaps}
       />
 
@@ -193,13 +243,11 @@ export function MoviePage({ movieId }: MoviePageProps) {
             count={cuts.length}
             canEdit={canEdit}
             canRemove={cuts.length > 1}
-            trimWidth={trimWidth}
             onMove={(index, direction) => {
               list.moveCut(index, direction);
               setSelectedIndex(index + direction);
             }}
             onRemove={list.removeCut}
-            onTrim={list.trimCut}
             onResetTrim={list.resetTrim}
           />
         ) : null}
@@ -245,7 +293,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
           },
         ]}
       >
-        {/* A commit refused while the footer's own notices are hidden (a job
+        {/* An edit refused while the footer's own notices are hidden (a job
             owns the movie) still has to be answered somewhere. */}
         {isGenerating && refusal ? (
           <View
@@ -258,26 +306,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
           </View>
         ) : null}
 
-        {isDirty ? (
-          <View style={styles.footerRow}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="변경 취소"
-              onPress={list.discard}
-              style={[styles.secondaryAction, { borderColor: theme.border }]}
-            >
-              <ThemedText selectable={false} type="button" themeColor="textSecondary">
-                되돌리기
-              </ThemedText>
-            </Pressable>
-            <SnaplyButton
-              title="컷 구성 저장"
-              onPress={() => list.save()}
-              style={styles.primaryAction}
-            />
-          </View>
-        ) : null}
-
         {isGenerating ? null : (
           <GenerateFooter
             movie={movie}
@@ -285,7 +313,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
             totalSec={totalSec}
             refusal={generationRefusal}
             cutsRefusal={refusal}
-            hasUnsavedCuts={isDirty}
             sharing={sharing}
             onStart={runGeneration}
           />
@@ -396,20 +423,28 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.three,
     gap: Spacing.two,
   },
-  footerRow: { flexDirection: 'row', gap: Spacing.two },
   notice: {
     borderWidth: 1,
     borderRadius: Radius.medium,
     borderCurve: 'continuous',
     padding: Spacing.three,
   },
-  primaryAction: { flex: 1 },
-  secondaryAction: {
-    minHeight: 56,
-    paddingHorizontal: Spacing.four,
+  transport: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.two,
+  },
+  historyTools: { flexDirection: 'row', gap: Spacing.two },
+  transportTool: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',
   },

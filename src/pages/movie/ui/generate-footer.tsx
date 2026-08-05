@@ -21,10 +21,8 @@ export type GenerateFooterProps = {
   totalSec: number;
   /** Why the last attempt to start was refused, if it was. */
   refusal: GenerationRefusal | undefined;
-  /** Why the last cut commit was refused, if it was. */
+  /** Why the last cut edit was refused, if it was. */
   cutsRefusal: CutsRefusal | undefined;
-  /** Set when cut edits are staged — running now would ignore them. */
-  hasUnsavedCuts: boolean;
   sharing: MovieSharing;
   onStart: () => void;
 };
@@ -55,7 +53,6 @@ export function GenerateFooter({
   totalSec,
   refusal,
   cutsRefusal,
-  hasUnsavedCuts,
   sharing,
   onStart,
 }: GenerateFooterProps) {
@@ -94,16 +91,6 @@ export function GenerateFooter({
           style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}
         >
           <ThemedText type="small">{GenerationRefusalMessages[refusal]}</ThemedText>
-        </View>
-      ) : null}
-
-      {hasUnsavedCuts ? (
-        <View
-          style={[styles.notice, { borderColor: theme.border, backgroundColor: theme.warmSurface }]}
-        >
-          <ThemedText type="small">
-            저장하지 않은 컷 변경이 있어요. 저장해야 그 구성으로 만들어져요.
-          </ThemedText>
         </View>
       ) : null}
 

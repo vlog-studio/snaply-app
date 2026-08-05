@@ -1,13 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { MovieSnapLimit } from '@/entities/movie';
-import { formatSeconds } from '@/shared/lib/datetime';
 import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { VideoFrame } from '@/shared/ui/video-frame';
 
+import { TimelinePxPerSec, rulerTicks, timelineCutMetrics } from '../model/timeline-layout';
 import type { Cut } from '../model/use-movie-cuts';
+import { TimelineCut, TimelineCutHeight } from './timeline-cut';
 
 export type TimelineStripProps = {
   cuts: Cut[];
@@ -16,21 +17,24 @@ export type TimelineStripProps = {
   /** False while a job owns the movie — thumbs stay tappable, the add tile hides. */
   canEdit: boolean;
   onSelect: (index: number) => void;
+  /** A settled trim-handle drag; the cut list holds it locally until a save. */
+  onTrim: (index: number, startSec: number, endSec: number) => void;
   onAddSnaps: () => void;
 };
 
-const ThumbWidth = 48;
-const ThumbHeight = Math.round((ThumbWidth * 16) / 9);
-const ThumbGap = Spacing.one;
+const TickLabelWidth = 48;
 
 /**
- * The movie as a filmstrip: every cut in order, one thumb each, scrolled
- * sideways under the stage.
+ * The movie as a timeline: every cut drawn as long as it plays, on one shared
+ * seconds scale, under a ruler of second marks.
  *
- * Tapping a thumb selects the cut — the stage jumps there and the inspector
- * below picks it up — and the strip keeps the selected thumb in view as
+ * Tapping a clip selects the cut — the stage jumps there and the inspector
+ * below picks it up — and the strip keeps the selected clip in view as
  * playback advances, so the row and the stage always point at the same cut.
- * A cut whose original was deleted keeps its thumb (marked, selectable) —
+ * The selected clip is also where the cut's length is set: while editable it
+ * expands to its whole snap and grows trim handles (`TimelineCut`), and the
+ * strip's scroll is locked while a handle is down so the drag owns the axis.
+ * A cut whose original was deleted keeps its clip (marked, selectable) —
  * a cut the user cannot see is a cut they cannot remove.
  */
 export function TimelineStrip({
@@ -38,6 +42,7 @@ export function TimelineStrip({
   selectedIndex,
   canEdit,
   onSelect,
+  onTrim,
   onAddSnaps,
 }: TimelineStripProps) {
   const theme = useTheme();
@@ -46,134 +51,129 @@ export function TimelineStrip({
   const scrollRef = useRef<ScrollView>(null);
   const room = Math.max(MovieSnapLimit - cuts.length, 0);
 
-  // Keep the selected thumb centered as playback or edits move the selection.
+  // True while a trim handle is down; the scroll hands the axis to the drag.
+  const [trimming, setTrimming] = useState(false);
+
+  const expandedIndex =
+    canEdit && selectedIndex >= 0 && cuts[selectedIndex]?.snap !== undefined ? selectedIndex : -1;
+  const metrics = timelineCutMetrics(
+    cuts.map((cut) => ({ usedSec: cut.usedSec, fullSec: cut.snap?.durationSec })),
+    expandedIndex,
+    TimelinePxPerSec,
+  );
+  const lastMetric = metrics.length > 0 ? metrics[metrics.length - 1] : undefined;
+  const stripWidth = lastMetric ? lastMetric.x + lastMetric.width : 0;
+  const ticks = rulerTicks(stripWidth, TimelinePxPerSec);
+
+  // Keep the selected clip centered as playback or edits move the selection.
+  const selectedMetric = selectedIndex >= 0 ? metrics[selectedIndex] : undefined;
+  const selectedCenter = selectedMetric ? selectedMetric.x + selectedMetric.width / 2 : undefined;
   useEffect(() => {
-    if (selectedIndex < 0) return;
-    const x = selectedIndex * (ThumbWidth + ThumbGap) - (windowWidth - ThumbWidth) / 2;
-    scrollRef.current?.scrollTo({ x: Math.max(x, 0), animated: !reducedMotion });
-  }, [selectedIndex, windowWidth, reducedMotion]);
+    if (selectedCenter === undefined) return;
+    scrollRef.current?.scrollTo({
+      x: Math.max(selectedCenter - windowWidth / 2, 0),
+      animated: !reducedMotion,
+    });
+  }, [selectedCenter, windowWidth, reducedMotion]);
 
   return (
     <ScrollView
       ref={scrollRef}
       horizontal
+      scrollEnabled={!trimming}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.strip}
     >
-      {cuts.map((cut, index) => {
-        const selected = index === selectedIndex;
-        const missing = cut.snap === undefined;
-        return (
-          <Pressable
-            key={cut.ref.snapId}
-            accessibilityRole="button"
-            accessibilityLabel={`컷 ${index + 1}${missing ? ' · 원본 삭제됨' : ''} · ${formatSeconds(cut.usedSec)}`}
-            accessibilityState={{ selected }}
-            onPress={() => onSelect(index)}
-            style={[
-              styles.thumb,
-              {
-                backgroundColor: theme.media,
-                borderColor: missing ? theme.danger : selected ? theme.amber : theme.border,
-                borderWidth: selected || missing ? 2 : 1,
-              },
-            ]}
-          >
-            {cut.snap ? <VideoFrame uri={cut.snap.uri} /> : null}
-            {missing ? (
-              <View style={styles.missingMark}>
-                <ThemedText selectable={false} type="smallBold" themeColor="danger">
-                  !
+      <View>
+        {/* The ruler shares the clips' origin and scale, so a mark is over the
+            moment it names. */}
+        <View style={[styles.ruler, { width: stripWidth }]}>
+          {ticks.map((tick) =>
+            tick.labelSec !== undefined ? (
+              <View key={tick.x} style={[styles.tickLabel, { left: tick.x - TickLabelWidth / 2 }]}>
+                <ThemedText selectable={false} type="xsmall" themeColor="textSecondary">
+                  {tick.labelSec}초
                 </ThemedText>
               </View>
-            ) : null}
-            <View style={styles.badges} pointerEvents="none">
-              <ThemedText selectable={false} style={styles.number}>
-                {index + 1}
-              </ThemedText>
-              <ThemedText selectable={false} style={styles.duration}>
-                {formatSeconds(cut.usedSec)}
-              </ThemedText>
-            </View>
-          </Pressable>
-        );
-      })}
+            ) : (
+              <View
+                key={tick.x}
+                style={[styles.tickDot, { left: tick.x - 1.5, backgroundColor: theme.border }]}
+              />
+            ),
+          )}
+        </View>
 
-      {canEdit ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="스냅 더 넣기"
-          accessibilityState={{ disabled: room === 0 }}
-          disabled={room === 0}
-          onPress={onAddSnaps}
-          style={[styles.addTile, { borderColor: theme.border, opacity: room === 0 ? 0.45 : 1 }]}
-        >
-          <ThemedText selectable={false} type="heading" themeColor="primary">
-            +
-          </ThemedText>
-          <ThemedText selectable={false} type="xsmall" themeColor="textSecondary">
-            {room > 0 ? `${room}개 더` : '가득 참'}
-          </ThemedText>
-        </Pressable>
-      ) : null}
+        <View style={styles.row}>
+          {cuts.map((cut, index) => (
+            <TimelineCut
+              key={cut.ref.snapId}
+              cut={cut}
+              index={index}
+              selected={index === selectedIndex}
+              expanded={index === expandedIndex}
+              width={metrics[index].width}
+              pxPerSec={TimelinePxPerSec}
+              onSelect={onSelect}
+              onTrim={onTrim}
+              onTrimmingChange={setTrimming}
+            />
+          ))}
+
+          {canEdit ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="스냅 더 넣기"
+              accessibilityState={{ disabled: room === 0 }}
+              disabled={room === 0}
+              onPress={onAddSnaps}
+              style={[
+                styles.addTile,
+                { borderColor: theme.border, opacity: room === 0 ? 0.45 : 1 },
+              ]}
+            >
+              <Ionicons name="add" size={20} color={theme.primary} />
+              <ThemedText selectable={false} type="xsmall" themeColor="textSecondary">
+                {room > 0 ? `${room}개 더` : '가득 참'}
+              </ThemedText>
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   strip: {
-    gap: ThumbGap,
     paddingHorizontal: Spacing.five,
     paddingVertical: Spacing.two,
-    alignItems: 'center',
   },
-  thumb: {
-    width: ThumbWidth,
-    height: ThumbHeight,
-    borderRadius: Radius.small,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
+  ruler: {
+    height: 18,
+    marginBottom: Spacing.one,
   },
-  missingMark: {
+  tickLabel: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    width: TickLabelWidth,
     alignItems: 'center',
-    justifyContent: 'center',
   },
-  badges: {
+  tickDot: {
     position: 'absolute',
-    left: Spacing.one,
-    right: Spacing.one,
-    bottom: Spacing.one,
+    top: 8,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  // Drawn over arbitrary video, so plain white with a shadow rather than a
-  // palette color (the counter in the stage does the same).
-  number: {
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowRadius: 3,
-  },
-  duration: {
-    fontSize: 9,
-    lineHeight: 12,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
-    fontVariant: ['tabular-nums'],
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowRadius: 3,
+    alignItems: 'center',
   },
   addTile: {
-    width: ThumbWidth,
-    height: ThumbHeight,
+    width: TimelineCutHeight,
+    height: TimelineCutHeight,
+    marginLeft: Spacing.two,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
     borderWidth: 1.5,

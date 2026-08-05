@@ -13,15 +13,18 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 /movie/[id]  (무비) — a timeline studio, not a scroll: every zone is always on screen
 ├── header               title + status line, 이름 (rename sheet)
 ├── stage                the player on an editable movie; the progress ring under a job
-│                         previews the *working* cut list — an edit shows up before it is saved
-├── timeline strip       every cut as a thumb, scrolled sideways; tap = select + the stage
-│                         jumps there; playback moves the highlight; + tile = 스냅 더 넣기
-├── cut inspector        the selected cut only: ◀ ▶ move, ✕ drop, trim bar, 전체 사용
+│                         an edit shows up in it the moment it lands
+├── transport            under the stage: 재생/일시정지 on the left, 되돌리기 ↺ / 복원 ↻
+│                         on the right (hidden under a job)
+├── timeline strip       every cut as a clip drawn as long as it plays, on one seconds
+│                         scale under a ruler of second marks; tap = select + the stage
+│                         jumps there; playback moves the highlight; the selected clip
+│                         expands to its whole snap and grows trim handles; + tile = 스냅 더 넣기
+├── cut inspector        the selected cut only: ◀ ▶ move, ✕ drop, length read-out, 전체 사용
 ├── chips                스타일 · 세부 — each opens a bottom sheet
 │                         스타일: the four style cards
 │                         세부: 배경 음악, 자동 자막, 순서 고정, 비율, 목표 길이
-└── footer               되돌리기/컷 구성 저장 when dirty, then 생성:
-                          AI로 생성 시작 / 다시 시도 / 이 구성으로 다시 만들기 · 공유 (ready)
+└── footer               생성: AI로 생성 시작 / 다시 시도 / 이 구성으로 다시 만들기 · 공유 (ready)
 ```
 
 **Editing happens outside a run, never under one.** Generation becomes slow remote work once a real backend runs it (the LLM integration), so a `draft` is where the user settles the cut order, the cut lengths, and the style **before** paying for a run — and fixing a result afterwards is the same controls on the same screen. Only a `generating` movie is frozen, because an edit under a job would make the result describe a cut list that no longer exists. This replaced the edit-after-generation rule from the 2026-08-03 planning round on 2026-08-05, which itself had replaced the three-step wizard (조립 → 스타일 → 생성).
@@ -34,7 +37,7 @@ There is no separate playback route. Watching a finished movie and fixing it are
 
 | Status | What is on the screen |
 | --- | --- |
-| `draft` | The stage previews the working cuts, the strip and inspector are controls, the chips open editable sheets, and the footer runs `AI로 생성 시작`. |
+| `draft` | The stage previews the cuts, the transport plays and walks edits, the strip and inspector are controls, the chips open editable sheets, and the footer runs `AI로 생성 시작`. |
 | `generating` | The progress ring and the five-step checklist fill the stage; the strip stays visible as a read-out (no add tile, no inspector), the sheets open read-only, and the footer is empty. Leaving is expected. |
 | `ready` | The stage plays the result, the same controls, and the footer offers `이 구성으로 다시 만들기` beside 공유. |
 | `failed` | The same controls, with the stored reason and `다시 시도` in the footer. |
@@ -49,7 +52,6 @@ There is no separate playback route. Watching a finished movie and fixing it are
 | 이 구성으로 다시 만들기 | `Prototype` | Regeneration is the same act as the first run and the same code path: `beginMovieJob` drops the previous render and error, so the old result never outlives the movie that replaced it. The screen says the current finished movie will be replaced. **There are no versions** — a regenerated movie has one render, the newest. |
 | 다시 시도 | `Functional` | A `failed` movie runs again from the cut list and settings it kept. Reachable from all three places a failed movie appears: the studio row, the movie-tab tile (both through `widgets/movie-shelf`'s `MovieFailureNotice`), and this screen. |
 | Nothing to generate | `Functional` | A movie with no cuts is refused rather than started, with an explanation, because a job over an empty cut list can only produce an empty movie. |
-| Unsaved cuts | `Functional` | Staged cut edits are named before the run rather than silently ignored: the footer says that the saved cut list is what will be made. |
 | Announce the end | `Partial` | With 무비 완성 알림 on ([Me tab](me.md)), a job that ends — either way — presents a local notification, so the user who walked away is told. It is local because the job is local; when the backend generates, this becomes an FCM message. Nothing arrives if the app was force-quit, because then the job never reached its end either. |
 
 ### How a job fails
@@ -62,20 +64,20 @@ There is no remote work to break, so `failed` is not a simulated coin flip. It i
 
 **There is no rendered video file.** No compositing backend exists, so a finished movie is played by running its cuts back to back, each inside its trim window. That is deliberate rather than a placeholder: the order and lengths the user settled on are exactly what they get back. The same player previews a `draft`, so a trim can be judged before the run is started.
 
-**The stage plays the working cut list, not the stored one.** This replaced the stored-list rule with the timeline layout (2026-08-05): the point of keeping the stage on screen is that a reorder, a trim, or a removal is *seen* — the stage holds its place in the edited list and pauses on the new frame the moment the edit lands. Saving still decides what a generation is built from; the notices in the footer keep saying so while edits are staged.
+**The stage plays the stored cut list — which is always current, because edits commit as they land** (the staged-copy model and its save button were removed with the transport, 2026-08-05). The point of keeping the stage on screen is that a reorder, a trim, or a removal is *seen*: the stage holds its place in the edited list and pauses on the new frame the moment the edit lands. What the stage shows is exactly what a generation is built from.
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
 | Sequential playback | `Functional` | The cuts play in stored order with no gap between them. Two players alternate: while one plays, the other holds the next cut preloaded and paused on its first frame, so the swap is instant with no black flash. After each swap the freed player preloads the cut after that. |
 | Trim-aware playback | `Functional` | A cut starts at its window's start and is advanced when the position reaches its end, rather than waiting for the file to run out. `playToEnd` still catches the untrimmed case. The outgoing player is paused at the boundary — a cut ends with file left over, and an unpaused one would keep playing unseen but audible. |
-| Pause, resume, replay | `Functional` | Tapping the stage pauses and resumes; after the last cut the same tap replays from the first. |
+| Pause, resume, replay | `Functional` | The transport's 재생/일시정지 button under the stage (leftmost, mirroring the stage's state through `onPlayingChange`), and tapping the stage does the same; after the last cut, either replays from the first. |
 | Progress | `Functional` | One segment per cut across the bottom, filled up to the cut playing now, plus a `컷 n / N` counter. |
-| Linked to the timeline, both ways | `Functional` | Tapping a strip thumb jumps the stage to that cut and plays (`CutPlayer`'s `jumpTo` handle); as playback advances, `onCutChange` moves the strip's highlight and the inspector along with it, and the strip keeps the selected thumb scrolled into view. |
-| Previews the staged edits | `Functional` | The stage plays the working cut list. When the playlist changes under the player — a reorder, a trim, a removal — it lands paused on the *selected* cut (the one the edit was about, via `editIndex`) rather than wherever playback happened to be, and never remounts, so no blink. Saving is still what decides what a generation is built from. |
+| Linked to the timeline, both ways | `Functional` | Tapping a strip clip jumps the stage to that cut's first frame, *paused* (`CutPlayer`'s `jumpTo` handle) — selecting is choosing what to work on, not asking to watch; the transport plays. As playback advances, `onCutChange` moves the strip's highlight and the inspector along with it, and the strip keeps the selected clip scrolled into view. |
+| Shows every edit as it lands | `Functional` | When the playlist changes under the player — a reorder, a trim, a removal — it lands paused on the *selected* cut (the one the edit was about, via `editIndex`) rather than wherever playback happened to be, and never remounts, so no blink. |
 | Every original deleted | `Functional` | A cut whose original was deleted is skipped rather than shown as a gap; a movie with nothing left to play says so instead of mounting a player with no source. |
 | Rendered file | `Not implemented` | `Movie.render.uri` is where a composited file will go. When one exists, a movie that has it should play as a single video and this player stays for the movies generated before it. |
 
-Playback is native media, so it is verified on a device rather than in JavaScript tests — the resolution from the working cut list to its playlist, and the index mapping between the strip and the player (a dead cut sits in the strip but not in the playlist), are what the unit tests cover (`model/playback-cuts.test.ts`).
+Playback is native media, so it is verified on a device rather than in JavaScript tests — the resolution from the cut list to its playlist, and the index mapping between the strip and the player (a dead cut sits in the strip but not in the playlist), are what the unit tests cover (`model/playback-cuts.test.ts`).
 
 ## Composing and fixing it
 
@@ -83,14 +85,14 @@ Available whenever no job owns the movie — the same controls settle a `draft` 
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| Timeline strip | `Functional` | Every cut as a thumb (frame, position number, used length), scrolled sideways. Tapping selects the cut and jumps the stage there. A cut whose original was deleted keeps its thumb — danger-marked, still selectable — because a cut the user cannot see is a cut they cannot remove; the inspector reads `원본이 삭제됐어요 · 빼주세요` on it. |
-| Cut inspector | `Functional` | One set of controls for whichever cut is selected, between the strip and the chips, so the trim bar runs the full content width instead of one per row. |
+| Timeline strip | `Functional` | Every cut as a clip whose width is its play length on one shared seconds scale (`TimelinePxPerSec`), filled with repeating thumbnail tiles, under a ruler with a dot every half second and a numbered mark on the whole seconds. Cuts sit flush — a gap would be pixels that stand for no time and the ruler would drift. Tapping selects the cut and jumps the stage there. A cut whose original was deleted keeps its clip at a stand-in width — danger-marked, still selectable — because a cut the user cannot see is a cut they cannot remove; the inspector reads `원본이 삭제됐어요 · 빼주세요` on it. |
+| Cut inspector | `Functional` | One row for whichever cut is selected, between the strip and the chips: position, length read-out (`원본 5초 → 사용 2.5초` while trimmed), ◀ ▶, ✕, and `전체 사용`. The cut's length itself is set on the timeline, not here. |
 | Reorder | `Functional` | ◀ ▶ in the inspector move the selected cut, and the selection follows it. Two buttons are reachable one-handed, work with assistive touch, and need no gesture arbitration; a drag strip can replace them later without changing what is committed — the pattern and its pitfalls are in [Animations and gestures](../frameworks/animations-and-gestures.md). |
 | Remove a cut | `Functional` | ✕ in the inspector, disabled for the last remaining cut — a movie must keep at least one. Attempting it explains why. Removing selects the neighbor rather than jumping home. |
-| Trim a cut | `Functional` | The two-handled bar in the inspector, dragged. The window snaps to half seconds (`CutTrimStepSec`) and never falls below one second (`MinCutSec`); dragging it back out to the whole snap drops the trim rather than storing a full-width window. `전체 사용` resets a trimmed cut. The inspector reads `원본 5초 → 사용 2.5초` while trimmed. |
+| Trim a cut | `Functional` | On the timeline itself: the selected clip (while editable) expands to its whole snap, the footage outside the window is dimmed rather than gone, and two amber handles drag the window's edges over footage that stays put. A touch down on a handle locks the strip's scroll — offset-based arbitration cannot separate two gestures on the same axis — and `onFinalize` hands it back. The window snaps to half seconds (`CutTrimStepSec`) and never falls below one second (`MinCutSec`); dragging it back out to the whole snap drops the trim rather than storing a full-width window. `전체 사용` in the inspector resets a trimmed cut. |
 | Add snaps | `Functional` | The dashed `+` tile at the end of the strip (showing the remaining room, disabled at ten cuts) opens the Snap tab in selection mode bound to this movie (`?select=1&for=<movieId>`). Confirming appends the picks to the end of the cut list and returns. |
-| Local edits, one commit | `Functional` | Reordering, removing, and trimming are local until `컷 구성 저장`. This is what lets "a movie keeps at least one cut" be a disabled control rather than a write refused mid-gesture. `되돌리기` drops the working copy. |
-| Store moved underneath | `Functional` | If the stored cut list changes while a working copy exists — a save landing, or a snap deleted from the Snap tab — the working copy is abandoned rather than replayed onto a list it no longer describes. |
+| Edits write through, walked with undo/redo | `Functional` | Every edit — a reorder, a removal, a settled trim — commits through `compose-movie` the moment it lands; there is no staged copy and no save button. The transport's ↺/↻ replay the lists each write replaced (`useMovieCuts` keeps them per visit). "A movie keeps at least one cut" is still a disabled control — the guards that used to gate the one commit gate each edit — and a refused write changes nothing. A drag that settles where it started writes nothing and pushes no history entry. |
+| Store moved underneath | `Functional` | If the stored cut list changes for a reason other than this screen's own write — a snap deleted from the Snap tab, snaps appended by the picker — the undo/redo history is dropped rather than replayed onto a list it no longer describes. |
 | Style, BGM, subtitles | `Functional` | The 스타일 chip opens a sheet with the four style cards (it stays open after a pick — choosing a look is comparing looks); the 세부 chip opens a sheet with the five BGM tracks as pills (`무음` included), the captions switch, and 순서 고정. Each writes straight through; there is nothing to stage. The chips carry the current style and track, so the sheets only need opening to change something. A draft starts from the defaults or, for a template, what the template asked for. |
 | Ratio, target length | `Functional` | Read-outs in the 세부 sheet. 9:16 is the only ratio the product has, and the length follows the trims. |
 | Catalogs | `Prototype` | Both catalogs are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
@@ -137,13 +139,13 @@ A movie's cuts are the user's own originals; the movie is the composition of the
 | No second job while one is running | `startGeneration` → `frozen` |
 | Nothing to generate from | `startGeneration` → `empty` |
 
-`canEditMovie` is exported so the screen asks the same question the commit answers, rather than deciding for itself which statuses are editable. A refused commit changes nothing and the screen keeps the working copy so the user can fix it. `appendSnaps` refuses a batch whole rather than adding as many as fit; snaps the movie already holds are skipped rather than duplicated.
+`canEditMovie` is exported so the screen asks the same question the commit answers, rather than deciding for itself which statuses are editable. A refused edit changes nothing — the stored list stays as it was and the reason is shown. `appendSnaps` refuses a batch whole rather than adding as many as fit; snaps the movie already holds are skipped rather than duplicated.
 
 The rules about what a *trim* may be belong to the entity, not the feature: `withTrim` snaps the window, holds it inside the snap, keeps it above `MinCutSec`, and drops a full-width window. Every screen that prints a length uses the same `cutDurationSec` / `cutsDurationSec`, so no two surfaces can disagree about how long a movie is.
 
 ## Ownership
 
-- `src/pages/movie` owns the screen and its parts (`ui/movie-page.tsx`, `timeline-strip.tsx`, `cut-inspector.tsx`, `trim-bar.tsx`, `cut-player.tsx`, `style-picker-sheet.tsx`, `detail-sheet.tsx`, `generate-footer.tsx`, `generation-progress.tsx`), the working cut list (`model/use-movie-cuts.ts`), the working-list→playlist resolution and strip↔player index mapping (`model/playback-cuts.ts`), the trim gesture's geometry (`model/trim-geometry.ts`), the job clock the ring reads (`model/use-job-clock.ts`), and the export decision (`model/use-share-movie.ts`). It replaced `pages/movie-editor` and `pages/movie-detail`, which were one screen split across two routes; the timeline layout later replaced the long-scroll layout (`cut-list.tsx`, `cut-row.tsx`, `style-panel.tsx`, `arrangement-row.tsx`, `generate-panel.tsx`, `model/use-movie-playback.ts`) in place.
+- `src/pages/movie` owns the screen and its parts (`ui/movie-page.tsx`, `timeline-strip.tsx`, `timeline-cut.tsx`, `cut-inspector.tsx`, `cut-player.tsx`, `style-picker-sheet.tsx`, `detail-sheet.tsx`, `generate-footer.tsx`, `generation-progress.tsx`), the cut list's write-through edits and their undo/redo history (`model/use-movie-cuts.ts`), the cut-list→playlist resolution and strip↔player index mapping (`model/playback-cuts.ts`), the strip's seconds↔pixels layout and ruler marks (`model/timeline-layout.ts`), the trim gesture's geometry (`model/trim-geometry.ts`), the job clock the ring reads (`model/use-job-clock.ts`), and the export decision (`model/use-share-movie.ts`). It replaced `pages/movie-editor` and `pages/movie-detail`, which were one screen split across two routes; the timeline layout later replaced the long-scroll layout (`cut-list.tsx`, `cut-row.tsx`, `style-panel.tsx`, `arrangement-row.tsx`, `generate-panel.tsx`, `model/use-movie-playback.ts`) in place.
 - `src/features/compose-movie` owns starting a movie from the tray or a template, committing cut lists and style settings, the arrangement rules, starting generation, and `MovieGenerationGate` — the app-wide runner that carries a job to its render or to a failure (`model/use-generation-runner.ts`) and, when asked, announces the end (`lib/announce-job-end.ts`).
 - `src/_app/providers/movie-generation-bridge.tsx` mounts the gate with the user's 무비 완성 알림 preference. The preference belongs to `features/notification-settings` and features must not import each other, so the app layer composes them — the same shape as `GeofenceGate`.
 - `src/features/rename-movie` owns the rename sheet and its schema. A feature rather than page code because a movie earns its name at two different moments — as a draft and once it has been seen.
@@ -161,6 +163,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 - Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.
 - AI arrangement is capture-time order, not a model's judgement.
 - Reordering is button-based, not drag-based, and trim is set on a half-second grid.
+- The undo/redo history lives in the screen: it is dropped on leaving, and when the cut list changes from outside (a snap deleted, snaps appended). Undoing a reorder restores the order but not `arranger` — a hand that moved a cut keeps the lock (순서 고정) even after stepping the move back.
 - Playback has no scrubber and no seeking within the movie; each cut plays its own recorded sound and no track is mixed.
 - 무비 공유 cannot be pressed: there is no rendered file to export.
 - Everything is local. No draft is synced to a backend, so a movie does not follow the user to another device (concept §9 keeps `PATCH /movies/:id` as the contract for that).

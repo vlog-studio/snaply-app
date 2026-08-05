@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react-native';
 
-import type { Movie } from '@/entities/movie';
+import type { Movie, SnapRef } from '@/entities/movie';
 import type { Snap } from '@/entities/snap';
 
 import { useMovieCuts } from './use-movie-cuts';
@@ -11,7 +11,7 @@ const mockSnaps = jest.fn<Snap[], []>();
 
 jest.mock('@/entities/movie', () => {
   // The trim rules are the entity's own and tested there; this hook is about
-  // which of them it applies and what it stages locally.
+  // which of them it applies and what it commits.
   const trim = jest.requireActual('@/entities/movie/lib/movie-trim');
   return {
     MovieSnapLimit: 10,
@@ -72,7 +72,14 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockMovie.mockReturnValue(makeMovie());
   mockSnaps.mockReturnValue([makeSnap('s1', 3), makeSnap('s2', 5), makeSnap('s3', 4)]);
-  mockSaveCuts.mockReturnValue({ cutCount: 3 });
+  // The write lands in the store: the movie the hook reads next holds the
+  // committed refs, the way the real zustand write behaves.
+  mockSaveCuts.mockImplementation((_movieId: string, refs: SnapRef[]) => {
+    mockMovie.mockReturnValue(
+      makeMovie({ snapRefs: refs.map((ref, order) => ({ ...ref, order })) }),
+    );
+    return { cutCount: refs.length };
+  });
 });
 
 describe('useMovieCuts', () => {
@@ -91,7 +98,6 @@ describe('useMovieCuts', () => {
 
     expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
     expect(result.current.totalSec).toBe(12);
-    expect(result.current.isDirty).toBe(false);
   });
 
   it('keeps a row whose original was deleted, so the user can remove it', async () => {
@@ -103,14 +109,17 @@ describe('useMovieCuts', () => {
     expect(result.current.cuts[1].snap).toBeUndefined();
   });
 
-  it('moves a cut and marks the list dirty without writing', async () => {
+  it('commits a move through the compose feature immediately', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     await act(async () => result.current.moveCut(0, 1));
 
+    expect(mockSaveCuts).toHaveBeenCalledWith('m1', [
+      { snapId: 's2', order: 1 },
+      { snapId: 's1', order: 0 },
+      { snapId: 's3', order: 2 },
+    ]);
     expect(cutIds(result.current.cuts)).toEqual(['s2', 's1', 's3']);
-    expect(result.current.isDirty).toBe(true);
-    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -122,7 +131,7 @@ describe('useMovieCuts', () => {
     await act(async () => result.current.moveCut(index, direction));
 
     expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
-    expect(result.current.isDirty).toBe(false);
+    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 
   it('removes a cut', async () => {
@@ -133,7 +142,7 @@ describe('useMovieCuts', () => {
     expect(cutIds(result.current.cuts)).toEqual(['s1', 's3']);
   });
 
-  it('refuses to remove the last cut', async () => {
+  it('refuses to remove the last cut without writing', async () => {
     mockMovie.mockReturnValue(makeMovie({ snapRefs: [{ snapId: 's1', order: 0 }] }));
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
@@ -141,61 +150,18 @@ describe('useMovieCuts', () => {
 
     expect(result.current.cuts).toHaveLength(1);
     expect(result.current.refusal).toBe('empty');
+    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 
-  it('commits the working list through the compose feature', async () => {
-    const { result } = await renderHook(() => useMovieCuts('m1'));
-
-    await act(async () => result.current.moveCut(0, 1));
-    await act(async () => result.current.save());
-
-    expect(mockSaveCuts).toHaveBeenCalledWith('m1', [
-      { snapId: 's2', order: 1 },
-      { snapId: 's1', order: 0 },
-      { snapId: 's3', order: 2 },
-    ]);
-  });
-
-  it('surfaces a refusal and keeps the working list so it can be fixed', async () => {
+  it('surfaces a refused edit and changes nothing', async () => {
     mockSaveCuts.mockReturnValue({ cutCount: 3, refused: 'frozen' });
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     await act(async () => result.current.moveCut(0, 1));
-    await act(async () => result.current.save());
 
     expect(result.current.refusal).toBe('frozen');
-    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1', 's3']);
-  });
-
-  it('drops local edits on discard', async () => {
-    const { result } = await renderHook(() => useMovieCuts('m1'));
-
-    await act(async () => result.current.moveCut(0, 1));
-    await act(async () => result.current.discard());
-
     expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
-    expect(result.current.isDirty).toBe(false);
-  });
-
-  it('abandons the working list when the stored cuts change underneath', async () => {
-    const { result, rerender } = await renderHook(() => useMovieCuts('m1'));
-
-    await act(async () => result.current.moveCut(0, 1));
-    expect(result.current.isDirty).toBe(true);
-
-    // A save landing, or a snap deleted elsewhere, replaces the stored list.
-    mockMovie.mockReturnValue(
-      makeMovie({
-        snapRefs: [
-          { snapId: 's2', order: 0 },
-          { snapId: 's1', order: 1 },
-        ],
-      }),
-    );
-    await act(async () => rerender({}));
-
-    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1']);
-    expect(result.current.isDirty).toBe(false);
+    expect(result.current.canUndo).toBe(false);
   });
 
   it('reports a generating movie as read-only', async () => {
@@ -213,45 +179,110 @@ describe('useMovieCuts', () => {
 
     expect(result.current.canEdit).toBe(true);
   });
+});
 
-  it('answers that there is nothing to commit when the list is untouched', async () => {
+describe('undo and redo', () => {
+  it('starts with nothing to walk', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
-    let moveOn;
-    await act(async () => {
-      moveOn = result.current.save();
-    });
-
-    expect(moveOn).toBe(true);
-    expect(mockSaveCuts).not.toHaveBeenCalled();
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(false);
   });
 
-  it('answers false for a refused commit, so the screen can keep the working list', async () => {
-    mockSaveCuts.mockReturnValue({ cutCount: 3, refused: 'frozen' });
+  it('steps an edit back by writing the list it replaced', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     await act(async () => result.current.moveCut(0, 1));
-    let moveOn;
-    await act(async () => {
-      moveOn = result.current.save();
-    });
+    expect(result.current.canUndo).toBe(true);
 
-    expect(moveOn).toBe(false);
+    await act(async () => result.current.undo());
+
+    expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(true);
+  });
+
+  it('reapplies an undone edit on redo', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1));
+    await act(async () => result.current.undo());
+    await act(async () => result.current.redo());
+
+    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1', 's3']);
+    expect(result.current.canUndo).toBe(true);
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it('walks several edits in order', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1)); // s2 s1 s3
+    await act(async () => result.current.removeCut(2)); // s2 s1
+
+    await act(async () => result.current.undo());
+    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1', 's3']);
+    await act(async () => result.current.undo());
+    expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('drops the redo trail when a new edit lands after an undo', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1));
+    await act(async () => result.current.undo());
+    await act(async () => result.current.moveCut(1, 1)); // a different edit
+
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it('does nothing at the ends of the history', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.undo());
+    await act(async () => result.current.redo());
+
+    expect(mockSaveCuts).not.toHaveBeenCalled();
+  });
+
+  it('drops the history when the stored cuts change from outside', async () => {
+    const { result, rerender } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1));
+    expect(result.current.canUndo).toBe(true);
+
+    // A snap deleted from the Snap tab, or snaps appended by the picker.
+    mockMovie.mockReturnValue(
+      makeMovie({
+        snapRefs: [
+          { snapId: 's2', order: 0 },
+          { snapId: 's1', order: 1 },
+        ],
+      }),
+    );
+    await act(async () => rerender({}));
+
+    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1']);
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(false);
   });
 });
 
 describe('trimming a cut', () => {
-  it('shortens a cut and shortens the movie with it', async () => {
+  it('commits a shortened cut and shortens the movie with it', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     // s2 is five seconds long.
     await act(async () => result.current.trimCut(1, 1, 3.5));
 
-    expect(result.current.cuts[1].ref.trim).toEqual({ startSec: 1, endSec: 3.5 });
+    expect(mockSaveCuts).toHaveBeenCalledWith('m1', [
+      { snapId: 's1', order: 0 },
+      { snapId: 's2', order: 1, trim: { startSec: 1, endSec: 3.5 } },
+      { snapId: 's3', order: 2 },
+    ]);
     expect(result.current.cuts[1].usedSec).toBe(2.5);
     // 3 + 2.5 + 4, where s2 was contributing five.
     expect(result.current.totalSec).toBe(9.5);
-    expect(result.current.isDirty).toBe(true);
   });
 
   it('holds a window inside the snap and above the minimum cut length', async () => {
@@ -259,8 +290,10 @@ describe('trimming a cut', () => {
 
     await act(async () => result.current.trimCut(0, -4, 99));
 
-    // s1 is three seconds; the window widens to the whole snap, so no trim.
+    // s1 is three seconds; the window widens to the whole snap, so no trim —
+    // and an unchanged cut writes nothing.
     expect(result.current.cuts[0].ref.trim).toBeUndefined();
+    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 
   it('puts a cut back to playing whole', async () => {
@@ -273,12 +306,13 @@ describe('trimming a cut', () => {
     expect(result.current.cuts[1].usedSec).toBe(5);
   });
 
-  it('does not dirty the list for a drag that settled where it started', async () => {
+  it('writes nothing for a drag that settled where it started', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
     await act(async () => result.current.trimCut(1, 0, 5));
 
-    expect(result.current.isDirty).toBe(false);
+    expect(mockSaveCuts).not.toHaveBeenCalled();
+    expect(result.current.canUndo).toBe(false);
   });
 
   it('ignores a trim on a cut whose original was deleted', async () => {
@@ -288,19 +322,16 @@ describe('trimming a cut', () => {
     await act(async () => result.current.trimCut(1, 1, 2));
 
     expect(result.current.cuts[1].ref.trim).toBeUndefined();
-    expect(result.current.isDirty).toBe(false);
+    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 
-  it('commits the trim with the cut list', async () => {
+  it('undoes a trim back to the whole snap', async () => {
     const { result } = await renderHook(() => useMovieCuts('m1'));
 
-    await act(async () => result.current.trimCut(0, 0.5, 2.5));
-    await act(async () => result.current.save());
+    await act(async () => result.current.trimCut(1, 1, 3.5));
+    await act(async () => result.current.undo());
 
-    expect(mockSaveCuts).toHaveBeenCalledWith('m1', [
-      { snapId: 's1', order: 0, trim: { startSec: 0.5, endSec: 2.5 } },
-      { snapId: 's2', order: 1 },
-      { snapId: 's3', order: 2 },
-    ]);
+    expect(result.current.cuts[1].ref.trim).toBeUndefined();
+    expect(result.current.totalSec).toBe(12);
   });
 });

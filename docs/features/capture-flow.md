@@ -49,7 +49,13 @@ The camera-permission-denied screen still exposes the recording library, so user
 ## Ownership and dependencies
 
 - `src/features/capture-moment/lib/read-capture-place.ts` owns the location read and the rule that it can never fail a capture. It is the feature's decision to ask, per the boundary in `shared/lib/location`, which stays transport-only.
-- `src/pages/capture-record` owns camera lifecycle, camera/microphone permissions, capture-stage orchestration, the inline duration state (idle-only), the in-camera feedback (counter pulse + "담김" badge), and its internal recording-library modal.
+- `src/pages/capture-record` owns camera lifecycle, camera/microphone permissions, capture-stage orchestration, the inline duration state (idle-only), the in-camera feedback (counter pulse + "담김" badge), and its internal recording-library modal. Those are four separate concerns in `model`, each with its own reason to change:
+  - `use-recording-permissions.ts` — camera + microphone permission state, the one automatic request for what is missing, the manual retry, and the settings deep link. It exposes booleans and Korean copy, never `expo-camera`'s permission objects.
+  - `use-camera-device.ts` — the camera handle, readiness, facing, and sound. The **only** module in the slice that calls `expo-camera`'s imperative API; the handle never leaves the file (the page attaches the view through `attachCamera`). It publishes the narrow `RecordingDevice` contract the capture run is written against.
+  - `use-capture-session.ts` — one capture run: the hold gesture, the `idle`/`recording`/`saving` machine, the display countdown, the selected duration, and handing the file to `features/capture-moment`. It holds the capture rules and no SDK details.
+  - `use-recording-library.ts` — the saved-originals list, the modal, which recording is previewed, and deletion through `features/delete-snap`.
+  - `use-capture-recorder.ts` composes those four and owns only what spans them: the screen stage (`review` is "a recording is selected"), the single error banner, and leaving/retaking/opening the library/previewing/deleting. The page consumes it and renders.
+- `src/shared/lib/haptics` wraps `expo-haptics` with the project's iOS-only guard (`impactFeedback`, `selectionFeedback`, `successFeedback`). Capture and the tab bar's capture button both go through it; neither calls the SDK directly.
 - `src/features/capture-moment` owns saving a snap: persisting the file and building snap metadata. It owns its own pending/error state and does not navigate.
 - `src/pages/capture-record/ui/capture-flight.tsx` owns the "frame flies into the counter" animation; the recorder page owns the trailing count, counter pop, and badge.
 - `src/entities/snap` owns snap metadata and its persisted store.

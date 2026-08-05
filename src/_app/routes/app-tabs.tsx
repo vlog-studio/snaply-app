@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurTargetView, BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
 import { Tabs, useIsFocused, useRouter } from 'expo-router';
 import {
   createContext,
@@ -14,6 +13,7 @@ import {
 } from 'react';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 
+import { impactFeedback } from '@/shared/lib/haptics';
 import { useTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import { Radius, TabBarContentHeight, useResolvedColorScheme, useTheme } from '@/shared/ui/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -175,7 +175,7 @@ function CaptureButton({ bottom }: { bottom: number }) {
   const openCapture = () => {
     // A full-screen modal is a large jump for one small button, so the press
     // is acknowledged in the hand as well as on screen.
-    if (process.env.EXPO_OS === 'ios') void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    impactFeedback('light');
     router.push('/capture');
   };
 

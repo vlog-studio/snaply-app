@@ -34,45 +34,34 @@ export function CaptureRecordPage() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const {
-    duration,
-    selectDuration,
-    lastCollected,
     stage,
-    remaining,
-    isBusy,
     showCamera,
-    isRecordingSupported,
-    soundEnabled,
-    toggleSound,
-    facing,
-    toggleFacing,
-    isCameraReady,
-    cameraRef,
-    handleCameraReady,
-    handleMountError,
-    selectedRecording,
     errorMessage,
-    beginHold,
-    endHold,
+    dismissErrors,
     closePage,
     retake,
-    dismissErrors,
-    recordings,
-    isLibraryLoading,
-    libraryError,
-    deletingId,
-    isLibraryVisible,
     openLibrary,
-    closeLibrary,
     selectRecording,
     deleteRecording,
-    isCameraGranted,
-    isPermissionReady,
-    canAskAgain,
-    permissionMessage,
-    requestPermissions,
-    openAppSettings,
+    permissions,
+    camera,
+    session,
+    library,
   } = useCaptureRecorder();
+  // Read out once rather than through `camera.x`: the device group holds the
+  // camera handle, and the compiler treats a member read on it during render as
+  // reading a ref.
+  const {
+    attachCamera,
+    facing,
+    soundEnabled,
+    isReady,
+    isRecordingSupported,
+    toggleFacing,
+    toggleSound,
+    handleCameraReady,
+    handleMountError,
+  } = camera;
 
   // In-camera feedback: the just-captured snap flies up into the counter; when
   // it lands, the count bumps and the counter pops. Capturing stays on the
@@ -111,7 +100,7 @@ export function CaptureRecordPage() {
 
   // Each capture starts a flight; reduced motion lands it immediately.
   useEffect(() => {
-    const nonce = lastCollected?.nonce ?? 0;
+    const nonce = session.lastCollected?.nonce ?? 0;
     if (nonce === 0 || nonce === processedNonce.current) return;
     processedNonce.current = nonce;
     if (reducedMotion) {
@@ -119,8 +108,8 @@ export function CaptureRecordPage() {
       flashCollectedBadge();
       return;
     }
-    setFlight({ key: nonce, uri: lastCollected?.uri ?? '' });
-  }, [lastCollected, reducedMotion]);
+    setFlight({ key: nonce, uri: session.lastCollected?.uri ?? '' });
+  }, [session.lastCollected, reducedMotion]);
 
   // Pop the counter on landing (kept in an effect so the shared-value write is
   // outside any memoized callback).
@@ -143,7 +132,7 @@ export function CaptureRecordPage() {
     transform: [{ scale: 1 + counterPulse.value * 0.16 }],
   }));
 
-  if (!isCameraGranted && stage !== 'review') {
+  if (!permissions.isCameraGranted && stage !== 'review') {
     return (
       <View
         style={[
@@ -172,34 +161,38 @@ export function CaptureRecordPage() {
           <ThemedText type="title" style={styles.whiteText}>
             카메라를 사용할 수 없어요
           </ThemedText>
-          <ThemedText style={styles.permissionDescription}>{permissionMessage}</ThemedText>
-          {isPermissionReady ? (
+          <ThemedText style={styles.permissionDescription}>{permissions.message}</ThemedText>
+          {permissions.isPermissionReady ? (
             <SnaplyButton
-              title={canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'}
-              onPress={canAskAgain ? requestPermissions : openAppSettings}
+              title={permissions.canAskAgain ? '카메라·마이크 권한 허용' : '설정에서 권한 열기'}
+              onPress={
+                permissions.canAskAgain
+                  ? permissions.requestPermissions
+                  : permissions.openAppSettings
+              }
               style={styles.permissionAction}
             />
           ) : null}
           <SnaplyButton
-            title={`찍어둔 스냅 보기 (${recordings.length})`}
+            title={`찍어둔 스냅 보기 (${library.recordings.length})`}
             variant="secondary"
             onPress={openLibrary}
             style={styles.permissionAction}
           />
-          {libraryError ? (
+          {library.errorMessage ? (
             <ThemedText type="small" style={styles.permissionError}>
-              {libraryError}
+              {library.errorMessage}
             </ThemedText>
           ) : null}
         </View>
         <RecordingLibrary
-          deletingId={deletingId}
-          isLoading={isLibraryLoading}
-          onClose={closeLibrary}
+          deletingId={library.deletingId}
+          isLoading={library.isLoading}
+          onClose={library.close}
           onDelete={deleteRecording}
           onSelect={selectRecording}
-          recordings={recordings}
-          visible={isLibraryVisible}
+          recordings={library.recordings}
+          visible={library.isVisible}
         />
       </View>
     );
@@ -216,16 +209,16 @@ export function CaptureRecordPage() {
             mute={!soundEnabled}
             onCameraReady={handleCameraReady}
             onMountError={({ message }) => handleMountError(message || '')}
-            ref={cameraRef}
+            ref={attachCamera}
             style={StyleSheet.absoluteFill}
             videoQuality="720p"
           />
         ) : null}
-        {stage === 'review' && selectedRecording && !isLibraryVisible ? (
+        {stage === 'review' && library.selected && !library.isVisible ? (
           <VideoPreview
-            key={selectedRecording.id}
+            key={library.selected.id}
             muted={!soundEnabled}
-            uri={selectedRecording.uri}
+            uri={library.selected.uri}
           />
         ) : null}
 
@@ -252,10 +245,10 @@ export function CaptureRecordPage() {
           </Animated.View>
           <Pressable
             accessibilityLabel={soundEnabled ? '녹음 소리 끄기' : '녹음 소리 켜기'}
-            accessibilityState={{ disabled: isBusy }}
-            disabled={isBusy}
+            accessibilityState={{ disabled: session.isBusy }}
+            disabled={session.isBusy}
             onPress={toggleSound}
-            style={[styles.utilityButton, isBusy && styles.disabledControl]}
+            style={[styles.utilityButton, session.isBusy && styles.disabledControl]}
           >
             <ThemedText selectable={false} style={styles.soundIcon}>
               {soundEnabled ? '♪' : '∅'}
@@ -285,7 +278,7 @@ export function CaptureRecordPage() {
                 REC
               </ThemedText>
               <ThemedText type="edge" style={[styles.whiteText, styles.tabularNumber]}>
-                {remaining > 0 ? `${remaining}s` : '마무리 중…'}
+                {session.remaining > 0 ? `${session.remaining}s` : '마무리 중…'}
               </ThemedText>
             </View>
           ) : null}
@@ -323,14 +316,14 @@ export function CaptureRecordPage() {
           {stage === 'idle' && isRecordingSupported ? (
             <View style={styles.durationToggle}>
               {DURATION_OPTIONS.map((seconds) => {
-                const isSelected = duration === seconds;
+                const isSelected = session.duration === seconds;
                 return (
                   <Pressable
                     key={seconds}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: isSelected }}
                     accessibilityLabel={`${seconds}초`}
-                    onPress={() => selectDuration(seconds)}
+                    onPress={() => session.selectDuration(seconds)}
                     style={[styles.durationSeg, isSelected && styles.durationSegActive]}
                   >
                     <ThemedText
@@ -352,23 +345,23 @@ export function CaptureRecordPage() {
           ) : (
             <View style={styles.captureControls}>
               <Pressable
-                accessibilityLabel={`저장 영상 ${recordings.length}개 보기`}
+                accessibilityLabel={`저장 영상 ${library.recordings.length}개 보기`}
                 accessibilityRole="button"
-                disabled={isBusy}
+                disabled={session.isBusy}
                 onPress={openLibrary}
-                style={[styles.sideControl, isBusy && styles.disabledControl]}
+                style={[styles.sideControl, session.isBusy && styles.disabledControl]}
               >
                 <ThemedText selectable={false} style={styles.sideControlIcon}>
                   ▣
                 </ThemedText>
                 <ThemedText selectable={false} type="small" style={styles.mutedWhite}>
-                  스냅 {recordings.length}
+                  스냅 {library.recordings.length}
                 </ThemedText>
               </Pressable>
               <View style={styles.shutterArea}>
                 <HoldRing
                   active={stage === 'recording'}
-                  durationMs={duration * 1000}
+                  durationMs={session.duration * 1000}
                   size={HOLD_RING_SIZE}
                 />
                 <Pressable
@@ -376,15 +369,15 @@ export function CaptureRecordPage() {
                   accessibilityLabel="꾹 눌러 담기"
                   accessibilityRole="button"
                   accessibilityState={{
-                    disabled: stage === 'saving' || !isCameraReady || !isRecordingSupported,
+                    disabled: stage === 'saving' || !isReady || !isRecordingSupported,
                   }}
-                  disabled={stage === 'saving' || !isCameraReady || !isRecordingSupported}
-                  onPressIn={beginHold}
-                  onPressOut={endHold}
+                  disabled={stage === 'saving' || !isReady || !isRecordingSupported}
+                  onPressIn={session.beginHold}
+                  onPressOut={session.endHold}
                   style={[
                     styles.shutterOuter,
                     stage === 'recording' && styles.shutterRecording,
-                    (!isCameraReady || !isRecordingSupported) && styles.disabledControl,
+                    (!isReady || !isRecordingSupported) && styles.disabledControl,
                   ]}
                 >
                   <View
@@ -399,9 +392,9 @@ export function CaptureRecordPage() {
               <Pressable
                 accessibilityLabel="카메라 전환"
                 accessibilityRole="button"
-                disabled={isBusy}
+                disabled={session.isBusy}
                 onPress={toggleFacing}
-                style={[styles.sideControl, isBusy && styles.disabledControl]}
+                style={[styles.sideControl, session.isBusy && styles.disabledControl]}
               >
                 <ThemedText selectable={false} style={styles.sideControlIcon}>
                   ↻
@@ -423,12 +416,12 @@ export function CaptureRecordPage() {
                     ? '찍어둔 스냅을 다시 골라볼 수 있어요'
                     : collectedCount > 0
                       ? '이어서 찍거나, ✕를 눌러 스튜디오로 돌아가요'
-                      : `가운데 버튼을 꾹 누르는 동안 찍혀요 · 최대 ${duration}초`}
+                      : `가운데 버튼을 꾹 누르는 동안 찍혀요 · 최대 ${session.duration}초`}
           </ThemedText>
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
               <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>
-                찍어둔 스냅 {recordings.length}개 관리
+                찍어둔 스냅 {library.recordings.length}개 관리
               </ThemedText>
             </Pressable>
           ) : null}
@@ -436,13 +429,13 @@ export function CaptureRecordPage() {
       </View>
 
       <RecordingLibrary
-        deletingId={deletingId}
-        isLoading={isLibraryLoading}
-        onClose={closeLibrary}
+        deletingId={library.deletingId}
+        isLoading={library.isLoading}
+        onClose={library.close}
         onDelete={deleteRecording}
         onSelect={selectRecording}
-        recordings={recordings}
-        visible={isLibraryVisible}
+        recordings={library.recordings}
+        visible={library.isVisible}
       />
     </View>
   );

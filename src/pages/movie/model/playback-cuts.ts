@@ -1,5 +1,16 @@
 import type { Cut } from './use-movie-cuts';
 
+/**
+ * How often the stage reports where it is, in seconds.
+ *
+ * It is one number for two readers on purpose. The player needs it because a cut
+ * ends on a trim boundary rather than at the end of its file, so the boundary has
+ * to be watched for; the timeline needs it because its playhead glides between
+ * reports and has to know how far apart they are. A quarter second is close
+ * enough not to be seen and far cheaper than every frame.
+ */
+export const PlaybackProgressIntervalSec = 0.25;
+
 /** One cut as the player needs it: a file, and the window of it that plays. */
 export type PlaybackCut = {
   snapId: string;

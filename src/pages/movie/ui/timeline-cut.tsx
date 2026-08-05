@@ -262,6 +262,7 @@ export function TimelineCut({
       <AnimatedPressable
         accessibilityRole="button"
         accessibilityLabel={`컷 ${index + 1}${missing ? ' · 원본 삭제됨' : ''} · ${formatSeconds(shown.endSec - shown.startSec)}`}
+        accessibilityHint={focused ? '다시 탭하면 선택이 해제됩니다' : undefined}
         accessibilityState={{ selected }}
         onPress={() => onSelect(index)}
         style={[

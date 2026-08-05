@@ -1,6 +1,6 @@
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
-import type { AuthMethod, User } from './user';
+import type { AuthMethod, User } from '../model/user';
 
 function toAuthMethod(value: unknown): AuthMethod {
   if (value === 'apple') return 'apple';

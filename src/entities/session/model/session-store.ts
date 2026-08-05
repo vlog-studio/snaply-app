@@ -1,8 +1,7 @@
 import { create } from 'zustand';
 
-import { startAuthAutoRefresh, supabase } from '@/shared/lib/supabase';
+import { endSession, exchangeSessionCode, subscribeToSession } from '../api/session-gateway';
 
-import { mapSupabaseUser } from './map-user';
 import type { User } from './user';
 
 type SessionState = {
@@ -18,11 +17,14 @@ type SessionState = {
 };
 
 /**
- * Owns the app's view of the session. Under the "Supabase owns the session"
- * model the tokens live in the Supabase client (persisted via SecureStore);
- * this store only mirrors the derived `User` so screens and the route guard can
- * react synchronously. `initSession` is the single writer for Supabase-driven
- * changes (restore on launch, token refresh, sign-out).
+ * Owns the app's view of the session. Under the "the auth backend owns the
+ * session" model the tokens live in that backend's client (persisted via
+ * SecureStore); this store only mirrors the derived `User` so screens and the
+ * route guard can react synchronously. `initSession` is the single writer for
+ * backend-driven changes (restore on launch, token refresh, sign-out).
+ *
+ * Everything backend-specific sits behind `api/session-gateway`, so this module
+ * knows only the session domain.
  *
  * Exported for co-located tests only. Application code must consume the focused
  * selector hooks below through the slice Public API.
@@ -34,44 +36,33 @@ export const useSessionStore = create<SessionState>()(() => ({
 }));
 
 /**
- * Subscribe the store to Supabase auth changes and start lifecycle-bound token
- * refresh. Call once from the root layout; returns a cleanup function. The
- * subscription fires immediately with the restored (or absent) initial session,
- * which is what flips `hasHydrated` and releases the splash overlay.
+ * Subscribe the store to authentication-backend session changes. Call once from
+ * the root layout; returns a cleanup function. The subscription fires
+ * immediately with the restored (or absent) initial session, which is what
+ * flips `hasHydrated` and releases the splash overlay.
  */
 export function initSession(): () => void {
-  const stopAutoRefresh = startAuthAutoRefresh();
-
-  const {
-    data: { subscription },
-  } = supabase.auth.onAuthStateChange((event, session) => {
+  return subscribeToSession(({ user, isRecovery }) => {
     useSessionStore.setState({
-      user: session ? mapSupabaseUser(session.user) : null,
+      user,
       hasHydrated: true,
-      // Belt-and-suspenders: some flows emit this event on a recovery landing.
-      // The deep-link handler also sets the flag from the callback URL.
-      ...(event === 'PASSWORD_RECOVERY' ? { isRecovering: true } : {}),
+      ...(isRecovery ? { isRecovering: true } : {}),
     });
   });
-
-  return () => {
-    subscription.unsubscribe();
-    stopAutoRefresh();
-  };
 }
 
 /**
  * Write a user into the store directly. Used by the sign-in action for
- * immediate feedback (and by the offline mock provider, which never touches
- * Supabase); the Supabase listener reconciles the same value for real sign-ins.
+ * immediate feedback (and by the offline mock provider, which never reaches the
+ * backend); the auth listener reconciles the same value for real sign-ins.
  */
 export function setSessionUser(user: User): void {
   useSessionStore.setState({ user });
 }
 
-/** Sign out of Supabase; the auth listener clears the mirrored user. */
+/** End the backend session; the auth listener clears the mirrored user too. */
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+  await endSession();
   useSessionStore.setState({ user: null, isRecovering: false });
 }
 
@@ -92,7 +83,7 @@ export function finishPasswordRecovery(): void {
  * Exchange a PKCE code from an auth email deep link for a session. Called by the
  * `/auth/callback` and `/auth/reset` route handlers. For recovery, the flag is
  * set before the exchange so the guard never flashes the app between "signed in"
- * and "recovering". `onAuthStateChange` mirrors the resulting user. Returns
+ * and "recovering". The auth listener mirrors the resulting user. Returns
  * whether the exchange succeeded.
  */
 export async function exchangeAuthCode(
@@ -100,13 +91,9 @@ export async function exchangeAuthCode(
   options?: { recovery?: boolean },
 ): Promise<boolean> {
   if (options?.recovery) setRecovering(true);
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    if (options?.recovery) setRecovering(false);
-    if (__DEV__) console.warn('[auth] deep-link code exchange failed:', error.message);
-    return false;
-  }
-  return true;
+  const exchanged = await exchangeSessionCode(code);
+  if (!exchanged && options?.recovery) setRecovering(false);
+  return exchanged;
 }
 
 export function useCurrentUser(): User | null {

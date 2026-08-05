@@ -9,5 +9,5 @@ export {
   useSessionHydrated,
   useSetSession,
 } from './model/session-store';
-export { mapSupabaseUser } from './model/map-user';
+export { mapSupabaseUser } from './api/map-user';
 export type { AuthMethod, SocialProvider, User } from './model/user';

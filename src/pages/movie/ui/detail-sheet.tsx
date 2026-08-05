@@ -1,11 +1,6 @@
 import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
-import {
-  MovieBgmCatalog,
-  isAiArranged,
-  type Movie,
-  type MovieStylePatch,
-} from '@/entities/movie';
+import { MovieBgmCatalog, isAiArranged, type Movie, type MovieStylePatch } from '@/entities/movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';

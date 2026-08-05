@@ -129,9 +129,9 @@ function buildTrimGesture(
       moving.value = clampPx(handles.origin.value + event.translationX, min, max);
       publish(false);
     })
-    // `onFinalize` rather than `onEnd`: it also runs when the gesture is
-    // cancelled, which must still commit the window and hand the scroll back.
     .onFinalize(() => {
+      // `onFinalize` rather than `onEnd`: it also runs when the gesture is
+      // cancelled, which must still commit the window and hand the scroll back.
       publish(true);
       runOnJS(setTrimming)(false);
     });

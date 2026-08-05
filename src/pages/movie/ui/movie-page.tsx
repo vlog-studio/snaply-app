@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { movieBgmLabel, movieStyleLabel } from '@/entities/movie';
 import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
@@ -11,37 +12,43 @@ import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
+import { toCutIndex, toPlaybackCuts, toPlaybackIndex } from '../model/playback-cuts';
 import { useMovieCuts } from '../model/use-movie-cuts';
-import { useMoviePlayback } from '../model/use-movie-playback';
 import { useShareMovie } from '../model/use-share-movie';
-import { ArrangementRow } from './arrangement-row';
-import { CutList } from './cut-list';
-import { CutPlayer } from './cut-player';
-import { GeneratePanel } from './generate-panel';
-import { StylePanel } from './style-panel';
+import { CutInspector } from './cut-inspector';
+import { CutPlayer, type CutPlayerHandle } from './cut-player';
+import { DetailSheet } from './detail-sheet';
+import { GenerateFooter } from './generate-footer';
+import { GenerationProgress } from './generation-progress';
+import { StylePickerSheet } from './style-picker-sheet';
+import { TimelineStrip } from './timeline-strip';
 
 export type MoviePageProps = {
   movieId?: string;
 };
 
-/** Row padding plus its two hairline borders, taken off the content column. */
-const RowInset = Spacing.two * 2 + 2;
-
 /**
- * One movie, at whatever point of its life it is at.
+ * One movie, at whatever point of its life it is at — laid out as a timeline
+ * studio rather than a long scroll.
  *
- * There is no separate editor screen and no separate playback screen, because there is
- * no separate object: a movie is picked, run, watched, fixed, and run again, and
- * splitting that across two routes would have meant two places that can edit the
- * same cut list. What changes with the status is only which parts are here, and
- * whether they are controls or a read-out:
+ * The stage (the player) is always on screen, the cuts run under it as a
+ * filmstrip, and the selected cut's controls sit between the two, so an edit
+ * and its result are one glance apart instead of a scroll apart. The stage
+ * previews the *working* cut list: a reorder, a trim, or a removal shows up in
+ * it immediately, before the save commits anything. Style and 세부 live in
+ * sheets opened from chips — settings are visited, cuts are worked on.
  *
- * - `draft` — the composition as controls: cut order, lengths, and style are
- *   settled here, before the slow run is paid for, and the button runs it.
- * - `generating` — the progress the user came back to see. Leaving is expected.
- * - `ready` — the movie plays, and the cut list, the style panel, and "다시
- *   만들기" become the way to say "not like that".
- * - `failed` — the same controls, led by the reason and a retry.
+ * There is still no separate editor screen and no separate playback screen,
+ * because there is no separate object: a movie is picked, run, watched, fixed,
+ * and run again. What changes with the status is what fills the stage and what
+ * the footer offers:
+ *
+ * - `draft` — the stage previews the cuts, and the footer runs the first job.
+ * - `generating` — the stage holds the progress ring; everything else is a
+ *   read-out. Leaving is expected.
+ * - `ready` — the stage plays the result, and the same controls plus "이
+ *   구성으로 다시 만들기" are the way to say "not like that".
+ * - `failed` — the same controls, led by the reason and a retry in the footer.
  */
 export function MoviePage({ movieId }: MoviePageProps) {
   const theme = useTheme();
@@ -50,12 +57,20 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const { width: windowWidth } = useWindowDimensions();
   const { saveStyle, setArranger, startGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
-  const playback = useMoviePlayback(movieId);
   const { movie, cuts, totalSec, isDirty, canEdit, refusal } = list;
   const sharing = useShareMovie(movie);
 
   const [renaming, setRenaming] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
+
+  // Which cut the strip and the inspector point at; the stage follows a tap and
+  // the highlight follows playback. Clamped rather than reset when the list
+  // shrinks, so removing a cut selects its neighbor instead of jumping home.
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const playerRef = useRef<CutPlayerHandle>(null);
+  const selected = cuts.length > 0 ? Math.min(selectedIndex, cuts.length - 1) : -1;
 
   // A direct link can land here with nothing behind it, and the screen has no
   // navigation bar to fall back on — so going back means the studio.
@@ -73,21 +88,18 @@ export function MoviePage({ movieId }: MoviePageProps) {
     );
   }
 
-  // Derived rather than measured (the content column is centered, capped, and
-  // padded) so a trim bar lays out correctly on its first frame.
-  const trimWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2 - RowInset;
-
+  const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
-  const isReady = movie.status === 'ready';
-  // A run in flight, or one that has just broken, is the news. Otherwise the
-  // material comes first and the button that runs it comes after it.
-  const leadWithGeneration = isGenerating || movie.status === 'failed';
+
+  // Derived rather than measured (the content column is centered, capped, and
+  // padded) so the trim bar lays out correctly on its first frame.
+  const trimWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
 
   const subtitle = () => {
     if (isDirty) return '저장하지 않은 변경이 있어요';
     if (isGenerating) return '만드는 중이에요';
     if (movie.status === 'failed') return '만들지 못했어요';
-    if (isReady && movie.render) {
+    if (movie.status === 'ready' && movie.render) {
       return `컷 ${cuts.length}개 · ${formatSeconds(totalSec)} · ${formatDateTime(movie.render.renderedAt)} 완성`;
     }
     return `컷 ${cuts.length}개 · ${formatSeconds(totalSec)} · 아직 만들지 않았어요`;
@@ -101,123 +113,152 @@ export function MoviePage({ movieId }: MoviePageProps) {
     setGenerationRefusal(outcome.refused);
   };
 
-  const generatePanel = (
-    <GeneratePanel
-      movie={movie}
-      cutCount={cuts.length}
-      totalSec={totalSec}
-      refusal={generationRefusal}
-      hasUnsavedCuts={isDirty}
-      onStart={runGeneration}
-    />
-  );
+  // A strip tap selects the cut and jumps the stage to it. A dead cut is still
+  // selectable — the inspector is where it is removed — the stage just cannot
+  // follow it there.
+  const selectCut = (index: number) => {
+    setSelectedIndex(index);
+    const playbackIndex = toPlaybackIndex(cuts, index);
+    if (playbackIndex !== undefined) playerRef.current?.jumpTo(playbackIndex);
+  };
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <BackBar onPress={goBack} />
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Spacing.seven }]}>
-        <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <ThemedText type="title" numberOfLines={1}>
-              {movie.title}
-            </ThemedText>
-            <ThemedText
-              type="small"
-              themeColor={movie.status === 'failed' ? 'danger' : 'textSecondary'}
-            >
-              {subtitle()}
+
+      <View style={styles.header}>
+        <View style={styles.headerCopy}>
+          <ThemedText type="heading" numberOfLines={1}>
+            {movie.title}
+          </ThemedText>
+          <ThemedText
+            type="xsmall"
+            themeColor={movie.status === 'failed' ? 'danger' : 'textSecondary'}
+          >
+            {subtitle()}
+          </ThemedText>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="무비 이름 바꾸기"
+          hitSlop={8}
+          onPress={() => setRenaming(true)}
+        >
+          <ThemedText selectable={false} type="smallBold" themeColor="primary">
+            이름
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      {/* The stage: the player on an editable movie, the ring under a job. It
+          takes whatever height the timeline below leaves over. */}
+      <View style={styles.stage}>
+        {isGenerating ? (
+          <ScrollView contentContainerStyle={styles.progressScroll}>
+            <GenerationProgress movie={movie} />
+          </ScrollView>
+        ) : playbackCuts.length > 0 ? (
+          <View style={styles.playerBox}>
+            <CutPlayer
+              ref={playerRef}
+              cuts={playbackCuts}
+              editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
+              onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
+              style={styles.player}
+            />
+          </View>
+        ) : (
+          <View style={[styles.empty, { borderColor: theme.border }]}>
+            <ThemedText type="heading">재생할 컷이 없어요</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.centerText}>
+              이 무비가 쓰던 스냅 원본이 모두 지워졌어요.
             </ThemedText>
           </View>
+        )}
+      </View>
+
+      <TimelineStrip
+        cuts={cuts}
+        selectedIndex={selected}
+        canEdit={canEdit}
+        onSelect={selectCut}
+        onAddSnaps={addSnaps}
+      />
+
+      <View style={styles.content}>
+        {canEdit && selected >= 0 ? (
+          <CutInspector
+            cut={cuts[selected]}
+            index={selected}
+            count={cuts.length}
+            canEdit={canEdit}
+            canRemove={cuts.length > 1}
+            trimWidth={trimWidth}
+            onMove={(index, direction) => {
+              list.moveCut(index, direction);
+              setSelectedIndex(index + direction);
+            }}
+            onRemove={list.removeCut}
+            onTrim={list.trimCut}
+            onResetTrim={list.resetTrim}
+          />
+        ) : null}
+
+        {/* Settings are visited, cuts are worked on: the chips carry the current
+            values so the sheets only need opening to change something. */}
+        <View style={styles.chips}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="무비 이름 바꾸기"
-            hitSlop={8}
-            onPress={() => setRenaming(true)}
+            accessibilityLabel={`스타일 ${movieStyleLabel(movie.style)}`}
+            onPress={() => setStyleOpen(true)}
+            style={[styles.chip, { borderColor: theme.border }]}
           >
-            <ThemedText selectable={false} type="smallBold" themeColor="primary">
-              이름
+            <ThemedText selectable={false} type="smallBold">
+              스타일
+            </ThemedText>
+            <ThemedText selectable={false} type="small" themeColor="textSecondary">
+              {movieStyleLabel(movie.style)}
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`세부 설정, 배경 음악 ${movieBgmLabel(movie.bgm)}`}
+            onPress={() => setDetailOpen(true)}
+            style={[styles.chip, { borderColor: theme.border }]}
+          >
+            <ThemedText selectable={false} type="smallBold">
+              세부
+            </ThemedText>
+            <ThemedText selectable={false} type="small" themeColor="textSecondary">
+              {movieBgmLabel(movie.bgm)}
             </ThemedText>
           </Pressable>
         </View>
+      </View>
 
-        {leadWithGeneration ? generatePanel : null}
-
-        {/* Watching comes before fixing: on a draft the player previews the cuts
-            the run will be built from, and on a result it is what the cut list
-            and the style panel below it are reactions to. A movie whose
-            originals are all gone says so instead. */}
-        {canEdit ? (
-          playback.cuts.length > 0 ? (
-            <CutPlayer cuts={playback.cuts} />
-          ) : (
-            <View style={[styles.empty, { borderColor: theme.border }]}>
-              <ThemedText type="heading">재생할 컷이 없어요</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.centerText}>
-                이 무비가 쓰던 스냅 원본이 모두 지워졌어요.
-              </ThemedText>
-            </View>
-          )
+      <View
+        style={[
+          styles.footer,
+          {
+            borderTopColor: theme.border,
+            paddingBottom: insets.bottom + Spacing.three,
+          },
+        ]}
+      >
+        {/* A commit refused while the footer's own notices are hidden (a job
+            owns the movie) still has to be answered somewhere. */}
+        {isGenerating && refusal ? (
+          <View
+            style={[
+              styles.notice,
+              { borderColor: theme.border, backgroundColor: theme.warmSurface },
+            ]}
+          >
+            <ThemedText type="small">만드는 동안에는 컷을 고칠 수 없어요.</ThemedText>
+          </View>
         ) : null}
 
-        <CutList
-          cuts={cuts}
-          totalSec={totalSec}
-          canEdit={canEdit}
-          refusal={refusal}
-          trimWidth={trimWidth}
-          onMove={list.moveCut}
-          onRemove={list.removeCut}
-          onTrim={list.trimCut}
-          onResetTrim={list.resetTrim}
-          onAddSnaps={addSnaps}
-        />
-
-        {canEdit ? (
-          <ArrangementRow
-            movie={movie}
-            onChange={(locked) => setArranger(movie.id, locked ? 'user' : 'ai')}
-          />
-        ) : null}
-
-        {canEdit ? (
-          <StylePanel
-            movie={movie}
-            totalSec={totalSec}
-            canEdit={canEdit}
-            onChange={(patch) => saveStyle(movie.id, patch)}
-          />
-        ) : null}
-
-        {leadWithGeneration ? null : generatePanel}
-
-        {isReady ? (
-          <>
-            <SnaplyButton
-              title="무비 공유"
-              variant="secondary"
-              disabled={sharing.blocked !== undefined}
-              onPress={sharing.share}
-            />
-            {sharing.blocked === 'no-render' ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                내보낼 파일이 없어서 공유는 아직 눌러지지 않아요 — 합성이 붙는 순간 열립니다.
-              </ThemedText>
-            ) : null}
-          </>
-        ) : null}
-      </ScrollView>
-
-      {isDirty ? (
-        <View
-          style={[
-            styles.footer,
-            {
-              backgroundColor: theme.background,
-              borderTopColor: theme.border,
-              paddingBottom: insets.bottom + Spacing.four,
-            },
-          ]}
-        >
+        {isDirty ? (
           <View style={styles.footerRow}>
             <Pressable
               accessibilityRole="button"
@@ -235,8 +276,38 @@ export function MoviePage({ movieId }: MoviePageProps) {
               style={styles.primaryAction}
             />
           </View>
-        </View>
-      ) : null}
+        ) : null}
+
+        {isGenerating ? null : (
+          <GenerateFooter
+            movie={movie}
+            cutCount={cuts.length}
+            totalSec={totalSec}
+            refusal={generationRefusal}
+            cutsRefusal={refusal}
+            hasUnsavedCuts={isDirty}
+            sharing={sharing}
+            onStart={runGeneration}
+          />
+        )}
+      </View>
+
+      <StylePickerSheet
+        visible={styleOpen}
+        movie={movie}
+        canEdit={canEdit}
+        onChange={(patch) => saveStyle(movie.id, patch)}
+        onClose={() => setStyleOpen(false)}
+      />
+      <DetailSheet
+        visible={detailOpen}
+        movie={movie}
+        totalSec={totalSec}
+        canEdit={canEdit}
+        onChangeStyle={(patch) => saveStyle(movie.id, patch)}
+        onChangeArranger={(locked) => setArranger(movie.id, locked ? 'user' : 'ai')}
+        onClose={() => setDetailOpen(false)}
+      />
 
       {/* Keyed by the movie so the field opens on the name that is stored now. */}
       <RenameMovieSheet
@@ -258,18 +329,35 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.six,
   },
-  content: {
+  header: {
     width: '100%',
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.three,
     paddingHorizontal: Spacing.five,
     // The back arrow above carries its own padding, so the title needs only the
     // gap that keeps it off the glyph.
     paddingTop: Spacing.two,
-    gap: Spacing.four,
+    paddingBottom: Spacing.two,
   },
-  header: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.three },
   headerCopy: { flex: 1, gap: Spacing.half },
+  stage: {
+    flex: 1,
+    minHeight: 160,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.five,
+  },
+  // Height-bound: the stage hands the player its leftover height and the 9:16
+  // ratio sets the width, so the timeline never gets pushed off screen.
+  playerBox: { flex: 1, aspectRatio: 9 / 16, maxWidth: '100%' },
+  player: { width: '100%', height: '100%' },
+  progressScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: Spacing.four },
   centerText: { textAlign: 'center' },
   empty: {
     borderWidth: 1.5,
@@ -279,6 +367,25 @@ const styles = StyleSheet.create({
     padding: Spacing.five,
     gap: Spacing.two,
     alignItems: 'center',
+    alignSelf: 'stretch',
+  },
+  content: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.five,
+    gap: Spacing.three,
+    paddingBottom: Spacing.two,
+  },
+  chips: { flexDirection: 'row', gap: Spacing.two },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 44,
+    paddingHorizontal: Spacing.four,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
   },
   footer: {
     width: '100%',
@@ -286,9 +393,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.four,
+    paddingTop: Spacing.three,
+    gap: Spacing.two,
   },
   footerRow: { flexDirection: 'row', gap: Spacing.two },
+  notice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    padding: Spacing.three,
+  },
   primaryAction: { flex: 1 },
   secondaryAction: {
     minHeight: 56,

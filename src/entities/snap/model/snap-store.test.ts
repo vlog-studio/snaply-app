@@ -1,7 +1,14 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import type { Snap } from './snap';
-import { getSnapsByIds, useAddSnap, useRemoveSnaps, useSnaps, useSnapStore } from './snap-store';
+import {
+  getSnapsByIds,
+  useAddSnap,
+  useRemoveSnaps,
+  useSetMeasuredSnapDuration,
+  useSnaps,
+  useSnapStore,
+} from './snap-store';
 
 // Mock the persistence backend so no native file system is touched.
 jest.mock('@/shared/lib/local-store', () => ({
@@ -80,6 +87,53 @@ describe('snap store', () => {
     await act(async () => result.current(ids));
 
     expect(useSnapStore.getState().snaps.map((snap) => snap.id)).toEqual(['snap-1']);
+  });
+
+  describe('setMeasuredDuration', () => {
+    it('writes the measured length over the one assumed at capture time', async () => {
+      useSnapStore.setState({ snaps: [makeSnap({ id: 'snap-1', durationSec: 3 })] });
+
+      const { result } = await renderHook(() => useSetMeasuredSnapDuration());
+      await act(async () => result.current('snap-1', 1.2));
+
+      expect(useSnapStore.getState().snaps[0]).toMatchObject({
+        durationSec: 1.2,
+        durationMeasured: true,
+      });
+    });
+
+    // The backfill walks the whole library on every start; re-measuring to the
+    // same answer must not persist the file or re-render the screens holding it.
+    it('keeps the same list when the measurement confirms what is stored', async () => {
+      useSnapStore.setState({
+        snaps: [makeSnap({ id: 'snap-1', durationSec: 1.2, durationMeasured: true })],
+      });
+      const before = useSnapStore.getState().snaps;
+
+      const { result } = await renderHook(() => useSetMeasuredSnapDuration());
+      await act(async () => result.current('snap-1', 1.2));
+
+      expect(useSnapStore.getState().snaps).toBe(before);
+    });
+
+    it('marks a snap measured even when the file agrees with the assumed length', async () => {
+      useSnapStore.setState({ snaps: [makeSnap({ id: 'snap-1', durationSec: 3 })] });
+
+      const { result } = await renderHook(() => useSetMeasuredSnapDuration());
+      await act(async () => result.current('snap-1', 3));
+
+      expect(useSnapStore.getState().snaps[0].durationMeasured).toBe(true);
+    });
+
+    it('ignores a snap that is no longer in the library', async () => {
+      useSnapStore.setState({ snaps: [makeSnap({ id: 'snap-1' })] });
+      const before = useSnapStore.getState().snaps;
+
+      const { result } = await renderHook(() => useSetMeasuredSnapDuration());
+      await act(async () => result.current('snap-gone', 2));
+
+      expect(useSnapStore.getState().snaps).toBe(before);
+    });
   });
 
   it('resolves ids to snaps in id order, skipping unknown ids', async () => {

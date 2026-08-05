@@ -84,9 +84,15 @@ export function formatSeconds(totalSec: number): string {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}초`;
 }
 
-/** A duration in seconds as `m:ss`, for a movie length or a badge. */
+/**
+ * A duration in seconds as `m:ss`, for a movie length or a badge.
+ *
+ * Rounded to the second first: the inputs are sums of measured video lengths,
+ * so a fractional remainder would print as `0:12.399999999999999`.
+ */
 export function formatDuration(totalSec: number): string {
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
+  const rounded = Math.max(Math.round(totalSec), 0);
+  const minutes = Math.floor(rounded / 60);
+  const seconds = rounded % 60;
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

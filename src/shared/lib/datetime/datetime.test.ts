@@ -95,7 +95,10 @@ describe('formatDuration', () => {
     [0, '0:00'],
     [9, '0:09'],
     [72, '1:12'],
-  ])('formats %i seconds as %s', (totalSec, expected) => {
+    // Sums of measured video lengths are not whole numbers of seconds.
+    [12.4, '0:12'],
+    [59.6, '1:00'],
+  ])('formats %p seconds as %s', (totalSec, expected) => {
     expect(formatDuration(totalSec)).toBe(expected);
   });
 });

@@ -5,6 +5,7 @@ import { useCaptureMoment } from './use-capture-moment';
 const mockAddSnap = jest.fn();
 const mockPersist = jest.fn();
 const mockReadPlace = jest.fn();
+const mockReadDuration = jest.fn();
 
 // Mock each dependency at its slice Public API so the test stays at the seam.
 jest.mock('@/entities/snap', () => ({
@@ -12,6 +13,9 @@ jest.mock('@/entities/snap', () => ({
 }));
 jest.mock('@/shared/lib/recording-files', () => ({
   persistLocalRecording: (uri: string) => mockPersist(uri),
+}));
+jest.mock('@/shared/lib/video-duration', () => ({
+  readVideoDuration: (uri: string) => mockReadDuration(uri),
 }));
 // Same-slice sibling: mocked at its own path, and covered by its own test.
 jest.mock('../lib/read-capture-place', () => ({
@@ -31,6 +35,7 @@ describe('useCaptureMoment', () => {
     jest.clearAllMocks();
     mockPersist.mockResolvedValue(recording);
     mockReadPlace.mockResolvedValue(undefined);
+    mockReadDuration.mockResolvedValue(undefined);
   });
 
   it('persists the file and creates a snap, filing it into nothing', async () => {
@@ -47,6 +52,34 @@ describe('useCaptureMoment', () => {
     );
     expect(snap).toMatchObject({ id: 'snaply-1.mp4' });
     expect(result.current.error).toBeNull();
+  });
+
+  // A hold released early stops the recording before the requested length is up,
+  // so the file is what the snap is measured by — the timeline draws the snap at
+  // exactly this number.
+  it('records the length read back from the persisted file, not the one asked for', async () => {
+    mockReadDuration.mockResolvedValue(1.2);
+    const { result } = await renderHook(() => useCaptureMoment());
+
+    await act(async () => {
+      await result.current.captureMoment('file:///cache/snap.mov', { durationSec: 3 });
+    });
+
+    expect(mockReadDuration).toHaveBeenCalledWith(recording.uri);
+    expect(mockAddSnap).toHaveBeenCalledWith(
+      expect.objectContaining({ durationSec: 1.2, durationMeasured: true }),
+    );
+  });
+
+  it('falls back to the requested length, unmeasured, when the file cannot be read', async () => {
+    const { result } = await renderHook(() => useCaptureMoment());
+
+    await act(async () => {
+      await result.current.captureMoment('file:///cache/snap.mov', { durationSec: 5 });
+    });
+
+    expect(mockAddSnap).toHaveBeenCalledWith(expect.objectContaining({ durationSec: 5 }));
+    expect(mockAddSnap.mock.calls[0][0]).not.toHaveProperty('durationMeasured');
   });
 
   it('tags the snap with where it was captured when a fix is available', async () => {

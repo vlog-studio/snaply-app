@@ -12,6 +12,7 @@ import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { toCutIndex, toPlaybackCuts, toPlaybackIndex } from '../model/playback-cuts';
+import type { TimelinePlayhead } from '../model/timeline-layout';
 import { useMovieCuts } from '../model/use-movie-cuts';
 import { useShareMovie } from '../model/use-share-movie';
 import { CutInspector } from './cut-inspector';
@@ -79,6 +80,11 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const selected = cuts.length > 0 ? Math.min(selectedIndex, cuts.length - 1) : -1;
   // Mirrors the stage, for the transport's play/pause button.
   const [isPlaying, setIsPlaying] = useState(false);
+  // Where the stage is, for the strip's playhead. The player reports it; a strip
+  // tap sets it up front so the timeline starts running to the tapped cut
+  // without waiting for the seek to land, and so a dead cut — which the stage
+  // cannot follow — still moves the playhead.
+  const [playhead, setPlayhead] = useState<TimelinePlayhead>({ index: 0, secIntoCut: 0 });
 
   // A direct link can land here with nothing behind it, and the screen has no
   // navigation bar to fall back on — so going back means the studio.
@@ -112,6 +118,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
   // is removed — the stage just cannot follow it there.
   const selectCut = (index: number) => {
     setSelectedIndex(index);
+    setPlayhead({ index, secIntoCut: 0 });
     const playbackIndex = toPlaybackIndex(cuts, index);
     if (playbackIndex !== undefined) playerRef.current?.jumpTo(playbackIndex);
   };
@@ -140,6 +147,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
               cuts={playbackCuts}
               editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
               onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
+              onProgress={(playbackIndex, secIntoCut) =>
+                setPlayhead({ index: toCutIndex(cuts, playbackIndex), secIntoCut })
+              }
               onPlayingChange={setIsPlaying}
               style={styles.player}
             />
@@ -209,6 +219,8 @@ export function MoviePage({ movieId }: MoviePageProps) {
       <TimelineStrip
         cuts={cuts}
         selectedIndex={selected}
+        playhead={playhead}
+        isPlaying={isPlaying}
         canEdit={canEdit}
         onSelect={selectCut}
         onTrim={list.trimCut}

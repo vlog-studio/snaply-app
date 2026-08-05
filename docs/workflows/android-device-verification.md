@@ -41,6 +41,8 @@ adb -s "$DEVICE" shell input tap <x> <y>   # centre of the Reload bounds
 
 A reload restarts the app at its initial route, so re-enter the screen afterwards — a deep link (below) is the quickest way back.
 
+**Do not reach for `am force-stop` to get a clean bundle.** On this dev build the next launch lands in `DevLauncherActivity` (the "DEVELOPMENT SERVERS" list) rather than in the app, and the deep link that started it is dropped — leaving the owner's device parked in the launcher. Tap the Metro entry to get back in, and prefer the dev-menu reload above.
+
 Observation is layered. Prefer the cheapest layer that answers the question, and cross-check when a result is surprising:
 
 | Question | Tool |
@@ -74,6 +76,8 @@ adb -s "$DEVICE" exec-out uiautomator dump /dev/tty
 ```
 
 Returns the on-screen tree as XML with `text`, `content-desc`, `resource-id`, and `bounds` per node. Use this — not a screenshot — to assert that a specific string rendered, and to obtain precise tap coordinates. Screenshots confirm appearance; the dump confirms facts.
+
+**The dump is useless while something animates continuously.** A screen with a running animation — the movie screen's timeline scrolling under its playhead is the standing example — either returns nothing at all or returns the same stale `bounds` from every call in a row, which reads as "the thing never moved". Verify continuous motion with a burst of screenshots instead, cropped to the band that matters and stacked into one image; use the dump for the settled state before and after.
 
 ## 3. Input
 

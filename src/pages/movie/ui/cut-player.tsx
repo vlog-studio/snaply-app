@@ -7,7 +7,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-import type { PlaybackCut } from '../model/playback-cuts';
+import { PlaybackProgressIntervalSec, type PlaybackCut } from '../model/playback-cuts';
 
 /** What the timeline may ask of the stage. */
 export type CutPlayerHandle = {
@@ -29,18 +29,17 @@ export type CutPlayerProps = {
   editIndex?: number;
   /** Reports which cut the stage is showing, so the timeline can follow. */
   onCutChange?: (index: number) => void;
+  /**
+   * Reports where inside that cut the stage is, so the timeline's playhead can
+   * sit on the moment being played. Fires on every position report and once at
+   * zero whenever the stage lands on a cut.
+   */
+  onProgress?: (index: number, secIntoCut: number) => void;
   /** Reports whether the stage is playing, so the transport's button can say. */
   onPlayingChange?: (playing: boolean) => void;
   ref?: Ref<CutPlayerHandle>;
   style?: StyleProp<ViewStyle>;
 };
-
-/**
- * How often the active player reports its position. A cut ends on a trim boundary
- * rather than at the end of its file, so the boundary has to be watched; a quarter
- * second is close enough not to be seen and far cheaper than every frame.
- */
-const TimeUpdateSec = 0.25;
 
 /** What one playlist entry plays, for telling two playlists apart. */
 function playlistSignature(cuts: PlaybackCut[]): string {
@@ -61,7 +60,8 @@ function playlistSignature(cuts: PlaybackCut[]): string {
  *
  * **Linked to the timeline, both ways.** The `jumpTo` handle moves the stage to
  * the cut the strip picked; `onCutChange` reports every cut the stage moves onto, so the
- * strip's highlight follows playback. When the playlist itself changes under the
+ * strip's highlight follows playback, and `onProgress` reports where inside that cut it
+ * is, so the strip can run the timeline under a fixed playhead. When the playlist itself changes under the
  * player — a reorder, a trim, a removal — the stage holds its place (clamped) and
  * pauses on the edited list's frame rather than remounting, because a remounted
  * video cannot paint its first frame without a blink
@@ -79,6 +79,7 @@ export function CutPlayer({
   muted = false,
   editIndex,
   onCutChange,
+  onProgress,
   onPlayingChange,
   ref,
   style,
@@ -95,22 +96,26 @@ export function CutPlayer({
 
   const playerA = useVideoPlayer(cuts[0].uri, (instance) => {
     instance.muted = muted;
-    instance.timeUpdateEventInterval = TimeUpdateSec;
+    instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
     instance.currentTime = cuts[0].startSec;
     instance.play();
   });
   // Second slot preloads the next cut (paused) so its first frame is ready.
   const playerB = useVideoPlayer(cuts[1]?.uri ?? cuts[0].uri, (instance) => {
     instance.muted = muted;
-    instance.timeUpdateEventInterval = TimeUpdateSec;
+    instance.timeUpdateEventInterval = PlaybackProgressIntervalSec;
     instance.currentTime = cuts[1]?.startSec ?? cuts[0].startSec;
   });
   const players = [playerA, playerB] as const;
 
+  // Landing on a cut is also a position: whatever put the stage here — a strip
+  // tap, the end of the previous cut, a replay — it now sits at the cut's start,
+  // and the timeline's playhead has to be told before the first `timeUpdate`.
   const setIndex = (index: number) => {
     currentIndexRef.current = index;
     setCurrentIndex(index);
     onCutChange?.(index);
+    onProgress?.(index, 0);
   };
 
   /**
@@ -215,9 +220,11 @@ export function CutPlayer({
     // A player that began before its window catches up here — a seek issued while
     // its source was still loading may not have landed, and the alternative is
     // playing footage the user deliberately cut off the front.
-    if (currentTime < cut.startSec - TimeUpdateSec) {
+    if (currentTime < cut.startSec - PlaybackProgressIntervalSec) {
       players[slot].seekBy(cut.startSec - currentTime);
+      return;
     }
+    onProgress?.(slotCutRef.current[slot], Math.max(currentTime - cut.startSec, 0));
   };
 
   // Playing/paused changes in many places (taps, jumps, edits, the end of the

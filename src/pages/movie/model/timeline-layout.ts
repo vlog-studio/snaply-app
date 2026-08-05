@@ -23,6 +23,12 @@ export type TimelineCutSize = {
   usedSec: number;
   /** The whole snap's length, or `undefined` when the original was deleted. */
   fullSec: number | undefined;
+  /**
+   * Seconds trimmed off the front, absent when the cut plays from the start.
+   * Only an expanded cut needs it: that clip draws the whole snap, so the moment
+   * being played sits this much past the clip's left edge instead of at it.
+   */
+  leadSec?: number;
 };
 
 /** Where one cut sits in the strip, in points from the first cut's left edge. */
@@ -58,6 +64,38 @@ export function timelineCutMetrics(
     x += width;
     return metric;
   });
+}
+
+/** Where the stage is, in the strip's terms: which cut, and how far into it. */
+export type TimelinePlayhead = {
+  /** Index into the cut list; `-1` when there is nothing to point at. */
+  index: number;
+  /**
+   * Seconds since the cut's own start — the start of its trim window, because
+   * that is where playback begins, not where the file does.
+   */
+  secIntoCut: number;
+};
+
+/**
+ * Where the moment being played sits in the strip, in points from the first
+ * cut's left edge.
+ *
+ * A collapsed clip draws only the trim window, so the offset lands as it is; an
+ * expanded clip draws the whole snap behind the window, so the trimmed-off lead
+ * is added back. Held inside the clip either way — a report that arrives a beat
+ * after a cut ended must not push the playhead into the next cut's clip.
+ */
+export function playheadXPx(
+  metric: TimelineCutMetric,
+  size: TimelineCutSize,
+  expanded: boolean,
+  secIntoCut: number,
+  pxPerSec: number,
+): number {
+  const lead = expanded ? (size.leadSec ?? 0) : 0;
+  const offsetPx = (lead + Math.max(secIntoCut, 0)) * pxPerSec;
+  return metric.x + Math.min(offsetPx, metric.width);
 }
 
 /** One ruler mark: a labelled second, or an unlabelled half-second dot. */

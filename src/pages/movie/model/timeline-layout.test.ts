@@ -1,6 +1,7 @@
 import {
   DeadCutSec,
   cutDisplaySec,
+  playheadXPx,
   rulerTicks,
   timelineCutMetrics,
   type TimelineCutSize,
@@ -51,6 +52,32 @@ describe('timelineCutMetrics', () => {
 
   it('is empty for no cuts', () => {
     expect(timelineCutMetrics([], -1, 60)).toEqual([]);
+  });
+});
+
+describe('playheadXPx', () => {
+  const metric = { x: 120, width: 240 };
+  // A cut that starts a second and a half into its snap and runs for four.
+  const trimmed: TimelineCutSize = { usedSec: 4, fullSec: 5.5, leadSec: 1.5 };
+
+  it('measures a collapsed cut from its own left edge, since that is its start', () => {
+    expect(playheadXPx(metric, trimmed, false, 2, 60)).toBe(240);
+  });
+
+  it('adds the trimmed-off lead back on an expanded cut, which draws the whole snap', () => {
+    expect(playheadXPx(metric, trimmed, true, 2, 60)).toBe(330);
+  });
+
+  it('sits at the left edge at the start of the cut', () => {
+    expect(playheadXPx(metric, trimmed, false, 0, 60)).toBe(120);
+  });
+
+  it('is held inside the clip when a report arrives after the cut ended', () => {
+    expect(playheadXPx(metric, trimmed, false, 99, 60)).toBe(360);
+  });
+
+  it('treats a cut with no lead as starting at its file', () => {
+    expect(playheadXPx(metric, { usedSec: 4, fullSec: 4 }, true, 1, 60)).toBe(180);
   });
 });
 

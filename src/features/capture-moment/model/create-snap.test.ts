@@ -29,6 +29,21 @@ describe('createSnap', () => {
     expect(createSnap(recording, { durationSec: 5 }).durationSec).toBe(5);
   });
 
+  // The requested length is a maximum: a hold released early stops the recording
+  // short of it, and the timeline draws a snap at whatever this number says.
+  it('prefers the file’s measured length over the one that was asked for', () => {
+    const snap = createSnap(recording, { durationSec: 3, measuredDurationSec: 1.2 });
+
+    expect(snap).toMatchObject({ durationSec: 1.2, durationMeasured: true });
+  });
+
+  it('leaves an unmeasurable snap on the requested length, unmarked', () => {
+    const snap = createSnap(recording, { durationSec: 3 });
+
+    expect(snap.durationSec).toBe(3);
+    expect(snap).not.toHaveProperty('durationMeasured');
+  });
+
   it('carries a capture place through when one was resolved', () => {
     const place = { latitude: 37.5445, longitude: 127.0557 };
 

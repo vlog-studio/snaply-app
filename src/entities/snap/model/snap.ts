@@ -29,7 +29,24 @@ export type Snap = {
   id: string;
   /** File URI of the source video, as returned by `recording-files`. */
   uri: string;
+  /**
+   * How long the recorded file actually runs, in seconds.
+   *
+   * Capture is press-and-hold with a maximum, so a finger released early ends
+   * the recording before the requested length is up — the field is measured
+   * from the file (`shared/lib/video-duration`) rather than set to the option
+   * the user picked. Storing the requested length instead made every surface
+   * that draws a snap by time wrong by exactly that difference, the timeline
+   * strip most visibly: a 1.2-second snap was drawn taking three seconds.
+   */
   durationSec: number;
+  /**
+   * True once `durationSec` came from the file rather than from the capture
+   * option. Absent on snaps captured before the length was measured and on
+   * those whose file could not be read; those are measured again in the
+   * background on a later start and corrected in place.
+   */
+  durationMeasured?: boolean;
   /** Epoch milliseconds when the snap was captured. */
   capturedAt: number;
   width: number;

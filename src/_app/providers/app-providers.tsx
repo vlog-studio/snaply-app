@@ -12,6 +12,7 @@ import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 import { GeofenceGate } from './geofence-gate';
 import { MovieGenerationBridge } from './movie-generation-bridge';
 import { queryClient } from './query-client';
+import { SnapDurationBackfill } from './snap-duration-backfill';
 
 // Navigation chrome recolors the matching base theme with the app palette of
 // the resolved scheme, so headers, backgrounds, and transitions follow the
@@ -49,6 +50,10 @@ export function AppProviders({ children }: PropsWithChildren) {
             to keep going after the user leaves the screen, and to be picked back
             up on the next app start if they left before it finished. */}
         <MovieGenerationBridge />
+        {/* Snaps captured before their length was measured claim the capture
+            option they were shot with; this reads the real length back from the
+            files, once, in the background. */}
+        <SnapDurationBackfill />
         {/* Gesture-handler gestures need this ancestor; expo-router's native
             stack does not provide one. */}
         <GestureHandlerRootView style={styles.root}>{children}</GestureHandlerRootView>

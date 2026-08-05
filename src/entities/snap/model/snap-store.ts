@@ -19,6 +19,11 @@ import type { Snap } from './snap';
  * fully-formed `Snap` so id/timestamp generation stays in the capture feature
  * that owns those side effects, keeping this store deterministic and testable.
  *
+ * `setMeasuredDuration` is the one exception, and it is a correction rather than
+ * an edit: it writes the length that was read back from the snap's own file over
+ * the length that was assumed when it was captured. Nothing about the snap
+ * changes — what it always was is finally recorded.
+ *
  * Exported for co-located tests only. Application code consumes the focused
  * selector and action hooks below through the slice Public API.
  */
@@ -27,6 +32,7 @@ type SnapState = {
   hasHydrated: boolean;
   addSnap: (snap: Snap) => void;
   removeSnaps: (ids: readonly string[]) => void;
+  setMeasuredDuration: (id: string, durationSec: number) => void;
   setHasHydrated: (value: boolean) => void;
 };
 
@@ -46,6 +52,20 @@ export const useSnapStore = create<SnapState>()(
           const removed = new Set(ids);
           if (removed.size === 0) return state;
           return { snaps: state.snaps.filter((snap) => !removed.has(snap.id)) };
+        }),
+      setMeasuredDuration: (id, durationSec) =>
+        set((state) => {
+          let corrected = false;
+          const snaps = state.snaps.map((snap) => {
+            if (snap.id !== id) return snap;
+            if (snap.durationMeasured && snap.durationSec === durationSec) return snap;
+            corrected = true;
+            return { ...snap, durationSec, durationMeasured: true };
+          });
+          // A no-op correction must not write: the backfill walks the whole
+          // library on every start, and a new object each time would persist the
+          // file and re-render every screen holding snaps for nothing.
+          return corrected ? { snaps } : state;
         }),
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
@@ -77,6 +97,24 @@ export function useAddSnap(): (snap: Snap) => void {
  */
 export function useRemoveSnaps(): (ids: readonly string[]) => void {
   return useSnapStore((state) => state.removeSnaps);
+}
+
+/**
+ * Records the length read back from a snap's own file, replacing the length that
+ * was assumed at capture time. See the store's note on why this is the one write
+ * that changes a stored snap.
+ */
+export function useSetMeasuredSnapDuration(): (id: string, durationSec: number) => void {
+  return useSnapStore((state) => state.setMeasuredDuration);
+}
+
+/**
+ * Non-reactive read of the whole library. For work that walks every snap once
+ * and must not restart whenever its own writes land back in the store — the
+ * duration backfill is the only such caller today.
+ */
+export function getSnaps(): Snap[] {
+  return useSnapStore.getState().snaps;
 }
 
 /**

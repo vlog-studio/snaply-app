@@ -14,7 +14,7 @@ import type { Snap } from '@/entities/snap';
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
 import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
-import { formatDuration } from '@/shared/lib/datetime';
+import { formatDuration, formatSeconds } from '@/shared/lib/datetime';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
@@ -331,7 +331,7 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
       <VideoPlayerModal
         uri={playing?.uri}
         closeLabel="스냅 닫기"
-        edgeLabel={playing ? `${playing.durationSec}초` : undefined}
+        edgeLabel={playing ? formatSeconds(playing.durationSec) : undefined}
         onClose={() => setPlaying(undefined)}
       />
 

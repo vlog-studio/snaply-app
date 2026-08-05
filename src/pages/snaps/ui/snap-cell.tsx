@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Snap } from '@/entities/snap';
+import { formatSeconds } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
@@ -48,7 +49,7 @@ export const SnapCell = memo(function SnapCell({
     <Pressable
       accessibilityRole="button"
       accessibilityState={selecting ? { selected: isPicked } : undefined}
-      accessibilityLabel={`${snap.durationSec}초 스냅${isHeld ? ' · 이미 담김' : ''}`}
+      accessibilityLabel={`${formatSeconds(snap.durationSec)} 스냅${isHeld ? ' · 이미 담김' : ''}`}
       accessibilityHint={selecting ? '탭하면 선택해요' : '탭하면 재생해요. 길게 누르면 선택해요'}
       onPress={() => onPress(snap)}
       onLongPress={() => onLongPress(snap)}
@@ -89,7 +90,7 @@ export const SnapCell = memo(function SnapCell({
       ) : null}
       <View style={styles.duration}>
         <ThemedText selectable={false} type="edge" style={styles.durationText}>
-          {snap.durationSec}s
+          {formatSeconds(snap.durationSec)}
         </ThemedText>
       </View>
     </Pressable>

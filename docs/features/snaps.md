@@ -92,7 +92,8 @@ Thumbnails are derived cover art, held by no model. Extraction and caching live 
 Snap
 ├── id            = the recording's file name
 ├── uri           local file URI
-├── durationSec   3 or 5
+├── durationSec        the recorded file's real length, in seconds
+├── durationMeasured?  true once that length came from the file itself
 ├── capturedAt    epoch ms
 ├── place?        { latitude, longitude } — only when a fix was available
 └── width, height, orientation
@@ -106,7 +107,11 @@ an error — the template matcher and its 근거 문구 fall back to time alone 
 is no reverse geocoding and no place name, because the only question asked of the
 field is whether two snaps are near each other. The value never leaves the device.
 
-Snaps are immutable originals. Per-movie edits (order, trim) live on the movie's `snapRefs`, never here, so the same snap can be cut differently into two movies. `mood` was removed with the redesign — the look belongs to the finished movie, chosen on the movie screen, not to each fragment as it is shot.
+`durationSec` is **measured, not assumed** (2026-08-05). It used to store the capture option the snap was shot with (3초 or 5초), but capture is press-and-hold: releasing the finger stops the recording early, so most snaps are shorter than the option they were shot under. Every surface that draws or totals a snap by time was wrong by that difference, and on the movie screen's timeline strip — which draws each cut at its length on a seconds ruler — a 1.2-second snap took three seconds of the ruler. `features/capture-moment` now reads the length back from the persisted file (`shared/lib/video-duration`) and stores that, falling back to the requested length only when the file cannot be read; `durationMeasured` records which of the two it is.
+
+Snaps written before that are corrected in place: `_app/providers/snap-duration-backfill.tsx` walks the library once per app start, **one file at a time** (measuring opens a real video player, and the platform's decoder pool is small), and writes each real length back through `setMeasuredDuration` — the one store action that changes a stored snap, because it records what the snap always was rather than editing it. A file that cannot be read keeps its assumed length and is tried again on a later start.
+
+Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on the movie's `snapRefs`, never here, so the same snap can be cut differently into two movies. `mood` was removed with the redesign — the look belongs to the finished movie, chosen on the movie screen, not to each fragment as it is shot.
 
 ## Ownership
 
@@ -116,6 +121,8 @@ Snaps are immutable originals. Per-movie edits (order, trim) live on the movie's
 - `src/features/compose-movie` owns appending picks to a movie in `?for=` mode.
 - `src/features/manage-recordings` owns reusable local-recording listing for the capture library.
 - `src/shared/ui/video-frame`, `src/shared/ui/video-player-modal`, and `src/shared/lib/datetime` supply the frame, the player chrome, and the day/duration formatting.
+- `src/shared/lib/video-duration` reads a local video file's real length (`readVideoDuration`), with a web stub. Transport only: it creates one `expo-video` player, reads the duration, and releases it on every exit path including the timeout.
+- `src/_app/providers/snap-duration-backfill.tsx` owns the one-per-start correction of snaps stored before the length was measured. Startup work rather than a feature — nothing about it is an action the user takes.
 
 ## Known limitations
 

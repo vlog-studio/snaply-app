@@ -41,9 +41,13 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#16110D",
+          "backgroundColor": "#FAF4EC",
           "image": "./assets/images/brand-glyph-ember.png",
-          "imageWidth": 150
+          "imageWidth": 150,
+          "dark": {
+            "backgroundColor": "#16110D",
+            "image": "./assets/images/brand-glyph-ember.png"
+          }
         }
       ],
       [

@@ -15,6 +15,7 @@ This document owns these controls and their persistence. The push/geofence mecha
 | Open the tab | `Functional` | `/me` is the fourth bottom tab. |
 | Profile header | `Partial` | Shows the signed-in user's initial and display name, or "로그인하지 않음" with no session. The identity comes from `entities/session`. |
 | Snap / movie / tray counts | `Functional` | Read live from `entities/snap`, `entities/movie`, and `entities/tray`. |
+| Choose the app theme (화면 테마) | `Functional` | A three-way radio (시스템/라이트/다크) sets the theme mode. The choice persists across restarts (SecureStore, `snaply.theme-mode`, default 시스템) and takes effect immediately — every screen except the dark-pinned viewfinder re-resolves its palette. |
 | Toggle morning, lunch, and evening windows | `Prototype` | Values update only in component-local state and reset when the screen remounts. |
 | Select one to three reminders per day | `Prototype` | The selection is local UI state and does not schedule notifications. |
 | Toggle location alerts (위치 알림 받기) | `Functional` | The master switch persists across restarts (SecureStore) and gates OS geofencing: turning it on (while signed in, with location permission granted) starts monitoring the nearest points; turning it off stops monitoring so no arrivals are reported. Backend sync (`PATCH /auth/me`) does not exist yet. Native only — no effect on web. |
@@ -30,7 +31,7 @@ This document owns these controls and their persistence. The push/geofence mecha
 
 `src/pages/me` owns the screen and the local presentation state of the prototype sections. The profile and account sections read the current user through `src/entities/session` (`useCurrentUser`) and sign out through the same entity (`useClearSession`); the stat row reads the three content stores directly. There is no settings entity, form schema, notification scheduler, or social-auth adapter connected to this page.
 
-The app is dark-fixed, so the page exposes no theme control — `useTheme`/`useResolvedColorScheme` always resolve to the one palette.
+The 화면 테마 control is owned by `shared/ui/theme`'s theme-mode store (`useThemeMode`/`useSetThemeMode`); the page only renders the radio. Resolution order and the light/dark palettes are documented in [Application shell and navigation](app-shell-and-navigation.md).
 
 The location-alert, quiet-hours, interests, and movie-completion controls are owned by `src/features/notification-settings`. The page renders the controls and consumes the feature's hooks (`useNotificationEnabled`/`useSetNotificationEnabled`, `useQuietStart`/`useQuietEnd`/`useSetQuietStart`/`useSetQuietEnd`, `useInterests`/`useToggleInterest`, `useMovieReadyAlerts`, plus `INTEREST_OPTIONS`). The feature persists a Zustand store through the SecureStore adapter (`snaply.notification-settings`). The first three map to the backend user fields (`notification_enabled`, `quiet_start`, `quiet_end`, `interests`) but are local-only until `PATCH /auth/me` exists. How the location-alert switch (`notification_enabled`) drives OS geofencing — the headless `GeofenceGate`, permissions, and arrival reporting — is documented in [Location alerts and push notifications](location-and-push-notifications.md); quiet hours and interests are not consumed on the client and are enforced server-side when the arrival push is decided.
 
@@ -40,7 +41,7 @@ The reminder copy still speaks of suggesting good moments to shoot, which the re
 
 ## Known limitations and implementation requirements
 
-- The morning/lunch/evening windows and the daily-frequency choice do not survive navigation or application restart; the location-alert, movie-completion, quiet-hours, and interests choices do.
+- The morning/lunch/evening windows and the daily-frequency choice do not survive navigation or application restart; the theme, location-alert, movie-completion, quiet-hours, and interests choices do.
 - The movie-completion notification is a **local** notification presented by the device that ran the job, not a push. A job force-quit with the app never reaches its end, so nothing is announced; a job the user only backgrounded is announced when the app is next foregrounded, not while it is suspended. Tapping the notification opens the app but does not route to the movie — nothing subscribes to notification responses yet, though the movie id is carried in the payload for when something does.
 - The location-alert switch starts/stops geofence monitoring, but none of these preferences are synced to the backend (`PATCH /auth/me`); quiet hours and interests are enforced server-side when the arrival push is decided.
 - Turning the location-alert switch on requires foreground + background ("항상 허용") location permission; if the user declines, monitoring cannot start. The geofence and push mechanism, its platform/permission caveats (including Android 13+ `POST_NOTIFICATIONS` and Expo Go's missing Firebase modules), and foreground-notification presentation are documented in [Location alerts and push notifications](location-and-push-notifications.md).

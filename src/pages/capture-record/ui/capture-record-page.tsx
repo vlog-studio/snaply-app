@@ -1,4 +1,5 @@
 import { CameraView } from 'expo-camera';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
@@ -13,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type CaptureDuration } from '@/entities/capture-session';
 import { useSnaps } from '@/entities/snap';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
+import { Radius, Spacing, ThemeScope, useReducedMotion, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPreview } from '@/shared/ui/video-preview';
 
@@ -30,7 +31,21 @@ const HOLD_RING_SIZE = 108;
 
 const DURATION_OPTIONS: readonly CaptureDuration[] = [3, 5];
 
+/**
+ * The viewfinder's ground is the camera feed and near-black scrims, so its
+ * chrome is pinned to the dark palette (and a light status bar) no matter
+ * which theme the rest of the app resolves to.
+ */
 export function CaptureRecordPage() {
+  return (
+    <ThemeScope scheme="dark">
+      <StatusBar style="light" />
+      <CaptureRecordScreen />
+    </ThemeScope>
+  );
+}
+
+function CaptureRecordScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const {

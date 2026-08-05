@@ -21,9 +21,12 @@ import {
   MaxContentWidth,
   Radius,
   Spacing,
+  useSetThemeMode,
   useTabBarHeight,
   useTheme,
+  useThemeMode,
   useTopContentInset,
+  type ThemeMode,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -34,6 +37,12 @@ const notificationWindows = [
 ] as const;
 
 type NotificationWindowId = (typeof notificationWindows)[number]['id'];
+
+const themeModeOptions: readonly { mode: ThemeMode; label: string }[] = [
+  { mode: 'system', label: '시스템' },
+  { mode: 'light', label: '라이트' },
+  { mode: 'dark', label: '다크' },
+];
 
 /**
  * The 나 tab — who you are, what you have made, and every preference.
@@ -99,6 +108,10 @@ export function MePage() {
         <StatCell label="무비" value={movies.length} />
         <StatCell label="트레이" value={traySnapIds.length} />
       </View>
+
+      <SettingsSection title="화면 테마">
+        <ThemeModeSelector />
+      </SettingsSection>
 
       <SettingsSection title="알림 시간대">
         {notificationWindows.map((window, index) => (
@@ -295,6 +308,43 @@ export function MePage() {
         Snaply 1.0 · 찍으면 알아서 됩니다.
       </ThemedText>
     </ScrollView>
+  );
+}
+
+function ThemeModeSelector() {
+  const theme = useTheme();
+  const themeMode = useThemeMode();
+  const setThemeMode = useSetThemeMode();
+
+  return (
+    <View style={styles.frequencyRow}>
+      {themeModeOptions.map(({ mode, label }) => {
+        const isSelected = themeMode === mode;
+        return (
+          <Pressable
+            key={mode}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: isSelected }}
+            onPress={() => setThemeMode(mode)}
+            style={[
+              styles.frequencyButton,
+              {
+                backgroundColor: isSelected ? theme.text : theme.background,
+                borderColor: isSelected ? theme.text : theme.border,
+              },
+            ]}
+          >
+            <ThemedText
+              selectable={false}
+              type="smallBold"
+              style={{ color: isSelected ? theme.background : theme.text }}
+            >
+              {label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 

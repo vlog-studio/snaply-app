@@ -1,10 +1,12 @@
 import { Platform } from 'react-native';
 
-// The app's one palette. A warm near-black ground with an ember accent and a
-// cold cyan counter-axis; video reads better against near-black than against a
-// bright surface, which is why the app is dark-fixed rather than theme-aware.
-// Both scheme keys resolve to the same values; `useTheme` always returns this.
-const palette = {
+// One warm-neutral world in two schemes. Both palettes share the ember accent
+// and the same near-black `media` ground — video reads better against
+// near-black regardless of theme, so surfaces that hold video never lighten.
+// The dark palette is the original; the light palette answers it in warm
+// paper tones (same brown family, inverted roles) rather than neutral gray,
+// so switching schemes changes brightness, not identity.
+const darkPalette = {
   text: '#F1E6DA', // ink — warm off-white
   background: '#16110D', // ground — warm black-brown, not pure black
   backgroundElement: '#211910', // surface
@@ -12,7 +14,6 @@ const palette = {
   textSecondary: '#A8927E', // ink dim
   border: '#3A2C20', // line
   primary: '#EA5E38', // ember — main accent, capture
-  primaryPressed: '#F2734E',
   onPrimary: '#1A0F0A', // ink on ember (dark, high contrast)
   ai: '#82D6CE', // lumen — cold glow, used for AI/generation
   media: '#0E0B08', // near-black behind video: frames, viewfinder
@@ -22,9 +23,29 @@ const palette = {
   lumen: '#82D6CE', // cold contrast axis
 } as const;
 
+// Cold-axis and status colors darken in the light scheme so small text and
+// glyphs keep ≥4.5:1 against the paper ground; ember stays the one shared
+// brand constant (it is a fill with dark ink on top, not body text).
+const lightPalette = {
+  text: '#241A12', // ink — warm near-black
+  background: '#FAF4EC', // ground — warm paper
+  backgroundElement: '#FFFDF9', // surface — card over paper
+  backgroundSelected: '#F0E6D9', // surface raised
+  textSecondary: '#75604F', // ink dim
+  border: '#E7DCCC', // line
+  primary: '#EA5E38', // ember — main accent, capture
+  onPrimary: '#1A0F0A', // ink on ember (dark, high contrast)
+  ai: '#147D74', // lumen — cold glow, used for AI/generation
+  media: '#0E0B08', // near-black behind video: frames, viewfinder
+  warmSurface: '#F3E9DB', // raised warm panel, for notices
+  danger: '#C43D3D',
+  amber: '#9C6520', // warm secondary accent
+  lumen: '#147D74', // cold contrast axis
+} as const;
+
 export const Colors = {
-  light: palette,
-  dark: palette,
+  light: lightPalette,
+  dark: darkPalette,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;

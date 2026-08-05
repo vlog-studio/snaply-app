@@ -640,7 +640,13 @@ export function XPage() {
 
 **Rules**
 - Read colors from `useTheme()`; use `Spacing`, `Radius`, `Typography`, `MaxContentWidth`
-  tokens instead of magic numbers.
+  tokens instead of magic numbers. `useTheme()` resolves the light or dark palette from
+  the user's theme mode (system / light / dark) — never import `Colors.dark` directly in
+  a screen.
+- A screen whose ground is a video surface (the viewfinder) pins its subtree with
+  `<ThemeScope scheme="dark">` (see `capture-record-page.tsx`), so chrome stays legible
+  over near-black in both theme modes. White glyphs and `rgba` scrims drawn **over
+  video** stay literal — they must not follow the theme.
 - Render text with `ThemedText` (`type` + `themeColor`) rather than raw `Text`.
 - `Typography` owns the size steps and their leading; `ThemedText` variants add only
   weight, letter spacing, and casing on top of a step. Text that cannot be a

@@ -1,42 +1,48 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { NavigationBar } from 'expo-navigation-bar';
-import { DarkTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import type { PropsWithChildren } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PushTokenRegistrar } from '@/features/register-push-token';
-import { Colors } from '@/shared/ui/theme';
+import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
 import { GeofenceGate } from './geofence-gate';
 import { MovieGenerationBridge } from './movie-generation-bridge';
 import { queryClient } from './query-client';
 
-// The app is dark-fixed, so navigation chrome always uses the app palette on
-// the dark base theme.
-const palette = Colors.dark;
-const navigationTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    primary: palette.primary,
-    background: palette.background,
-    card: palette.backgroundElement,
-    text: palette.text,
-    border: palette.border,
-    notification: palette.ai,
-  },
-};
+// Navigation chrome recolors the matching base theme with the app palette of
+// the resolved scheme, so headers, backgrounds, and transitions follow the
+// theme mode (system / light / dark).
+function buildNavigationTheme(scheme: 'light' | 'dark') {
+  const base = scheme === 'dark' ? DarkTheme : DefaultTheme;
+  const palette = Colors[scheme];
+  return {
+    ...base,
+    colors: {
+      ...base.colors,
+      primary: palette.primary,
+      background: palette.background,
+      card: palette.backgroundElement,
+      text: palette.text,
+      border: palette.border,
+      notification: palette.ai,
+    },
+  };
+}
 
 export function AppProviders({ children }: PropsWithChildren) {
+  const scheme = useResolvedColorScheme();
+
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider value={navigationTheme}>
-        <StatusBar style="light" />
-        {/* The app is always dark; keep the Android navigation bar buttons
-            light. No-op on iOS/web. */}
-        <NavigationBar style="dark" />
+      <ThemeProvider value={buildNavigationTheme(scheme)}>
+        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        {/* Android 3-button navigation: light buttons over the dark shell,
+            dark buttons over the light shell. No-op on iOS/web. */}
+        <NavigationBar style={scheme === 'dark' ? 'dark' : 'light'} />
         <PushTokenRegistrar />
         <GeofenceGate />
         {/* Movie generation runs here rather than on the movie screen: a job is meant

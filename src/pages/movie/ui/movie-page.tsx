@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { movieBgmLabel, movieStyleLabel } from '@/entities/movie';
 import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
-import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { BackBar } from '@/shared/ui/back-bar';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -37,6 +36,14 @@ export type MoviePageProps = {
  * as they land and the transport under the stage walks them back and forward
  * (되돌리기/복원) — there is no staged copy and no save button. Style and 세부
  * live in sheets opened from chips — settings are visited, cuts are worked on.
+ *
+ * The stage gets the height every other zone leaves over, so nothing here is
+ * allowed to cost a row twice. The movie's name and its rename action ride the
+ * back bar; the status line under the title and the footer's summary line are
+ * both gone, because between them they only restated what the zones already
+ * show — the strip draws the cuts on a seconds ruler, the chips carry the
+ * current style and track, the ring says a job is running, and the footer's
+ * notice says why one failed.
  *
  * There is still no separate editor screen and no separate playback screen,
  * because there is no separate object: a movie is picked, run, watched, fixed,
@@ -92,15 +99,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
 
-  const subtitle = () => {
-    if (isGenerating) return '만드는 중이에요';
-    if (movie.status === 'failed') return '만들지 못했어요';
-    if (movie.status === 'ready' && movie.render) {
-      return `컷 ${cuts.length}개 · ${formatSeconds(totalSec)} · ${formatDateTime(movie.render.renderedAt)} 완성`;
-    }
-    return `컷 ${cuts.length}개 · ${formatSeconds(totalSec)} · 아직 만들지 않았어요`;
-  };
-
   const addSnaps = () =>
     router.push({ pathname: '/snaps', params: { select: '1', for: movie.id } });
 
@@ -120,31 +118,13 @@ export function MoviePage({ movieId }: MoviePageProps) {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <BackBar onPress={goBack} />
-
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <ThemedText type="heading" numberOfLines={1}>
-            {movie.title}
-          </ThemedText>
-          <ThemedText
-            type="xsmall"
-            themeColor={movie.status === 'failed' ? 'danger' : 'textSecondary'}
-          >
-            {subtitle()}
-          </ThemedText>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="무비 이름 바꾸기"
-          hitSlop={8}
-          onPress={() => setRenaming(true)}
-        >
-          <ThemedText selectable={false} type="smallBold" themeColor="primary">
-            이름
-          </ThemedText>
-        </Pressable>
-      </View>
+      {/* The movie names itself on the bar rather than in a row of its own —
+          this screen spends every dp it can on the stage. */}
+      <BackBar
+        onPress={goBack}
+        title={movie.title}
+        action={{ icon: 'pencil', label: '무비 이름 바꾸기', onPress: () => setRenaming(true) }}
+      />
 
       {/* The stage: the player on an editable movie, the ring under a job. It
           takes whatever height the timeline below leaves over. */}
@@ -310,7 +290,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
           <GenerateFooter
             movie={movie}
             cutCount={cuts.length}
-            totalSec={totalSec}
             refusal={generationRefusal}
             cutsRefusal={refusal}
             sharing={sharing}
@@ -356,20 +335,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     padding: Spacing.six,
   },
-  header: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.five,
-    // The back arrow above carries its own padding, so the title needs only the
-    // gap that keeps it off the glyph.
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.two,
-  },
-  headerCopy: { flex: 1, gap: Spacing.half },
   stage: {
     flex: 1,
     minHeight: 160,

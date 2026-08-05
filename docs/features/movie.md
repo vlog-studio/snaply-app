@@ -11,7 +11,8 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 /template/[id]  이대로 만들기            →  /movie/[id]   (an editable draft)
 
 /movie/[id]  (무비) — a timeline studio, not a scroll: every zone is always on screen
-├── header               title + status line, 이름 (rename sheet)
+├── back bar             ← · the movie's title · ✎ (rename sheet) — the title rides
+│                         the bar, so naming the movie costs the stage no height
 ├── stage                the player on an editable movie; the progress ring under a job
 │                         an edit shows up in it the moment it lands
 ├── transport            under the stage: 재생/일시정지 on the left, 되돌리기 ↺ / 복원 ↻
@@ -23,7 +24,7 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 ├── cut inspector        the selected cut only: ◀ ▶ move, ✕ drop, length read-out, 전체 사용
 ├── chips                스타일 · 세부 — each opens a bottom sheet
 │                         스타일: the four style cards
-│                         세부: 배경 음악, 자동 자막, 순서 고정, 비율, 목표 길이
+│                         세부: 배경 음악, 자동 자막, 순서 고정, 비율, 목표 길이, 완성(있으면)
 └── footer               생성: AI로 생성 시작 / 다시 시도 / 이 구성으로 다시 만들기 · 공유 (ready)
 ```
 
@@ -32,6 +33,21 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 There is no separate playback route. Watching a finished movie and fixing it are the same visit, and two routes would have meant two places that can edit one cut list.
 
 **The layout is a timeline studio (2026-08-05).** The previous layout was one long scroll — player, cut list, 순서 고정, style panel, generate panel — so checking an edit meant scrolling back to the top. Now the stage, the strip, and the inspector are fixed zones that never scroll apart: the stage always shows the cut list being edited, the strip and the stage point at the same cut in both directions, and the settings that used to be sections (스타일, 세부, 순서 고정) are sheets opened from chips. Nothing about *what* can be edited changed; only where it sits.
+
+**The prose left the screen (2026-08-05).** Two blocks of text used to bracket the working zones: a status line under the title (`컷 N개 · 길이 · 아직 만들지 않았어요`) and a three-line summary under the generate button (the same configuration again, plus `보통 40초쯤 걸리고, 앱을 나가도 계속돼요` and `아직 프로토타입 — 합성 없이 컷을 순서대로 이어 재생해요`). Together they cost about 110dp of the one zone that has to stretch, the stage, and they were restating zones the user was already looking at. Both are gone, and the title and a ✎ moved onto the back bar's own 44dp row (`BackBar`'s optional `title`/`action`), which costs nothing.
+
+Where each part is read now:
+
+| It used to say | Where the user reads it now |
+| --- | --- |
+| 컷 N개, 길이 | The strip draws every cut as long as it plays on a seconds ruler; the inspector reads out the selected cut's length; 세부 holds 목표 길이 (컷 합계) |
+| 스타일, 음악 | The 스타일 and 세부 chips carry their current values as their second line |
+| 만드는 중이에요, 보통 40초쯤 걸리고 · 앱을 나가도 계속돼요 | The progress panel filling the stage — the ring, the five steps, and its own `앱을 나가도 계속돼요` line |
+| 만들지 못했어요 | The stored reason in the footer notice, above `다시 시도` |
+| 아직 만들지 않았어요 | The `AI로 생성 시작` button itself |
+| 지금 완성본은 새로 만든 것으로 바뀌어요 | The `이 구성으로 다시 만들기` label; **there are no versions** is a standing rule of this document, not a per-visit reminder |
+| `{시각} 완성` | A 완성 read-out in the 세부 sheet — the only part that had nowhere else to be |
+| 아직 프로토타입 — 합성 없이 컷을 순서대로 이어 재생해요 | **Nowhere in the app.** The limitation is real and unchanged (see [Known limitations](#known-limitations)); the screen no longer discloses it |
 
 ## What each status shows
 
@@ -49,7 +65,7 @@ There is no separate playback route. Watching a finished movie and fixing it are
 | AI로 생성 시작 | `Prototype` | Puts the movie into `generating` with a job stamped at the current time; the five steps (`업로드 → 장면 분석 → 컷 다듬기 → 음악·자막 → 렌더`) are paced to about forty seconds and the movie becomes `ready` with a `render` recording when it finished and how long it runs. **No video is composited and no file is produced.** |
 | Progress | `Functional` | A ring with the percentage, plus the five steps as a checklist with the running one marked. Both come from the job clock, read twice a second on this screen only. A card elsewhere shows a coarser bar (see [Studio and movies](studio.md)). |
 | Leaving mid-job | `Functional` | The job belongs to the movie, not to the screen: `MovieGenerationGate` is mounted app-wide by `_app`'s `MovieGenerationBridge`, so a job keeps running while the user browses other tabs and is picked back up on the next app start. Progress is derived from the job's start time rather than counted up, so a job whose whole duration passed while the app was closed finishes on the first look. |
-| 이 구성으로 다시 만들기 | `Prototype` | Regeneration is the same act as the first run and the same code path: `beginMovieJob` drops the previous render and error, so the old result never outlives the movie that replaced it. The screen says the current finished movie will be replaced. **There are no versions** — a regenerated movie has one render, the newest. |
+| 이 구성으로 다시 만들기 | `Prototype` | Regeneration is the same act as the first run and the same code path: `beginMovieJob` drops the previous render and error, so the old result never outlives the movie that replaced it. The button's label (`이 구성으로 다시 만들기`) is the only warning that the finished movie will be replaced — the sentence that used to spell it out went with the footer summary on 2026-08-05, and nothing asks for a confirmation. **There are no versions** — a regenerated movie has one render, the newest. |
 | 다시 시도 | `Functional` | A `failed` movie runs again from the cut list and settings it kept. Reachable from all three places a failed movie appears: the studio row, the movie-tab tile (both through `widgets/movie-shelf`'s `MovieFailureNotice`), and this screen. |
 | Nothing to generate | `Functional` | A movie with no cuts is refused rather than started, with an explanation, because a job over an empty cut list can only produce an empty movie. |
 | Announce the end | `Partial` | With 무비 완성 알림 on ([Me tab](me.md)), a job that ends — either way — presents a local notification, so the user who walked away is told. It is local because the job is local; when the backend generates, this becomes an FCM message. Nothing arrives if the app was force-quit, because then the job never reached its end either. |
@@ -96,7 +112,7 @@ Available whenever no job owns the movie — the same controls settle a `draft` 
 | Style, BGM, subtitles | `Functional` | The 스타일 chip opens a sheet with the four style cards (it stays open after a pick — choosing a look is comparing looks); the 세부 chip opens a sheet with the five BGM tracks as pills (`무음` included), the captions switch, and 순서 고정. Each writes straight through; there is nothing to stage. The chips carry the current style and track, so the sheets only need opening to change something. A draft starts from the defaults or, for a template, what the template asked for. |
 | Ratio, target length | `Functional` | Read-outs in the 세부 sheet. 9:16 is the only ratio the product has, and the length follows the trims. |
 | Catalogs | `Prototype` | Both catalogs are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
-| Rename | `Functional` | `이름` opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
+| Rename | `Functional` | The ✎ on the back bar, beside the title it edits, opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
 
 **No style has any effect on what plays.** The settings are stored and shown; nothing is composited.
 
@@ -157,7 +173,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 
 ## Known limitations
 
-- **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays.
+- **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays. **The screen no longer says this** — the footer's `아직 프로토타입` line was removed with the rest of the summary prose on 2026-08-05, so nothing in the app tells the user that a `ready` movie is a playlist rather than a file. Restore a disclosure here before this reaches anyone outside the team.
 - Regeneration keeps no history. The previous render is dropped when the new job starts, so there is no way back to the version the user just replaced.
 - There is still no movie-deletion UI (`useDeleteMovie` has no caller), so a movie started from the wrong snaps can be emptied down to one cut but never removed.
 - Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.

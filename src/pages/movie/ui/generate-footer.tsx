@@ -1,13 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
-import {
-  MovieGenerationTotalMs,
-  movieBgmLabel,
-  movieStyleLabel,
-  type Movie,
-} from '@/entities/movie';
+import type { Movie } from '@/entities/movie';
 import type { CutsRefusal, GenerationRefusal } from '@/features/compose-movie';
-import { formatSeconds } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -16,9 +10,8 @@ import type { MovieSharing } from '../model/use-share-movie';
 
 export type GenerateFooterProps = {
   movie: Movie;
-  /** Cuts the movie holds, and how long they play. */
+  /** Cuts the movie holds; nothing to generate is a refusal, not a run. */
   cutCount: number;
-  totalSec: number;
   /** Why the last attempt to start was refused, if it was. */
   refusal: GenerationRefusal | undefined;
   /** Why the last cut edit was refused, if it was. */
@@ -44,13 +37,15 @@ const CutsRefusalMessages: Record<CutsRefusal, string> = {
  * are the same act on the same button; what changes is the label and, for a
  * failure, the stored reason above it.
  *
- * The summary line under the button is the whole configuration in one glance —
- * what the sheets hold, without opening them.
+ * The button and what refused it, and nothing else. A summary line under it
+ * used to restate the configuration (컷 수, 길이, 스타일, 음악) and the standing
+ * caveats about how long a run takes and how little it really does; on a screen
+ * whose stage lives on leftover height, three lines of prose that the strip, the
+ * chips, and the progress panel each already say cost more than they told.
  */
 export function GenerateFooter({
   movie,
   cutCount,
-  totalSec,
   refusal,
   cutsRefusal,
   sharing,
@@ -112,15 +107,6 @@ export function GenerateFooter({
           style={styles.generate}
         />
       </View>
-
-      <ThemedText type="xsmall" themeColor="textSecondary" style={styles.hint}>
-        {`컷 ${cutCount}개 · ${formatSeconds(totalSec)} · ${movieStyleLabel(movie.style)} · ${movieBgmLabel(movie.bgm)}`}
-        {'\n'}
-        {isReady
-          ? '지금 완성본은 새로 만든 것으로 바뀌어요. '
-          : `보통 ${Math.round(MovieGenerationTotalMs / 1000)}초쯤 걸리고, 앱을 나가도 계속돼요. `}
-        아직 프로토타입 — 합성 없이 컷을 순서대로 이어 재생해요.
-      </ThemedText>
     </View>
   );
 }
@@ -137,5 +123,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: Spacing.two },
   share: { flexBasis: '32%' },
   generate: { flex: 1 },
-  hint: { textAlign: 'center' },
 });

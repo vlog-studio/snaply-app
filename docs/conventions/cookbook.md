@@ -665,6 +665,11 @@ export function XPage() {
   [`BackBar`](../../src/shared/ui/back-bar) above its `ScrollView` instead, and the bar
   pads for the status bar itself; calling the hook as well stacks two status-bar heights
   of empty ground under the arrow.
+- Leave that bar bare when the screen names itself in its own content. Pass it a `title`
+  (and at most one `action`, an icon + its accessibility label) only when the screen has
+  no row to spend on a title — a screen whose zones are all fixed, like `/movie/[id]`,
+  where the stage lives on the height everything else leaves over. The bar's row is a
+  44dp tap target either way, so a title there is free.
 
 ---
 

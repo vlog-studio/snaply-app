@@ -70,11 +70,11 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
 });
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.two },
+  container: { gap: Spacing.one },
   input: {
     minHeight: 56,
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
     paddingHorizontal: Spacing.four,
     // Body family, size, and weight, matching `ThemedText`'s default so a field

@@ -61,7 +61,7 @@ export function SnaplyButton({
 const styles = StyleSheet.create({
   button: {
     minHeight: 56,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
     borderWidth: 1,
     paddingHorizontal: Spacing.five,

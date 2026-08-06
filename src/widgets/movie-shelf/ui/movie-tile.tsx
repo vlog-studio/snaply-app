@@ -14,7 +14,7 @@ export type MovieTileProps = {
   /** Tile width in points; the square cover takes the same value for height. */
   width: number;
   onPress: (movieId: string) => void;
-  /** A long press asks to delete the movie; absent, a long press does nothing. */
+  /** A long press opens the movie's actions; absent, a long press does nothing. */
   onLongPress?: (movie: MovieSummary) => void;
 };
 
@@ -30,7 +30,7 @@ export function MovieTile({ movie, width, onPress, onLongPress }: MovieTileProps
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · ${formatSeconds(movie.totalSec)}`}
-      accessibilityHint={onLongPress ? '탭하면 열고, 길게 누르면 지울 수 있어요' : undefined}
+      accessibilityHint={onLongPress ? '탭하면 열고, 길게 누르면 무비 옵션이 열려요' : undefined}
       onPress={() => onPress(movie.id)}
       onLongPress={onLongPress ? () => onLongPress(movie) : undefined}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.85 : 1 }, styles.tile]}

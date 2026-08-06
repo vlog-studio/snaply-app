@@ -2,7 +2,6 @@ import { useRouter, useScrollToTop } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-import { useDeleteMovie } from '@/entities/movie';
 import {
   MaxContentWidth,
   Radius,
@@ -14,7 +13,7 @@ import {
 import { ThemedText } from '@/shared/ui/themed-text';
 import { MovieTile, useMovieSummaries, type MovieSummary } from '@/widgets/movie-shelf';
 
-import { MovieDeleteDialog } from './movie-delete-dialog';
+import { MovieActionsSheet } from './movie-actions-sheet';
 
 /** Two columns, as in the mockup: a square cover wants the width. */
 const Columns = 2;
@@ -33,23 +32,15 @@ export function MoviesPage() {
   const tabBarHeight = useTabBarHeight();
   const { width: windowWidth } = useWindowDimensions();
   const movies = useMovieSummaries();
-  const deleteMovie = useDeleteMovie();
 
-  // The movie a long press asked to delete. It outlives the sheet's `visible`
-  // flag so the sheet keeps its words through the close animation.
-  const [deleting, setDeleting] = useState<MovieSummary>();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // The movie a long press picked out. It outlives the sheet's `visible` flag
+  // so the sheet keeps its words through the close animation.
+  const [selected, setSelected] = useState<MovieSummary>();
+  const [actionsVisible, setActionsVisible] = useState(false);
 
-  const askDelete = (movie: MovieSummary) => {
-    setDeleting(movie);
-    setConfirmingDelete(true);
-  };
-
-  // Synchronous store write: the movie is only a composition, so nothing on
-  // disk goes with it — the snap originals belong to the snaps.
-  const confirmDelete = () => {
-    if (deleting) deleteMovie(deleting.id);
-    setConfirmingDelete(false);
+  const openActions = (movie: MovieSummary) => {
+    setSelected(movie);
+    setActionsVisible(true);
   };
 
   // Re-tapping the 무비 tab returns to the newest movies; switching tabs keeps
@@ -92,12 +83,12 @@ export function MoviesPage() {
                 onPress={(movieId) =>
                   router.push({ pathname: '/movie/[id]', params: { id: movieId } })
                 }
-                // Deleting starts here rather than on the movie screen: the
+                // The actions live here rather than on the movie screen: the
                 // grid is where all the movies stand side by side, which is
-                // where a redundant one is noticed. Same gesture as the snap
-                // grid — a long press is how this app starts getting rid of
-                // something.
-                onLongPress={askDelete}
+                // where one is noticed as misnamed, worth sending, or
+                // redundant. Same gesture as the snap grid — a long press is
+                // how this app acts on a thing instead of opening it.
+                onLongPress={openActions}
               />
             ))}
           </View>
@@ -111,11 +102,10 @@ export function MoviesPage() {
         )}
       </ScrollView>
 
-      <MovieDeleteDialog
-        visible={confirmingDelete}
-        movie={deleting}
-        onCancel={() => setConfirmingDelete(false)}
-        onConfirm={confirmDelete}
+      <MovieActionsSheet
+        visible={actionsVisible}
+        movie={selected}
+        onClose={() => setActionsVisible(false)}
       />
     </>
   );

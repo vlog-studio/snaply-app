@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Movie } from '@/entities/movie';
 import type { CutsRefusal, GenerationRefusal } from '@/features/compose-movie';
+import type { MovieSharing } from '@/features/share-movie';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-import type { MovieSharing } from '../model/use-share-movie';
 import { CutsRefusalMessages, GenerationRefusalMessages, RefusalNotice } from './refusal-notice';
 
 export type GenerateFooterProps = {

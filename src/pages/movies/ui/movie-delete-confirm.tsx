@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
   step: { gap: Spacing.three },
   movie: {
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
     padding: Spacing.three,
     gap: Spacing.half,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 52,
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
     alignItems: 'center',
     justifyContent: 'center',

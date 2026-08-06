@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', gap: Spacing.half },
   group: {
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.small,
     borderCurve: 'continuous',
     overflow: 'hidden',
   },

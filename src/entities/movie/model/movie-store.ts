@@ -141,11 +141,27 @@ function createDraft(
  * Remaining references keep their `order` values (gaps are fine, order is only
  * ever read as a sort key). Movies that reference none of the snaps are returned
  * unchanged so their identity survives and their consumers do not re-render.
+ *
+ * The render's source snapshot follows the same rule as the live list: a
+ * deleted original may not be referenced anywhere, so restoring the render's
+ * composition can never resurrect a cut with nothing to play — and a deletion
+ * alone never reads as a drift the user could undo.
  */
 function withoutSnaps(movie: Movie, removedSnapIds: ReadonlySet<string>): Movie {
   const snapRefs = movie.snapRefs.filter((ref) => !removedSnapIds.has(ref.snapId));
-  if (snapRefs.length === movie.snapRefs.length) return movie;
-  return { ...movie, snapRefs };
+  const sourceRefs = movie.render?.snapRefs;
+  const keptSourceRefs = sourceRefs?.filter((ref) => !removedSnapIds.has(ref.snapId));
+  const cutsChanged = snapRefs.length !== movie.snapRefs.length;
+  const sourceChanged =
+    sourceRefs !== undefined &&
+    keptSourceRefs !== undefined &&
+    keptSourceRefs.length !== sourceRefs.length;
+  if (!cutsChanged && !sourceChanged) return movie;
+  return {
+    ...movie,
+    snapRefs: cutsChanged ? snapRefs : movie.snapRefs,
+    ...(sourceChanged ? { render: { ...movie.render!, snapRefs: keptSourceRefs } } : null),
+  };
 }
 
 export const useMovieStore = create<MovieState>()(
@@ -221,7 +237,20 @@ export const useMovieStore = create<MovieState>()(
         set((state) =>
           patchMovie(state, movieId, (movie) =>
             movie.status === 'generating'
-              ? { ...movie, status: 'ready', render, job: undefined, updatedAt }
+              ? {
+                  ...movie,
+                  status: 'ready',
+                  // The render remembers what it was made from: the cut list as
+                  // the job ends (a mid-job deletion has already stripped its
+                  // refs by now). Frozen here rather than by the caller so no
+                  // runner can finish a job into a render that cannot say.
+                  render: {
+                    ...render,
+                    snapRefs: [...movie.snapRefs].sort((left, right) => left.order - right.order),
+                  },
+                  job: undefined,
+                  updatedAt,
+                }
               : movie,
           ),
         ),

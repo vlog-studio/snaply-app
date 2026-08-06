@@ -53,6 +53,15 @@ export function withoutTrim(ref: SnapRef): SnapRef {
 }
 
 /**
+ * Whether two cuts play the same window: both whole, or the same trim. `withTrim`
+ * drops a full-width window rather than storing it, so "plays whole" has exactly
+ * one representation and this comparison never has to know the snap's length.
+ */
+export function sameTrimWindow(left: SnapRef, right: SnapRef): boolean {
+  return left.trim?.startSec === right.trim?.startSec && left.trim?.endSec === right.trim?.endSec;
+}
+
+/**
  * The reference a trim edit lands on: snapped to {@link CutTrimStepSec}, held
  * inside the snap, and never shorter than {@link MinCutSec}.
  *

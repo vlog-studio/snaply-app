@@ -10,15 +10,19 @@ const mockSaveCuts = jest.fn();
 const mockSnaps = jest.fn<Snap[], []>();
 
 jest.mock('@/entities/movie', () => {
-  // The trim rules are the entity's own and tested there; this hook is about
-  // which of them it applies and what it commits.
+  // The trim and render-source rules are the entity's own and tested there;
+  // this hook is about which of them it applies and what it commits.
   const trim = jest.requireActual('@/entities/movie/lib/movie-trim');
+  const render = jest.requireActual('@/entities/movie/lib/movie-render');
   return {
     useMovieById: () => mockMovie(),
     cutDurationSec: trim.cutDurationSec,
     cutsDurationSec: trim.cutsDurationSec,
+    sameTrimWindow: trim.sameTrimWindow,
     withTrim: trim.withTrim,
     withoutTrim: trim.withoutTrim,
+    isEditedSinceRender: render.isEditedSinceRender,
+    sameCuts: render.sameCuts,
   };
 });
 jest.mock('@/entities/snap', () => ({
@@ -267,6 +271,81 @@ describe('undo and redo', () => {
     expect(cutIds(result.current.cuts)).toEqual(['s2', 's1']);
     expect(result.current.canUndo).toBe(false);
     expect(result.current.canRedo).toBe(false);
+  });
+});
+
+describe('the render source', () => {
+  const renderSource: SnapRef[] = [
+    { snapId: 's1', order: 0 },
+    { snapId: 's2', order: 1 },
+    { snapId: 's3', order: 2 },
+  ];
+
+  function withRender(snapRefs: SnapRef[] = renderSource): Movie {
+    return makeMovie({
+      snapRefs,
+      render: { renderedAt: 5, durationSec: 12, snapRefs: renderSource },
+    });
+  }
+
+  beforeEach(() => {
+    mockMovie.mockReturnValue(withRender());
+    // The store write keeps the render: an edit moves the cut list out from
+    // under the render, never the render itself.
+    mockSaveCuts.mockImplementation((_movieId: string, refs: SnapRef[]) => {
+      mockMovie.mockReturnValue(withRender(refs.map((ref, order) => ({ ...ref, order }))));
+      return { cutCount: refs.length };
+    });
+  });
+
+  it('reads an untouched finished movie as unchanged', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    expect(result.current.editedSinceRender).toBe(false);
+  });
+
+  it('flags an edit after the render, and clears the flag on restore', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1));
+    expect(result.current.editedSinceRender).toBe(true);
+
+    await act(async () => result.current.restoreRenderCuts());
+
+    expect(result.current.editedSinceRender).toBe(false);
+    expect(cutIds(result.current.cuts)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('restores through an ordinary commit, so the restore itself can be undone', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.moveCut(0, 1));
+    await act(async () => result.current.restoreRenderCuts());
+    expect(result.current.canUndo).toBe(true);
+
+    await act(async () => result.current.undo());
+
+    expect(cutIds(result.current.cuts)).toEqual(['s2', 's1', 's3']);
+    expect(result.current.editedSinceRender).toBe(true);
+  });
+
+  it('writes nothing when the cut list already matches the render', async () => {
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    await act(async () => result.current.restoreRenderCuts());
+
+    expect(mockSaveCuts).not.toHaveBeenCalled();
+  });
+
+  it('has nothing to flag or restore without a render snapshot', async () => {
+    mockMovie.mockReturnValue(makeMovie({ render: { renderedAt: 5, durationSec: 12 } }));
+    const { result } = await renderHook(() => useMovieCuts('m1'));
+
+    expect(result.current.editedSinceRender).toBe(false);
+
+    await act(async () => result.current.restoreRenderCuts());
+
+    expect(mockSaveCuts).not.toHaveBeenCalled();
   });
 });
 

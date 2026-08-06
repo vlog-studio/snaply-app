@@ -52,11 +52,26 @@ export type SnapRef = {
  * What a finished generation produced. `uri` is the rendered file once a real
  * compositing backend exists; until then a ready movie is played by running its
  * cuts in order, so the field is optional.
+ *
+ * `snapRefs` is the cut list the render was made from, frozen by
+ * `finishMovieJob` as the job ends. The composition the user edits and the
+ * result a run produced are different objects, and the movie's live `snapRefs`
+ * keeps moving after a run — without this snapshot the render could not say
+ * what it was made of, an edited `ready` movie could not be told apart from an
+ * untouched one, and a mis-tap that rearranged a finished movie would be
+ * unrecoverable once the screen's undo history was gone. Optional because
+ * renders stored before the field existed have none and the local store has no
+ * migration step; a missing snapshot reads as "unknown", which disables the
+ * drift notice and the restore rather than faking either. The snapshot is kept
+ * playable, not archival: deleting a snap original strips its reference here
+ * exactly as it is stripped from the live list, so restoring it can never
+ * resurrect a cut with nothing to play.
  */
 export type MovieRender = {
   uri?: string;
   renderedAt: number;
   durationSec: number;
+  snapRefs?: SnapRef[];
 };
 
 /**

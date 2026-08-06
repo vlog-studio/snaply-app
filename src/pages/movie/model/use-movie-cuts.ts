@@ -3,6 +3,9 @@ import { useMemo, useState } from 'react';
 import {
   cutDurationSec,
   cutsDurationSec,
+  isEditedSinceRender,
+  sameCuts,
+  sameTrimWindow,
   useMovieById,
   withTrim,
   withoutTrim,
@@ -36,6 +39,16 @@ export type MovieCuts = {
   refusal: CutsRefusal | undefined;
   canUndo: boolean;
   canRedo: boolean;
+  /**
+   * True when the cut list no longer matches what the current render was made
+   * from — the user edited a finished movie, knowingly or not.
+   */
+  editedSinceRender: boolean;
+  /**
+   * Puts the cut list back to the render's own composition. An ordinary commit:
+   * it lands in the history, so it can itself be undone.
+   */
+  restoreRenderCuts: () => void;
   moveCut: (index: number, direction: -1 | 1) => void;
   removeCut: (index: number) => void;
   /** Sets a cut's trim window. The rules are the entity's; this only stores. */
@@ -47,17 +60,6 @@ export type MovieCuts = {
   /** Reapplies the edit the last undo stepped over. */
   redo: () => void;
 };
-
-function sameTrim(left: SnapRef, right: SnapRef): boolean {
-  return left.trim?.startSec === right.trim?.startSec && left.trim?.endSec === right.trim?.endSec;
-}
-
-function sameRefs(left: readonly SnapRef[], right: readonly SnapRef[]): boolean {
-  if (left.length !== right.length) return false;
-  return left.every(
-    (ref, index) => ref.snapId === right[index].snapId && sameTrim(ref, right[index]),
-  );
-}
 
 type CutHistory = {
   /** Stored lists this screen wrote over, oldest first; `undo` walks back. */
@@ -106,8 +108,8 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
   const [tracked, setTracked] = useState<readonly SnapRef[]>(storedRefs);
   if (tracked !== storedRefs) {
     setTracked(storedRefs);
-    if (!sameRefs(tracked, storedRefs)) {
-      const ours = history.written !== undefined && sameRefs(history.written, storedRefs);
+    if (!sameCuts(tracked, storedRefs)) {
+      const ours = history.written !== undefined && sameCuts(history.written, storedRefs);
       if (!ours) {
         setHistory(EmptyHistory);
         setRefusal(undefined);
@@ -206,10 +208,22 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
       // `withTrim` builds a new object even for an unchanged window; comparing the
       // window keeps a settled drag that moved nothing from committing the same
       // list back and pushing a no-op history entry.
-      return sameTrim(ref, trimmed) ? ref : trimmed;
+      return sameTrimWindow(ref, trimmed) ? ref : trimmed;
     });
 
   const resetTrim = (index: number) => replaceCut(index, (ref) => withoutTrim(ref));
+
+  // The render's composition, back as the stored list. Not a rollback of the
+  // render itself — there is only ever one — but of the cut list that drifted
+  // out from under it; a snapshot the movie no longer answers to (already
+  // matching, or never taken) restores nothing.
+  const restoreRenderCuts = () => {
+    const source = movie?.render?.snapRefs;
+    if (!source || source.length === 0) return;
+    const target = [...source].sort((left, right) => left.order - right.order);
+    if (sameCuts(storedRefs, target)) return;
+    commit(target);
+  };
 
   return {
     movie,
@@ -219,6 +233,8 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
     refusal,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
+    editedSinceRender: movie !== undefined && isEditedSinceRender(movie),
+    restoreRenderCuts,
     moveCut,
     removeCut,
     trimCut,

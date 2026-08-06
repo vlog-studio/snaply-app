@@ -81,6 +81,36 @@ describe('movie store', () => {
     expect(second.snapRefs).toEqual([]);
   });
 
+  it("strips deleted snaps from a render's source snapshot too", async () => {
+    useMovieStore.setState({
+      movies: [
+        {
+          ...makeMovie('m1', ['s1', 's3']),
+          status: 'ready',
+          render: {
+            renderedAt: 1,
+            durationSec: 9,
+            snapRefs: [
+              { snapId: 's1', order: 0 },
+              { snapId: 's2', order: 1 },
+              { snapId: 's3', order: 2 },
+            ],
+          },
+        },
+      ],
+    });
+
+    const { result } = await renderHook(() => useRemoveSnapsEverywhere());
+    await act(async () => result.current(['s2']));
+
+    // The live list held no s2, but the snapshot did — restoring it must not
+    // resurrect a cut whose original is gone.
+    expect(useMovieStore.getState().movies[0].render?.snapRefs).toEqual([
+      { snapId: 's1', order: 0 },
+      { snapId: 's3', order: 2 },
+    ]);
+  });
+
   it('keeps a movie that loses its last cut — deleting a movie is its own action', async () => {
     useMovieStore.setState({ movies: [makeMovie('m1', ['s1'])] });
 
@@ -338,6 +368,32 @@ describe('generating a movie', () => {
       updatedAt: 999,
     });
     expect(useMovieStore.getState().movies[0].job).toBeUndefined();
+  });
+
+  it('freezes the cut list into the render, in stored order', async () => {
+    useMovieStore.setState({
+      movies: [
+        {
+          ...makeMovie('m1', []),
+          snapRefs: [
+            { snapId: 's2', order: 1 },
+            { snapId: 's1', order: 0, trim: { startSec: 1, endSec: 3 } },
+          ],
+        },
+      ],
+    });
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      finish: useFinishMovieJob(),
+    }));
+
+    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.finish('m1', render, 999));
+
+    expect(useMovieStore.getState().movies[0].render?.snapRefs).toEqual([
+      { snapId: 's1', order: 0, trim: { startSec: 1, endSec: 3 } },
+      { snapId: 's2', order: 1 },
+    ]);
   });
 
   it('fails a job into a failed movie holding the reason', async () => {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Movie } from '@/entities/movie';
 import type { CutsRefusal, GenerationRefusal } from '@/features/compose-movie';
@@ -18,6 +18,13 @@ export type GenerateFooterProps = {
   refusal: GenerationRefusal | undefined;
   /** Why the last cut edit was refused, if it was. */
   cutsRefusal: CutsRefusal | undefined;
+  /**
+   * True on a finished movie whose cut list drifted from what its render was
+   * made from — the one state where what plays is not what was made.
+   */
+  editedSinceRender: boolean;
+  /** Puts the cut list back to the render's own composition. */
+  onRestoreCuts: () => void;
   sharing: MovieSharing;
   /**
    * The selected cut's controls, standing in for the action row while a cut
@@ -52,6 +59,8 @@ export function GenerateFooter({
   cutCount,
   refusal,
   cutsRefusal,
+  editedSinceRender,
+  onRestoreCuts,
   sharing,
   inspector,
   onStart,
@@ -62,6 +71,29 @@ export function GenerateFooter({
 
   return (
     <View style={styles.footer}>
+      {/* An edited finished movie says so: the stage is playing the changed
+          composition, not the one that was made, and only 다시 만들기 closes
+          that gap. The restore is the one-tap way back when the edit was a
+          mis-tap — screen-local undo dies with the visit, this does not. */}
+      {isReady && editedSinceRender ? (
+        <View style={[styles.notice, { borderColor: theme.border }]}>
+          <ThemedText type="small" themeColor="textSecondary">
+            완성한 뒤에 컷 구성이 달라졌어요. 다시 만들기 전까지는 바뀐 구성으로 재생돼요.
+          </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="완성 당시 구성으로 되돌리기"
+            onPress={onRestoreCuts}
+            hitSlop={Spacing.two}
+            style={({ pressed }) => [styles.restore, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <ThemedText selectable={false} type="smallBold" themeColor="primary">
+              완성 당시 구성으로 되돌리기
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
+
       {hasFailed ? (
         // The stored reason, not a generic apology: the user has to know
         // whether running it again is worth anything, and today's one failure
@@ -121,6 +153,7 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.one,
   },
+  restore: { alignSelf: 'flex-start' },
   actions: { flexDirection: 'row', gap: Spacing.two },
   share: { flexBasis: '32%' },
   generate: { flex: 1 },

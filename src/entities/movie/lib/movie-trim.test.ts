@@ -1,5 +1,12 @@
 import type { SnapRef } from '../model/movie';
-import { MinCutSec, cutDurationSec, cutsDurationSec, withTrim, withoutTrim } from './movie-trim';
+import {
+  MinCutSec,
+  cutDurationSec,
+  cutsDurationSec,
+  sameTrimWindow,
+  withTrim,
+  withoutTrim,
+} from './movie-trim';
 
 function ref(snapId: string, trim?: SnapRef['trim']): SnapRef {
   return { snapId, order: 0, trim };
@@ -76,6 +83,27 @@ describe('withTrim', () => {
 
   it('leaves a snap too short to trim playing whole', () => {
     expect(withTrim(ref('s1'), 0, 0.5, MinCutSec).trim).toBeUndefined();
+  });
+});
+
+describe('sameTrimWindow', () => {
+  it.each([
+    ['two whole cuts', ref('s1'), ref('s1'), true],
+    [
+      'the same window',
+      ref('s1', { startSec: 1, endSec: 3 }),
+      ref('s1', { startSec: 1, endSec: 3 }),
+      true,
+    ],
+    [
+      'a moved window',
+      ref('s1', { startSec: 1, endSec: 3 }),
+      ref('s1', { startSec: 1, endSec: 3.5 }),
+      false,
+    ],
+    ['a whole cut against a trimmed one', ref('s1'), ref('s1', { startSec: 0, endSec: 3 }), false],
+  ])('compares %s', (_name, left, right, expected) => {
+    expect(sameTrimWindow(left, right)).toBe(expected);
   });
 });
 

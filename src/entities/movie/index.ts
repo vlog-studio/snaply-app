@@ -18,6 +18,7 @@ export {
   type MovieStylePatch,
 } from './model/movie-store';
 export { isAiArranged, movieArranger, sameArrangement } from './lib/movie-arrangement';
+export { isEditedSinceRender, sameCuts } from './lib/movie-render';
 export { MovieSnapLimit } from './model/movie';
 export { MovieTitleMaxLength } from './lib/movie-title';
 export { MovieBgmCatalog, movieBgmLabel } from './lib/movie-bgm';
@@ -34,6 +35,7 @@ export {
   MinCutSec,
   cutDurationSec,
   cutsDurationSec,
+  sameTrimWindow,
   withTrim,
   withoutTrim,
 } from './lib/movie-trim';

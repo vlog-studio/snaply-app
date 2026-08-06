@@ -305,6 +305,8 @@ export function MoviePage({ movieId }: MoviePageProps) {
             cutCount={cuts.length}
             refusal={generationRefusal}
             cutsRefusal={refusal}
+            editedSinceRender={list.editedSinceRender}
+            onRestoreCuts={list.restoreRenderCuts}
             sharing={sharing}
             onStart={runGeneration}
             // The selected cut's controls take the generate button's slot

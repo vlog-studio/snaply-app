@@ -36,7 +36,7 @@ function toDayKey(epochMs: number): string {
  *
  * Grouping by day is presentation, not domain: no rule ties a snap to a day any
  * more (the daily roll is gone), the grid just reads better in date sections.
- * That is why this lives with the page rather than in the entity.
+ * That is why this lives with the grid rather than in the entity.
  */
 export function useSnapDays(): SnapLibrary {
   const snaps = useSnaps();

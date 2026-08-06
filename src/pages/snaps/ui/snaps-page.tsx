@@ -1,20 +1,11 @@
 import { useIsFocused, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import {
-  BackHandler,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MovieSnapLimit, useMovieById } from '@/entities/movie';
 import type { Snap } from '@/entities/snap';
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
-import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
-import { formatDuration, formatSeconds } from '@/shared/lib/datetime';
+import { formatSeconds } from '@/shared/lib/datetime';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
@@ -26,26 +17,15 @@ import {
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoPlayerModal } from '@/shared/ui/video-player-modal';
+import { SnapDayGrid, SnapSelectionBar, useSnapDays, useSnapPicking } from '@/widgets/snap-grid';
 
 import { useMovieDeleteImpact } from '../model/use-movie-delete-impact';
-import { useSnapDays } from '../model/use-snap-days';
-import { SnapCell } from './snap-cell';
 import { SnapDeleteDialog } from './snap-delete-dialog';
-import { SnapSelectionBar } from './snap-selection-bar';
 
 export type SnapsPageProps = {
-  /** `?select=1` — the studio or a movie screen sends the user here to pick. */
+  /** `?select=1` — the studio sends the user here to pick for the tray. */
   startSelecting?: boolean;
-  /**
-   * `?for=<movieId>` — a movie screen's "스냅 더 넣기". Picks go straight into that
-   * movie's cut list instead of the tray, and the cap shown is the movie's
-   * remaining room. Without it, picks go to the tray as usual.
-   */
-  forMovieId?: string;
 };
-
-/** Three columns, as in the mockup: wide enough to read, dense enough to scan. */
-const Columns = 3;
 
 /**
  * The snap library — every 3–5 second original the user has shot, grouped by day.
@@ -56,11 +36,14 @@ const Columns = 3;
  * straight into a movie, so material can be gathered across several days
  * (concept §5).
  *
- * The one exception is a movie's "스냅 더 넣기", which arrives with a movie id
- * and appends to that movie directly. Routing those picks through the tray would
- * make the user leave the movie, empty the tray, and come back.
+ * Picking *into a movie* is a different screen — `/movie/[id]/add-snaps`, on the
+ * root stack — even though it draws the same grid. It used to be this one under
+ * `?for=<movieId>`, which meant a movie screen had to push a tab route: that
+ * mounts a second copy of the tab navigator over the movie, and the tab
+ * navigator then answers the confirming `back` by switching tabs instead of
+ * returning to the movie the user came from.
  */
-export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps) {
+export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const theme = useTheme();
   const router = useRouter();
   const topInset = useTopContentInset();
@@ -68,31 +51,29 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
   const { days, totalCount, isHydrated } = useSnapDays();
   const traySnapIds = useTraySnapIds();
   const addSnapsToTray = useAddSnapsToTray();
-  const targetMovie = useMovieById(forMovieId);
-  const { appendSnaps } = useComposeMovie();
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
-  const { width: windowWidth } = useWindowDimensions();
   const setTabBarHidden = useSetTabBarHidden();
   const isFocused = useIsFocused();
 
   const [selecting, setSelecting] = useState(startSelecting);
-  // Ordered, not a Set: the pick order is what becomes the tray order, and the
-  // cells show it as a number.
-  const [picked, setPicked] = useState<string[]>([]);
   const [playing, setPlaying] = useState<Snap>();
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [notice, setNotice] = useState<string>();
+
+  const heldIds = useMemo(() => new Set(traySnapIds), [traySnapIds]);
+  const { picked, notice, toggle, drop, clear, reset, announce } = useSnapPicking({
+    heldIds,
+    heldCount: traySnapIds.length,
+    capacity: TrayCapacity,
+    describeRefusal: (room) =>
+      room === 0
+        ? '트레이가 가득 찼어요. 스튜디오에서 먼저 비워주세요.'
+        : `한 편에는 스냅 ${TrayCapacity}개까지 들어가요. 지금은 ${room}개만 더 담을 수 있어요.`,
+  });
 
   const impact = useMovieDeleteImpact(deleteOpen ? picked : EmptySelection);
-  // The delete sheet reports the tray specifically, whatever the picks are for:
-  // deleting a snap empties it out of the tray as well as out of every movie.
+  // The delete sheet reports the tray specifically: deleting a snap empties it
+  // out of the tray as well as out of every movie.
   const pickedInTray = picked.filter((snapId) => traySnapIds.includes(snapId)).length;
-
-  // The grid's cell width, derived instead of measured (the content column is
-  // centered, capped at MaxContentWidth, and padded) so the cells lay out on
-  // their very first frame.
-  const gridWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
-  const cellWidth = Math.floor((gridWidth - Spacing.one * (Columns - 1)) / Columns);
 
   // Arriving with `?select=1` (the studio's tray sending the user to pick)
   // opens selection mode. The tab stays mounted across visits, so the initial
@@ -107,9 +88,8 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
 
   const exitSelection = useCallback(() => {
     setSelecting(false);
-    setPicked([]);
-    setNotice(undefined);
-  }, []);
+    reset();
+  }, [reset]);
 
   // Android hardware back leaves selection mode instead of leaving the tab.
   useEffect(() => {
@@ -139,72 +119,25 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
     return () => setTabBarHidden(false);
   }, [selecting, isFocused, setTabBarHidden]);
 
-  // Which container the picks are headed for decides both the room left and
-  // what "already in it" means.
-  const heldIds = targetMovie
-    ? new Set(targetMovie.snapRefs.map((ref) => ref.snapId))
-    : new Set(traySnapIds);
-  const heldCount = targetMovie ? targetMovie.snapRefs.length : traySnapIds.length;
-  const capacity = targetMovie ? MovieSnapLimit : TrayCapacity;
-  const room = Math.max(capacity - heldCount, 0);
-
-  const togglePick = (snap: Snap) => {
-    if (picked.includes(snap.id)) {
-      setNotice(undefined);
-      setPicked(picked.filter((snapId) => snapId !== snap.id));
-      return;
-    }
-    // Snaps the target already holds take no new room, so they never hit the cap.
-    const wouldTake = picked.filter((snapId) => !heldIds.has(snapId)).length;
-    if (!heldIds.has(snap.id) && wouldTake >= room) {
-      setNotice(
-        room === 0
-          ? targetMovie
-            ? `이 무비는 이미 스냅 ${MovieSnapLimit}개를 갖고 있어요.`
-            : '트레이가 가득 찼어요. 스튜디오에서 먼저 비워주세요.'
-          : `한 편에는 스냅 ${MovieSnapLimit}개까지 들어가요. 지금은 ${room}개만 더 담을 수 있어요.`,
-      );
-      return;
-    }
-    setNotice(undefined);
-    setPicked([...picked, snap.id]);
-  };
-
   const handlePress = (snap: Snap) => {
-    if (selecting) togglePick(snap);
+    if (selecting) toggle(snap.id);
     else setPlaying(snap);
   };
 
   const handleLongPress = (snap: Snap) => {
     if (selecting) return;
     setSelecting(true);
-    setPicked([snap.id]);
+    toggle(snap.id);
   };
 
   const confirmPicks = () => {
-    if (targetMovie) {
-      const outcome = appendSnaps(targetMovie.id, picked);
-      if (outcome.refused) {
-        setNotice(
-          outcome.refused === 'full'
-            ? `이 무비에는 ${room}개만 더 넣을 수 있어요.`
-            : '이 무비는 더 이상 컷을 고칠 수 없어요.',
-        );
-        return;
-      }
-      exitSelection();
-      // Back to the movie the user came from, where the new cuts are waiting.
-      router.back();
-      return;
-    }
-
     const outcome = addSnapsToTray(picked);
     exitSelection();
     // The studio is where the tray lives, so land there — the user should see
     // what they just collected.
     router.navigate('/');
     if (outcome.rejected > 0) {
-      setNotice(`${outcome.added}개를 담았어요. ${outcome.rejected}개는 자리가 없어 빠졌어요.`);
+      announce(`${outcome.added}개를 담았어요. ${outcome.rejected}개는 자리가 없어 빠졌어요.`);
     }
   };
 
@@ -221,7 +154,7 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
     } else {
       // Some files survived; keep the sheet open with its error and drop the
       // ones that did go, so a retry only targets what is left.
-      setPicked((current) => current.filter((snapId) => !deletedIds.includes(snapId)));
+      drop(deletedIds);
     }
   };
 
@@ -277,33 +210,14 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
           </View>
         ) : null}
 
-        {days.map((day) => (
-          <View key={day.key} style={styles.day}>
-            <View style={styles.dayHead}>
-              <ThemedText type="smallBold">{day.label}</ThemedText>
-              <ThemedText type="edge" themeColor="textSecondary">
-                {day.snaps.length}개 · {formatDuration(totalSecOf(day.snaps))}
-              </ThemedText>
-            </View>
-            <View style={styles.grid}>
-              {day.snaps.map((snap) => {
-                const index = picked.indexOf(snap.id);
-                return (
-                  <SnapCell
-                    key={snap.id}
-                    snap={snap}
-                    width={cellWidth}
-                    pickNumber={index >= 0 ? index + 1 : undefined}
-                    selecting={selecting}
-                    isHeld={heldIds.has(snap.id)}
-                    onPress={handlePress}
-                    onLongPress={handleLongPress}
-                  />
-                );
-              })}
-            </View>
-          </View>
-        ))}
+        <SnapDayGrid
+          days={days}
+          selecting={selecting}
+          picked={picked}
+          heldIds={heldIds}
+          onPress={handlePress}
+          onLongPress={handleLongPress}
+        />
 
         {isHydrated && totalCount === 0 ? (
           <View style={[styles.empty, { borderColor: theme.border }]}>
@@ -318,11 +232,11 @@ export function SnapsPage({ startSelecting = false, forMovieId }: SnapsPageProps
       {selecting ? (
         <SnapSelectionBar
           selectedCount={picked.length}
-          heldCount={heldCount}
-          capacity={capacity}
-          targetLabel={targetMovie ? targetMovie.title : '트레이'}
-          confirmLabel={targetMovie ? '이 무비에 넣기' : '트레이에 담기'}
-          onClear={() => setPicked([])}
+          heldCount={traySnapIds.length}
+          capacity={TrayCapacity}
+          targetLabel="트레이"
+          confirmLabel="트레이에 담기"
+          onClear={clear}
           onConfirm={confirmPicks}
           onDelete={() => setDeleteOpen(true)}
         />
@@ -356,10 +270,6 @@ const EmptySelection: string[] = [];
 // the safe-area padding it adds itself.
 const SelectionBarRoom = 132;
 
-function totalSecOf(snaps: readonly Snap[]): number {
-  return snaps.reduce((sum, snap) => sum + snap.durationSec, 0);
-}
-
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: {
@@ -379,15 +289,6 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     padding: Spacing.three,
   },
-  day: { gap: Spacing.two },
-  dayHead: {
-    minHeight: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one },
   empty: {
     borderWidth: 1.5,
     borderStyle: 'dashed',

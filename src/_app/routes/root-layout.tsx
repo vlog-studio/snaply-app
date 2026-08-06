@@ -90,6 +90,12 @@ function RootStack() {
             movie's actual name, and the gap it left between the two was the
             emptiest part of the screen. */}
         <Stack.Screen name="movie/[id]/index" options={{ headerShown: false }} />
+        {/* The movie's "스냅 더 넣기" picker. It belongs to the root stack rather
+            than the Snap tab it resembles: pushing a tab route from the movie
+            screen mounts a second tab navigator over it, and that navigator
+            answers the confirming `back` by switching tabs — which is how
+            adding a cut used to land the user on the studio. */}
+        <Stack.Screen name="movie/[id]/add-snaps" options={{ headerShown: false }} />
         {/* Picking a template is the other way into a movie, and it is a task of
             the same shape: it opens over the studio and leaves on the movie it
             made — headerless for the same reason. */}

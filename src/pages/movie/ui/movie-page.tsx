@@ -108,8 +108,11 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
 
+  // The picker is a screen of its own on the root stack, not the Snap tab: a
+  // pushed tab route brings a whole second tab navigator with it, and that
+  // navigator — not the stack — is what would answer the confirming `back`.
   const addSnaps = () =>
-    router.push({ pathname: '/snaps', params: { select: '1', for: movie.id } });
+    router.push({ pathname: '/movie/[id]/add-snaps', params: { id: movie.id } });
 
   const runGeneration = () => {
     const outcome = startGeneration(movie.id);

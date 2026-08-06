@@ -16,12 +16,16 @@ export type SnapSelectionBarProps = {
   confirmLabel: string;
   onClear: () => void;
   onConfirm: () => void;
-  onDelete: () => void;
+  /**
+   * Omitted where the screen does not own deletion: picking snaps *into* a
+   * movie is not the place to delete originals out of the library.
+   */
+  onDelete?: () => void;
 };
 
 /**
  * The selection mode's bottom bar: how many snaps are picked against the
- * target's remaining room, and the two things that can be done with them.
+ * target's remaining room, and what can be done with them.
  *
  * It reports the room rather than a bare count because the ten-snap cap is the
  * product's one hard constraint (concept §5) and the moment it bites is here —
@@ -67,23 +71,25 @@ export function SnapSelectionBar({
       </View>
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${selectedCount}개 스냅 삭제`}
-          accessibilityState={{ disabled: selectedCount === 0 }}
-          disabled={selectedCount === 0}
-          hitSlop={8}
-          onPress={onDelete}
-          style={styles.textAction}
-        >
-          <ThemedText
-            selectable={false}
-            type="smallBold"
-            style={{ color: selectedCount > 0 ? theme.danger : theme.textSecondary }}
+        {onDelete ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${selectedCount}개 스냅 삭제`}
+            accessibilityState={{ disabled: selectedCount === 0 }}
+            disabled={selectedCount === 0}
+            hitSlop={8}
+            onPress={onDelete}
+            style={styles.textAction}
           >
-            삭제
-          </ThemedText>
-        </Pressable>
+            <ThemedText
+              selectable={false}
+              type="smallBold"
+              style={{ color: selectedCount > 0 ? theme.danger : theme.textSecondary }}
+            >
+              삭제
+            </ThemedText>
+          </Pressable>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="선택 해제"

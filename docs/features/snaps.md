@@ -15,9 +15,9 @@ Users can see every 3–5 second original they have shot, play any of them, pick
 
 There is no blur and nothing to unlock: the app no longer withholds what was just recorded. Day sections are presentation only — no rule ties a snap to a day any more, the grid simply reads better in date sections.
 
-`/snaps?select=1` opens straight in selection mode; the studio's tray links here that way.
+`/snaps?select=1` opens straight in selection mode; the studio's tray links here that way. It is the only parameter this tab takes: picks made here always go to the tray.
 
-`/snaps?select=1&for=<movieId>` is a movie screen's "스냅 더 넣기": the picks go into that movie's cut list instead of the tray, the bar measures room against the movie's ten-cut cap, and confirming returns to the movie. Routing those picks through the tray would make the user leave the movie, empty the tray, and come back. Only a generated movie offers the control, since only a generated movie can be edited ([The movie screen](movie.md)).
+Picking *into a movie* is a screen of its own — `/movie/[id]/add-snaps`, on the root stack — described in [The movie screen](movie.md#composing-and-fixing-it). It draws this tab's grid from the shared `widgets/snap-grid` block, but it is not this tab: until 2026-08-06 it was `/snaps?select=1&for=<movieId>`, which made the movie screen push a *tab* route. Expo Router answers that by mounting a second copy of the tab navigator over the movie, and that navigator — not the root stack — then handled the confirming `router.back()`, switching to its first tab (the studio) instead of returning to the movie the user came from. Adding a cut therefore ended on the 스튜디오 screen.
 
 ## Browsing and playback
 
@@ -35,9 +35,8 @@ There is no blur and nothing to unlock: the app no longer withholds what was jus
 | Enter selection | `Functional` | The header's `선택` control, a long-press on any cell, or arriving with `?select=1`. Android hardware back leaves selection mode instead of leaving the tab. |
 | Bottom chrome takeover | `Functional` | While selecting, the screen takes the bottom of the shell over: the tab bar and the capture button step aside through `shared/ui/tab-bar-chrome` and the selection bar has it to itself. Without this the navigator's bar, which paints above every scene, covers the bar's action row and takes the taps meant for `삭제`, `해제`, and `트레이에 담기`. The takeover is derived from selection state and screen focus in one effect, so every way in and out restores the bar — including something navigating to another tab mid-selection, which gives the bar back without discarding the picks. |
 | Pick order | `Functional` | Selection is an ordered list, not a set: the number drawn on each cell is its position, and that order becomes the tray order. |
-| Cap enforcement | `Functional` | The bar names the target and its room (`트레이 3/10 · 7개 더`, or the movie's title when picking for one). A pick past the remaining room is refused with an inline notice; snaps the target already holds take no new room, so re-picking one is always allowed. |
+| Cap enforcement | `Functional` | The bar names the target and its room (`트레이 3/10 · 7개 더`). A pick past the remaining room is refused with an inline notice; snaps the target already holds take no new room, so re-picking one is always allowed. The rule itself is `widgets/snap-grid`'s (`useSnapPicking`), so this tab and a movie's picker cannot disagree about it; only the wording of the refusal is the screen's. |
 | 트레이에 담기 | `Functional` | Hands the picked ids to `entities/tray` and navigates to the studio, where the tray lives, so the user sees what they collected. If the tray refused any (a concurrent change), the notice reports how many went in and how many were turned away. |
-| 이 무비에 넣기 | `Functional` | In `?for=<movieId>` mode, appends the picks to that movie through `features/compose-movie` and returns to it. A batch that would not fit is refused whole, with the room left named. |
 | 담김 badge | `Functional` | A snap the target already holds carries a `담김` badge, in selection mode too — that is exactly when it matters, since picking one does nothing and the user would otherwise only find out afterwards. It sits in the opposite corner from the pick circle. |
 | Delete | `Functional` | See below. |
 
@@ -115,10 +114,11 @@ Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on t
 
 ## Ownership
 
-- `src/pages/snaps` owns the screen, the day grouping (`model/use-snap-days.ts`), the delete-impact read model, the grid cell, the selection bar, and the delete dialog.
+- `src/pages/snaps` owns the tab screen: playback, selection mode and its bottom-chrome takeover, the tray commit, the delete-impact read model (`model/use-movie-delete-impact.ts`), and the delete dialog.
+- `src/widgets/snap-grid` owns what both picking screens are built from: the day grouping (`model/use-snap-days.ts`), the pick-order and cap rules (`model/use-snap-picking.ts`), the day-sectioned grid and its derived cell width (`ui/snap-day-grid.tsx`), the cell (`ui/snap-cell.tsx`), and the selection bar (`ui/snap-selection-bar.tsx`, whose 삭제 action is optional because a movie's picker does not own deletion). Promoted out of `pages/snaps` on 2026-08-06, when the movie's picker became a screen of its own and a second surface needed the block.
 - `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
 - `src/features/delete-snap` owns the cascading deletion across files, thumbnails, movies, the tray, and snap metadata.
-- `src/features/compose-movie` owns appending picks to a movie in `?for=` mode.
+- `src/pages/add-snaps` owns the movie's picker screen (`/movie/[id]/add-snaps`), which appends its picks through `features/compose-movie`.
 - `src/features/manage-recordings` owns reusable local-recording listing for the capture library.
 - `src/shared/ui/video-frame`, `src/shared/ui/video-player-modal`, and `src/shared/lib/datetime` supply the frame, the player chrome, and the day/duration formatting.
 - `src/shared/lib/video-duration` reads a local video file's real length (`readVideoDuration`), with a web stub. Transport only: it creates one `expo-video` player, reads the duration, and releases it on every exit path including the timeout.

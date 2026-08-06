@@ -11,13 +11,13 @@ import { MovieStatusBadge, MovieStatusLabels } from './movie-status-badge';
 
 export type MovieTileProps = {
   movie: MovieSummary;
-  /** Tile width in points; the 9:16 cover height is derived from it. */
+  /** Tile width in points; the square cover takes the same value for height. */
   width: number;
   onPress: (movieId: string) => void;
 };
 
 /**
- * One movie in the movie tab's grid: a 9:16 cover of its first cut with the
+ * One movie in the movie tab's grid: a square cover of its first cut with the
  * length and status over it, and the title beneath.
  */
 export function MovieTile({ movie, width, onPress }: MovieTileProps) {
@@ -31,9 +31,7 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
       onPress={() => onPress(movie.id)}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.85 : 1 }, styles.tile]}
     >
-      <View
-        style={[styles.cover, { height: Math.round((width * 16) / 9), borderColor: theme.border }]}
-      >
+      <View style={[styles.cover, { height: width, borderColor: theme.border }]}>
         {cover ? <VideoFrame uri={cover} /> : null}
         <View style={styles.badge}>
           <MovieStatusBadge status={movie.status} />
@@ -69,6 +67,10 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
 
 const styles = StyleSheet.create({
   tile: { gap: Spacing.one },
+  // Square, like the snap grid's cells: a cover only has to be recognizable, and
+  // a tall 9:16 tile pushed the second row off the screen. Sized in points by
+  // the caller rather than shaped with `aspectRatio`, which collapses a wrapped
+  // flex cell whose only children are absolutely positioned.
   cover: {
     borderRadius: Radius.medium,
     borderCurve: 'continuous',

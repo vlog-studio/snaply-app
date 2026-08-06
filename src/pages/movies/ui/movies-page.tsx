@@ -12,7 +12,7 @@ import {
 import { ThemedText } from '@/shared/ui/themed-text';
 import { MovieTile, useMovieSummaries } from '@/widgets/movie-shelf';
 
-/** Two columns, as in the mockup: a 9:16 cover wants the width. */
+/** Two columns, as in the mockup: a square cover wants the width. */
 const Columns = 2;
 
 /**

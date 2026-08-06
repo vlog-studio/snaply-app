@@ -58,6 +58,7 @@ The tray is the concept's one invention (concept §5): choosing a snap does not 
 | Open a movie | `Functional` | Every movie, at every status, opens on [the movie screen](movie.md). Watching a finished one and fixing it are the same visit, so there is nothing for a row or a tile to branch on. |
 | Generation progress | `Functional` | A row or tile for a `generating` movie carries a bar from `MovieSummary.progress`, derived from the step the job has reached. A card is deliberately coarse — a list must not re-render on a timer, so the second-by-second number lives on the movie screen alone (see [The movie screen](movie.md)). |
 | Recover a failed movie | `Functional` | A `failed` row or tile carries the stored reason and a `다시 시도` that runs the movie again in place — the board and the grid offer the identical control (`MovieFailureNotice`), because a failure the user can only undo from one of the two places they see it is one they get stuck on. A movie with no cuts left offers no retry; the copy sends them to the movie screen, which is where cuts come back. What can fail and why is in [The movie screen](movie.md). |
+| Delete a movie | `Functional` | A long press on a movie-tab tile — the same gesture that starts a snap delete — opens a confirmation sheet (`pages/movies/ui/movie-delete-dialog.tsx`) naming the movie, its cut count, and its length. Confirming calls `useDeleteMovie`: one synchronous store write, because a movie is only a composition — the snap originals, their thumbnails, and the tray are untouched, and the sheet says so instead of warning in the abstract. A `generating` movie can be deleted too; the sheet warns that the job in flight goes with it (the runner simply stops finding the movie on its next tick). The grid is the only entry: board rows and the movie screen offer no delete. |
 
 ## Data model
 
@@ -82,14 +83,14 @@ Movie
 
 A job lives on the movie rather than in memory so it outlives the screen that started it and the session it started in — the user is expected to leave while a movie generates. `stepIndex` is the only progress the store keeps; anything finer is derived from `startedAt` by whoever needs it.
 
-The store exposes reads (`useMovies`, `useMovieById`, `getMovieById`, `useMoviesHydrated`), the writes the movie screen needs (`useCreateMovie`, `useUpdateMovieCuts`, `useUpdateMovieStyle`, `useSetMovieArranger`, `useRenameMovie`, `useDeleteMovie`), the four generation-lifecycle actions (`useBeginMovieJob`, `useAdvanceMovieJob`, `useFinishMovieJob`, `useFailMovieJob`), and `useRemoveSnapsEverywhere` for the delete cascade. `useDeleteMovie` is the one action with no caller — there is no movie-deletion UI yet (concept §11 leaves where it belongs open).
+The store exposes reads (`useMovies`, `useMovieById`, `getMovieById`, `useMoviesHydrated`), the writes the movie screen needs (`useCreateMovie`, `useUpdateMovieCuts`, `useUpdateMovieStyle`, `useSetMovieArranger`, `useRenameMovie`, `useDeleteMovie`), the four generation-lifecycle actions (`useBeginMovieJob`, `useAdvanceMovieJob`, `useFinishMovieJob`, `useFailMovieJob`), and `useRemoveSnapsEverywhere` for the delete cascade. `useDeleteMovie` is called from one place: the movie tab's long-press delete flow.
 
 Two of these are deliberately identity-preserving: a write that changes nothing returns the state object unchanged. The generation runner re-checks every job on a timer and writes the step it finds, and a new `movies` array on each of those would re-render every movie surface several times a second.
 
 ## Ownership
 
 - `src/pages/studio` owns the screen, the tray panel (`ui/tray-panel.tsx`), the template cards (`ui/template-panel.tsx`), and the navigation into snap selection, a template, and a movie.
-- `src/pages/movies` owns the movie tab's grid.
+- `src/pages/movies` owns the movie tab's grid and the delete flow (`ui/movie-delete-dialog.tsx` plus the long-press wiring) — page-local because the grid is deletion's only entry point.
 - `src/features/compose-movie` owns starting a movie from the tray or a template, committing cut lists and style settings, the arrangement rules, starting generation, and the app-wide generation runner (see [The movie screen](movie.md)).
 - `src/entities/tray` owns the tray store: pick order, the ten-snap cap, and the `{ added, rejected }` outcome. It holds ids only and never imports `entities/snap` — resolving a tray entry to a snap is the studio's join, through `useSnapsByRefs`.
 - `src/entities/movie` owns movies and their persisted store (`snaply.movies`). It never imports `entities/snap`; `SnapRef` is matched structurally by `entities/snap`'s `SnapRefLike`.
@@ -99,8 +100,7 @@ Two of these are deliberately identity-preserving: a write that changes nothing 
 ## Known limitations
 
 - Generation is a local simulation and nothing is composited (see [The movie screen](movie.md)). A `ready` movie is real state, but its "render" is a length and a timestamp.
-- There is no movie-deletion UI, so a movie made by mistake stays on the board.
+- Deletion is reachable from the movie tab alone: a board row answers a long press with nothing, so a movie made by mistake still has to be found in the grid to be removed.
 - The tray is single. Collecting for two movies at once is not possible (concept §11 leaves this open).
-- A tray emptied into the wrong movie can be fixed on the movie screen (a draft is editable), but the movie itself cannot be deleted — there is still no movie-deletion UI.
 - `MovieSummary.dateLabel` reads the clock through `formatDayHeading`, so a movie edited just before midnight keeps reading "오늘" until the screen re-renders.
 - Movies are local-only. There is no upload, no server-side composition, and no sync between devices.

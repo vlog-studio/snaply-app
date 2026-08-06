@@ -1,7 +1,8 @@
 import { useRouter, useScrollToTop } from 'expo-router';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
+import { useDeleteMovie } from '@/entities/movie';
 import {
   MaxContentWidth,
   Radius,
@@ -11,7 +12,9 @@ import {
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { MovieTile, useMovieSummaries } from '@/widgets/movie-shelf';
+import { MovieTile, useMovieSummaries, type MovieSummary } from '@/widgets/movie-shelf';
+
+import { MovieDeleteDialog } from './movie-delete-dialog';
 
 /** Two columns, as in the mockup: a square cover wants the width. */
 const Columns = 2;
@@ -30,6 +33,24 @@ export function MoviesPage() {
   const tabBarHeight = useTabBarHeight();
   const { width: windowWidth } = useWindowDimensions();
   const movies = useMovieSummaries();
+  const deleteMovie = useDeleteMovie();
+
+  // The movie a long press asked to delete. It outlives the sheet's `visible`
+  // flag so the sheet keeps its words through the close animation.
+  const [deleting, setDeleting] = useState<MovieSummary>();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const askDelete = (movie: MovieSummary) => {
+    setDeleting(movie);
+    setConfirmingDelete(true);
+  };
+
+  // Synchronous store write: the movie is only a composition, so nothing on
+  // disk goes with it — the snap originals belong to the snaps.
+  const confirmDelete = () => {
+    if (deleting) deleteMovie(deleting.id);
+    setConfirmingDelete(false);
+  };
 
   // Re-tapping the 무비 tab returns to the newest movies; switching tabs keeps
   // the grid where the user left it.
@@ -42,46 +63,61 @@ export function MoviesPage() {
   const tileWidth = Math.floor((gridWidth - Spacing.three * (Columns - 1)) / Columns);
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      contentInsetAdjustmentBehavior="automatic"
-      style={{ backgroundColor: theme.background }}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: Spacing.six + topInset, paddingBottom: Spacing.seven + tabBarHeight },
-      ]}
-    >
-      <View style={styles.header}>
-        <ThemedText type="title">무비</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          {movies.length}편
-        </ThemedText>
-      </View>
-
-      {movies.length > 0 ? (
-        <View style={styles.grid}>
-          {movies.map((movie) => (
-            <MovieTile
-              key={movie.id}
-              movie={movie}
-              width={tileWidth}
-              // One destination for every status: the movie screen is where a
-              // finished movie is watched and where an unfinished one is run.
-              onPress={(movieId) =>
-                router.push({ pathname: '/movie/[id]', params: { id: movieId } })
-              }
-            />
-          ))}
-        </View>
-      ) : (
-        <View style={[styles.empty, { borderColor: theme.border }]}>
-          <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
-          <ThemedText themeColor="textSecondary" style={styles.centerText}>
-            스냅 탭에서 쓸 장면을 골라 트레이에 담아두면, 스튜디오에서 한 편으로 엮을 수 있어요.
+    <>
+      <ScrollView
+        ref={scrollRef}
+        contentInsetAdjustmentBehavior="automatic"
+        style={{ backgroundColor: theme.background }}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: Spacing.six + topInset, paddingBottom: Spacing.seven + tabBarHeight },
+        ]}
+      >
+        <View style={styles.header}>
+          <ThemedText type="title">무비</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            {movies.length}편
           </ThemedText>
         </View>
-      )}
-    </ScrollView>
+
+        {movies.length > 0 ? (
+          <View style={styles.grid}>
+            {movies.map((movie) => (
+              <MovieTile
+                key={movie.id}
+                movie={movie}
+                width={tileWidth}
+                // One destination for every status: the movie screen is where a
+                // finished movie is watched and where an unfinished one is run.
+                onPress={(movieId) =>
+                  router.push({ pathname: '/movie/[id]', params: { id: movieId } })
+                }
+                // Deleting starts here rather than on the movie screen: the
+                // grid is where all the movies stand side by side, which is
+                // where a redundant one is noticed. Same gesture as the snap
+                // grid — a long press is how this app starts getting rid of
+                // something.
+                onLongPress={askDelete}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={[styles.empty, { borderColor: theme.border }]}>
+            <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.centerText}>
+              스냅 탭에서 쓸 장면을 골라 트레이에 담아두면, 스튜디오에서 한 편으로 엮을 수 있어요.
+            </ThemedText>
+          </View>
+        )}
+      </ScrollView>
+
+      <MovieDeleteDialog
+        visible={confirmingDelete}
+        movie={deleting}
+        onCancel={() => setConfirmingDelete(false)}
+        onConfirm={confirmDelete}
+      />
+    </>
   );
 }
 

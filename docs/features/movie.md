@@ -186,7 +186,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 
 - **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays. **The screen no longer says this** — the footer's `아직 프로토타입` line was removed with the rest of the summary prose on 2026-08-05, so nothing in the app tells the user that a `ready` movie is a playlist rather than a file. Restore a disclosure here before this reaches anyone outside the team.
 - Regeneration keeps no history. The previous render is dropped when the new job starts, so there is no way back to the version the user just replaced. The one thing that survives a run is the *current* render's source cut list (`render.snapRefs`), which is what 완성 당시 구성으로 되돌리기 restores — the composition, not the render.
-- There is still no movie-deletion UI (`useDeleteMovie` has no caller), so a movie started from the wrong snaps can be emptied down to one cut but never removed.
+- The movie can be deleted, but not from here: deletion lives on the movie tab (a long press on the tile — see [Studio and movies](studio.md)), so a movie recognized as wrong while it is open has to be left before it can be removed.
 - Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.
 - AI arrangement is capture-time order, not a model's judgement.
 - Reordering is button-based, not drag-based, and trim is set on a tenth-second grid.

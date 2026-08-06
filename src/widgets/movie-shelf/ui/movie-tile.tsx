@@ -14,13 +14,15 @@ export type MovieTileProps = {
   /** Tile width in points; the square cover takes the same value for height. */
   width: number;
   onPress: (movieId: string) => void;
+  /** A long press asks to delete the movie; absent, a long press does nothing. */
+  onLongPress?: (movie: MovieSummary) => void;
 };
 
 /**
  * One movie in the movie tab's grid: a square cover of its first cut with the
  * length and status over it, and the title beneath.
  */
-export function MovieTile({ movie, width, onPress }: MovieTileProps) {
+export function MovieTile({ movie, width, onPress, onLongPress }: MovieTileProps) {
   const theme = useTheme();
   const cover = movie.coverUris[0];
 
@@ -28,7 +30,9 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · ${formatSeconds(movie.totalSec)}`}
+      accessibilityHint={onLongPress ? '탭하면 열고, 길게 누르면 지울 수 있어요' : undefined}
       onPress={() => onPress(movie.id)}
+      onLongPress={onLongPress ? () => onLongPress(movie) : undefined}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.85 : 1 }, styles.tile]}
     >
       <View style={[styles.cover, { height: width, borderColor: theme.border }]}>

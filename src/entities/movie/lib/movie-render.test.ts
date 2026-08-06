@@ -11,7 +11,11 @@ describe('sameCuts', () => {
   it.each([
     ['an identical list', [ref('s1', 0), ref('s2', 1, { startSec: 1, endSec: 3 })], true],
     // Sequence is the composition; `order` is only its storage form.
-    ['the same sequence renumbered', [ref('s1', 5), ref('s2', 9, { startSec: 1, endSec: 3 })], true],
+    [
+      'the same sequence renumbered',
+      [ref('s1', 5), ref('s2', 9, { startSec: 1, endSec: 3 })],
+      true,
+    ],
     ['a reordered list', [ref('s2', 0, { startSec: 1, endSec: 3 }), ref('s1', 1)], false],
     ['a removed cut', [ref('s1', 0)], false],
     ['an added cut', [...base, ref('s3', 2)], false],

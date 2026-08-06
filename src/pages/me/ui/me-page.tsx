@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useScrollToTop } from 'expo-router';
+import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import { useMovies } from '@/entities/movie';
@@ -55,6 +56,10 @@ export function MePage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
+  // The longest scroll in the app, so the way back up matters most here:
+  // re-tapping the 나 tab returns to the top, switching tabs does not.
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
   const currentUser = useCurrentUser();
   const clearSession = useClearSession();
   const snaps = useSnaps();
@@ -78,6 +83,7 @@ export function MePage() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[

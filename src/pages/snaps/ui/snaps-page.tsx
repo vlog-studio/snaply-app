@@ -1,5 +1,5 @@
-import { useIsFocused, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useIsFocused, useRouter, useScrollToTop } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { Snap } from '@/entities/snap';
@@ -54,6 +54,12 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
   const setTabBarHidden = useSetTabBarHidden();
   const isFocused = useIsFocused();
+
+  // Re-tapping the 스냅 tab returns to today; switching tabs keeps the day the
+  // user had scrolled to. Selection mode takes the tab bar away entirely, so
+  // there is no tab to re-tap while picks are in progress.
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
 
   const [selecting, setSelecting] = useState(startSelecting);
   const [playing, setPlaying] = useState<Snap>();
@@ -166,6 +172,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       <ScrollView
+        ref={scrollRef}
         contentInsetAdjustmentBehavior="automatic"
         contentContainerStyle={[
           styles.content,

@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useScrollToTop } from 'expo-router';
+import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useSnapsByRefs } from '@/entities/snap';
@@ -40,6 +41,12 @@ export function StudioPage() {
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
 
+  // Tapping the tab that is already open returns to the top. Switching tabs
+  // keeps each tab's scroll position, which is what the shell's four tabs are
+  // for — so re-tapping is the reset, as it is on a native tab bar.
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
+
   const traySnapIds = useTraySnapIds();
   const removeSnapsFromTray = useRemoveSnapsFromTray();
   const clearTray = useClearTray();
@@ -68,6 +75,7 @@ export function StudioPage() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[

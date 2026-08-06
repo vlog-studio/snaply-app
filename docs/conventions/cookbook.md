@@ -618,6 +618,9 @@ if (Platform.OS !== 'web') {
 [`SnaplyButton`](../../src/shared/ui/snaply-button).
 
 ```tsx
+import { useScrollToTop } from 'expo-router';
+import { useRef } from 'react';
+
 import { Radius, Spacing, useTabBarHeight, useTheme, useTopContentInset } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
@@ -625,9 +628,13 @@ export function XPage() {
   const theme = useTheme();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
+  // Tab screens only: re-tapping the open tab returns to the top.
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={{ paddingTop: Spacing.six + topInset, paddingBottom: tabBarHeight, gap: Spacing.six }}
     >
@@ -670,6 +677,12 @@ export function XPage() {
   (`type={remaining > 0 ? 'edge' : 'note'}`) — unless the switch would happen under
   the user's eye, in which case pick `note` for both branches and keep the row stable.
 - Respect insets with `useTopContentInset()` / `useTabBarHeight()`.
+- **A tab screen's scroll container takes a ref and `useScrollToTop`** (imported from
+  `expo-router`, not `@react-navigation/native`). Tab screens stay mounted, so scroll
+  position survives a trip to another tab by default and should — re-tapping the tab that
+  is already open is what resets it, as on a native tab bar. Do **not** add this to a
+  pushed screen: it has no tab to re-tap, and the hook is a no-op there. Do not reset a
+  tab's scroll on focus instead; that throws away the position the user was relying on.
 - `useTopContentInset()` is for a screen that has nothing above its content — the four
   tab screens. A **pushed** screen (`/movie/[id]`, `/template/[id]`) puts
   [`BackBar`](../../src/shared/ui/back-bar) above its `ScrollView` instead, and the bar

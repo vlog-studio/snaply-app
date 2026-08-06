@@ -1,4 +1,5 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useScrollToTop } from 'expo-router';
+import { useRef } from 'react';
 import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import {
@@ -30,6 +31,11 @@ export function MoviesPage() {
   const { width: windowWidth } = useWindowDimensions();
   const movies = useMovieSummaries();
 
+  // Re-tapping the 무비 tab returns to the newest movies; switching tabs keeps
+  // the grid where the user left it.
+  const scrollRef = useRef<ScrollView>(null);
+  useScrollToTop(scrollRef);
+
   // Derived instead of measured (the content column is centered, capped at
   // MaxContentWidth, and padded) so the tiles lay out on their first frame.
   const gridWidth = Math.min(windowWidth, MaxContentWidth) - Spacing.five * 2;
@@ -37,6 +43,7 @@ export function MoviesPage() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       contentInsetAdjustmentBehavior="automatic"
       style={{ backgroundColor: theme.background }}
       contentContainerStyle={[

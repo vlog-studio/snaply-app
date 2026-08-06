@@ -83,13 +83,13 @@ export const SnapCell = memo(function SnapCell({
       ) : null}
       {isHeld ? (
         <View style={[styles.heldBadge, { backgroundColor: theme.primary }]}>
-          <ThemedText selectable={false} type="edge" style={{ color: theme.onPrimary }}>
+          <ThemedText selectable={false} type="note" style={{ color: theme.onPrimary }}>
             담김
           </ThemedText>
         </View>
       ) : null}
       <View style={styles.duration}>
-        <ThemedText selectable={false} type="edge" style={styles.durationText}>
+        <ThemedText selectable={false} type="note" style={styles.durationText}>
           {formatSeconds(snap.durationSec)}
         </ThemedText>
       </View>

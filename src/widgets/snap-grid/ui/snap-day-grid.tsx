@@ -60,7 +60,7 @@ export function SnapDayGrid({
         <View key={day.key} style={styles.day}>
           <View style={styles.dayHead}>
             <ThemedText type="smallBold">{day.label}</ThemedText>
-            <ThemedText type="edge" themeColor="textSecondary">
+            <ThemedText type="note" themeColor="textSecondary">
               {day.snaps.length}개 · {formatDuration(totalSecOf(day.snaps))}
             </ThemedText>
           </View>

@@ -32,7 +32,7 @@ export function MovieStatusBadge({ status }: MovieStatusBadgeProps) {
 
   return (
     <View style={[styles.pill, { borderColor: color }]}>
-      <ThemedText selectable={false} type="edge" style={{ color }}>
+      <ThemedText selectable={false} type="note" style={{ color }}>
         {MovieStatusLabels[status]}
       </ThemedText>
     </View>

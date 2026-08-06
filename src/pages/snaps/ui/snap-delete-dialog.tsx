@@ -41,7 +41,7 @@ export function SnapDeleteDialog({
 
   return (
     <BottomSheet accessibilityLabel="스냅 삭제 확인" visible={visible} onClose={onCancel}>
-      <ThemedText type="edge" themeColor="danger">
+      <ThemedText type="note" themeColor="danger">
         원본 삭제
       </ThemedText>
       <ThemedText type="heading">스냅 {count}개를 지울까요?</ThemedText>
@@ -51,7 +51,7 @@ export function SnapDeleteDialog({
 
       {impact.length > 0 ? (
         <View style={[styles.impact, { borderColor: theme.border }]}>
-          <ThemedText type="edge" themeColor="textSecondary">
+          <ThemedText type="note" themeColor="textSecondary">
             영향받는 무비 {impact.length}
           </ThemedText>
           {impact.map((movie) => (
@@ -59,7 +59,7 @@ export function SnapDeleteDialog({
               <ThemedText type="small" numberOfLines={1} style={styles.impactTitle}>
                 {movie.title}
               </ThemedText>
-              <ThemedText type="edge" themeColor="textSecondary">
+              <ThemedText type="note" themeColor="textSecondary">
                 컷 {movie.cutCount} → {movie.nextCutCount}
               </ThemedText>
             </View>

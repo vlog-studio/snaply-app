@@ -14,6 +14,7 @@ export type ThemedTextProps = TextProps & {
     | 'subtitle'
     | 'eyebrow'
     | 'edge'
+    | 'note'
     | 'button'
     | 'link'
     | 'linkPrimary'
@@ -46,6 +47,7 @@ export function ThemedText({
         type === 'subtitle' && styles.subtitle,
         type === 'eyebrow' && styles.eyebrow,
         type === 'edge' && styles.edge,
+        type === 'note' && styles.note,
         type === 'button' && styles.button,
         type === 'link' && styles.link,
         type === 'linkPrimary' && [styles.linkPrimary, { color: theme.primary }],
@@ -82,9 +84,18 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
     textTransform: 'uppercase',
   },
-  // Mono micro-label — the app's signature small type, used for counts, states,
-  // and durations (e.g. "3 / 10 · 약 24초"). Pair with a muted or accent
-  // themeColor.
+  // Mono micro-stamp, for **Latin and digits only** — a bare count, a
+  // percentage, `REC`, a ticking `12s`. The wide tracking is what makes those
+  // read as stamped rather than typed.
+  //
+  // Do not put Hangul in an `edge` string. `Fonts.mono` has no Hangul face, so
+  // every Korean glyph silently falls back to the OS CJK font (Noto Sans CJK on
+  // Android, Apple SD Gothic Neo on iOS): the line is then neither monospaced
+  // nor Pretendard, and the 2dp tracking — which is ~18% of an 11px Hangul
+  // glyph, against ~30% of a Latin one — pushes the words apart far enough to
+  // wrap. `uppercase` does nothing for it either. Korean micro-labels take
+  // `note` instead; the two share `Typography.micro`, so they are one tier and
+  // may sit in the same row.
   edge: {
     ...Typography.micro,
     fontFamily: Fonts.mono,
@@ -92,6 +103,12 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
+  // Sans micro-label — `edge`'s Korean-capable twin, and the app's default for
+  // small states, counts, and durations that name a unit ("스냅 3개", "7.8초",
+  // "4/6컷 · 2컷 더"). 700 rather than 500 because at 11px against
+  // `textSecondary` a label has to hold its own without borrowing size, and a
+  // token 0.2 of tracking keeps the denser Hangul syllables from touching.
+  note: { ...Typography.micro, fontWeight: 700, letterSpacing: 0.2 },
   button: { ...Typography.body, fontWeight: 800 },
   // Links are body-small text, not a step of their own. They used to carry
   // lineHeight 30 at 14px (ratio 2.14) — the Expo starter's 16/30 with the size

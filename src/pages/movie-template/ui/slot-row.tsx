@@ -65,7 +65,7 @@ export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: S
             { borderColor: theme.border, backgroundColor: theme.backgroundElement },
           ]}
         >
-          <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+          <ThemedText selectable={false} type="note" themeColor="textSecondary">
             비어 있음
           </ThemedText>
         </View>
@@ -90,7 +90,7 @@ export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: S
         {snap === undefined || confidence === undefined ? (
           <View style={styles.actions}>
             {snap ? (
-              <ThemedText selectable={false} type="edge" themeColor="primary">
+              <ThemedText selectable={false} type="note" themeColor="primary">
                 방금 찍은 컷
               </ThemedText>
             ) : (
@@ -101,7 +101,7 @@ export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: S
                   hitSlop={8}
                   onPress={() => onShoot(slot.id)}
                 >
-                  <ThemedText selectable={false} type="edge" themeColor="primary">
+                  <ThemedText selectable={false} type="note" themeColor="primary">
                     지금 찍기
                   </ThemedText>
                 </Pressable>
@@ -112,7 +112,7 @@ export function SlotRow({ filled, index, onShoot, onDrop, onRestore, onMove }: S
                     hitSlop={8}
                     onPress={() => onRestore(slot.id)}
                   >
-                    <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+                    <ThemedText selectable={false} type="note" themeColor="textSecondary">
                       되돌리기
                     </ThemedText>
                   </Pressable>

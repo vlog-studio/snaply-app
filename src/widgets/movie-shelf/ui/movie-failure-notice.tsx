@@ -33,7 +33,7 @@ export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNo
 
   return (
     <View style={[styles.notice, { borderColor: theme.danger }]}>
-      <ThemedText type="edge" themeColor="danger">
+      <ThemedText type="note" themeColor="danger">
         {error ?? UnknownError}
       </ThemedText>
       {snapCount > 0 ? (
@@ -47,12 +47,12 @@ export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNo
             { borderColor: theme.primary, opacity: pressed ? 0.7 : 1 },
           ]}
         >
-          <ThemedText selectable={false} type="edge" themeColor="primary">
+          <ThemedText selectable={false} type="note" themeColor="primary">
             다시 시도
           </ThemedText>
         </Pressable>
       ) : (
-        <ThemedText type="edge" themeColor="textSecondary">
+        <ThemedText type="note" themeColor="textSecondary">
           무비를 열어 스냅을 다시 넣어주세요.
         </ThemedText>
       )}

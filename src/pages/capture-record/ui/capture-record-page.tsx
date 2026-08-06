@@ -254,7 +254,7 @@ function CaptureRecordScreen() {
             </ThemedText>
           </Pressable>
           <Animated.View style={[styles.modePill, counterStyle]}>
-            <ThemedText selectable={false} type="edge" style={styles.whiteText}>
+            <ThemedText selectable={false} type="note" style={styles.whiteText}>
               스냅{displayedCount > 0 ? ` ${displayedCount}개` : ''}
             </ThemedText>
           </Animated.View>
@@ -274,14 +274,14 @@ function CaptureRecordScreen() {
         <View style={styles.focusArea} pointerEvents="box-none">
           {stage === 'idle' && !showCollectedBadge ? (
             <View style={styles.focusFrame} pointerEvents="none">
-              <ThemedText selectable={false} type="edge" style={styles.frameMeta}>
+              <ThemedText selectable={false} type="note" style={styles.frameMeta}>
                 꾹 눌러 촬영
               </ThemedText>
             </View>
           ) : null}
           {stage === 'idle' && showCollectedBadge ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
-              <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
+              <ThemedText selectable={false} type="note" style={{ color: theme.lumen }}>
                 담김 · 스냅 {displayedCount}개
               </ThemedText>
             </View>
@@ -292,21 +292,28 @@ function CaptureRecordScreen() {
               <ThemedText type="edge" style={styles.whiteText}>
                 REC
               </ThemedText>
-              <ThemedText type="edge" style={[styles.whiteText, styles.tabularNumber]}>
+              {/* The countdown is Latin and reruns every second, so it stays a
+                  mono stamp with tabular figures and holds its width as it
+                  ticks. The Korean tail it ends on cannot be mono at all, and
+                  takes `note` for that one frame. */}
+              <ThemedText
+                type={session.remaining > 0 ? 'edge' : 'note'}
+                style={[styles.whiteText, styles.tabularNumber]}
+              >
                 {session.remaining > 0 ? `${session.remaining}s` : '마무리 중…'}
               </ThemedText>
             </View>
           ) : null}
           {stage === 'saving' ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
-              <ThemedText selectable={false} type="edge" style={{ color: theme.amber }}>
+              <ThemedText selectable={false} type="note" style={{ color: theme.amber }}>
                 스냅을 저장하는 중…
               </ThemedText>
             </View>
           ) : null}
           {stage === 'review' ? (
             <View style={[styles.completedBadge, { backgroundColor: 'rgba(14,11,8,0.82)' }]}>
-              <ThemedText selectable={false} type="edge" style={{ color: theme.lumen }}>
+              <ThemedText selectable={false} type="note" style={{ color: theme.lumen }}>
                 저장됨
               </ThemedText>
             </View>

@@ -36,7 +36,7 @@ export function StylePickerSheet({
       <View style={styles.sheet}>
         <View style={styles.head}>
           <ThemedText type="heading">스타일</ThemedText>
-          <ThemedText type="edge" themeColor="textSecondary">
+          <ThemedText type="note" themeColor="textSecondary">
             1개 선택
           </ThemedText>
         </View>
@@ -71,7 +71,7 @@ export function StylePickerSheet({
                 <ThemedText selectable={false} type="smallBold">
                   {option.label}
                 </ThemedText>
-                <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+                <ThemedText selectable={false} type="note" themeColor="textSecondary">
                   {option.description}
                 </ThemedText>
               </Pressable>

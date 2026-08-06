@@ -131,7 +131,7 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
             onPress={fill.resetSlots}
             style={styles.reset}
           >
-            <ThemedText selectable={false} type="edge" themeColor="textSecondary">
+            <ThemedText selectable={false} type="note" themeColor="textSecondary">
               고친 것 되돌리기
             </ThemedText>
           </Pressable>
@@ -163,7 +163,7 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
           <ThemedText type="small" themeColor="textSecondary">
             {fill.filledCount} / {template.slots.length}칸 채움
           </ThemedText>
-          <ThemedText type="edge" themeColor="textSecondary">
+          <ThemedText type="note" themeColor="textSecondary">
             {formatSeconds(fill.totalSec)}
           </ThemedText>
         </View>

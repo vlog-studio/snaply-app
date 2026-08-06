@@ -53,8 +53,14 @@ export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 /**
  * The app's two families. `sans` is Pretendard GOV — the app's voice, and the
  * only family for prose, headings, and controls; `mono` is the system
- * monospace, kept for the `edge`/`code` micro-labels (counts, durations,
- * states), since Pretendard ships no monospaced face.
+ * monospace, kept for the `edge`/`code` micro-labels, since Pretendard ships no
+ * monospaced face.
+ *
+ * **The system monospace has no Hangul.** Neither `ui-monospace` nor Android's
+ * `monospace` carries a Korean face, so a Korean string styled with `mono` is
+ * drawn by the OS CJK fallback instead — a third family, matching neither the
+ * app's voice nor the monospace it asked for. That is why `mono` belongs only
+ * to Latin-and-digit stamps; Korean micro-labels use the sans `note` role.
  *
  * Pretendard GOV is embedded natively by the `expo-font` plugin in `app.json`,
  * not loaded with `useFonts`, so it is there on the first frame: no gate in the

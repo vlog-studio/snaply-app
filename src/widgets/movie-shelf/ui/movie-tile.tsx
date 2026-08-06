@@ -39,7 +39,7 @@ export function MovieTile({ movie, width, onPress }: MovieTileProps) {
           <MovieStatusBadge status={movie.status} />
         </View>
         <View style={styles.duration}>
-          <ThemedText selectable={false} type="edge" style={styles.durationText}>
+          <ThemedText selectable={false} type="note" style={styles.durationText}>
             {formatSeconds(movie.totalSec)}
           </ThemedText>
         </View>

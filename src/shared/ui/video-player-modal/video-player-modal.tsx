@@ -16,7 +16,11 @@ export type VideoPlayerModalProps = {
   onClose: () => void;
   /** Announced on the close control; the caller names what is being closed. */
   closeLabel: string;
-  /** Mono edge print stamped over the bottom of the frame. */
+  /**
+   * Micro-label printed along the bottom edge of the frame. Named for where it
+   * sits, not for a type role: it renders as `note`, since callers pass Korean
+   * durations that the mono `edge` role cannot draw.
+   */
   edgeLabel?: string;
   /** Dimmer second line under the edge print. */
   caption?: string;
@@ -70,7 +74,7 @@ export function VideoPlayerModal({
         </Pressable>
         {uri && (edgeLabel !== undefined || caption !== undefined) ? (
           <View style={[styles.meta, { bottom: insets.bottom + Spacing.four }]}>
-            {edgeLabel !== undefined ? <ThemedText type="edge">{edgeLabel}</ThemedText> : null}
+            {edgeLabel !== undefined ? <ThemedText type="note">{edgeLabel}</ThemedText> : null}
             {caption !== undefined ? (
               <ThemedText type="small" style={styles.caption}>
                 {caption}

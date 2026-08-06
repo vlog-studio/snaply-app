@@ -43,7 +43,7 @@ export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }
     >
       <View style={styles.head}>
         <ThemedText type="smallBold">담아둔 스냅</ThemedText>
-        <ThemedText type="edge" themeColor={isEmpty ? 'textSecondary' : 'primary'}>
+        <ThemedText type="note" themeColor={isEmpty ? 'textSecondary' : 'primary'}>
           {snaps.length} / {TrayCapacity}
           {isEmpty ? '' : ` · 약 ${formatSeconds(totalSec)}`}
         </ThemedText>

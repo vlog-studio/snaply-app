@@ -66,7 +66,7 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
         </ThemedText>
         <View style={styles.tags}>
           <MovieStatusBadge status={movie.status} />
-          <ThemedText type="edge" themeColor="textSecondary">
+          <ThemedText type="note" themeColor="textSecondary">
             {movie.dateLabel}
           </ThemedText>
         </View>

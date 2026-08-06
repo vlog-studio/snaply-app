@@ -96,7 +96,7 @@ export function CutInspector({
               hitSlop={6}
               onPress={() => onResetTrim(index)}
             >
-              <ThemedText selectable={false} type="edge" themeColor="primary">
+              <ThemedText selectable={false} type="note" themeColor="primary">
                 전체 사용
               </ThemedText>
             </Pressable>

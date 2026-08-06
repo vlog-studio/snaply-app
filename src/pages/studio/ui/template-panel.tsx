@@ -27,7 +27,7 @@ export function TemplatePanel({ offers, onOpen }: TemplatePanelProps) {
     <View style={styles.section}>
       <View style={styles.sectionHead}>
         <ThemedText type="smallBold">템플릿으로 시작</ThemedText>
-        <ThemedText type="edge" themeColor="textSecondary">
+        <ThemedText type="note" themeColor="textSecondary">
           내 스냅 기준
         </ThemedText>
       </View>
@@ -68,7 +68,7 @@ export function TemplatePanel({ offers, onOpen }: TemplatePanelProps) {
               </ThemedText>
               <ThemedText
                 selectable={false}
-                type="edge"
+                type="note"
                 themeColor={isComplete ? 'lumen' : 'textSecondary'}
               >
                 {isComplete

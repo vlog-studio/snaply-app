@@ -653,12 +653,22 @@ export function XPage() {
   `ThemedText` — a `TextInput`, a glyph drawn over video — still reads its size from
   `Typography` (`Typography.body.fontSize`) rather than a literal.
 - The family comes from `Fonts` (`Fonts.sans` is Pretendard GOV, embedded natively;
-  `Fonts.mono` is the system monospace for the `edge`/`code` micro-labels). `ThemedText`
+  `Fonts.mono` is the system monospace for the `edge`/`code` roles). `ThemedText`
   applies it once for every variant, so only text outside `ThemedText` names a family —
   and it names `Fonts.sans`, never a single face like `'PretendardGOV-Bold'`. Pair it
   with `fontWeight` from the four embedded weights **400 / 500 / 700 / 800**; 600 is not
   embedded and resolves down to 500 (see
   [app branding and native config](../workflows/app-branding-and-native-config.md#app-font)).
+- **A micro-label picks its role by the script it holds, not by what it means.** `edge`
+  and `note` are one tier — both are `Typography.micro` — and differ only in family:
+  `edge` is the mono stamp for **Latin and digits** (`REC`, a bare count, `70%`, a
+  ticking `12s`), `note` is the Pretendard label for **anything containing Hangul**
+  (`스냅 3개`, `7.8초`, `4/6컷 · 2컷 더`). Putting Hangul in an `edge` string does not
+  fail loudly; it draws in the OS CJK fallback, which is neither monospaced nor the
+  app's voice, and `edge`'s 2dp tracking then wraps the line. When a string switches
+  script by branch, switch the role with it
+  (`type={remaining > 0 ? 'edge' : 'note'}`) — unless the switch would happen under
+  the user's eye, in which case pick `note` for both branches and keep the row stable.
 - Respect insets with `useTopContentInset()` / `useTabBarHeight()`.
 - `useTopContentInset()` is for a screen that has nothing above its content — the four
   tab screens. A **pushed** screen (`/movie/[id]`, `/template/[id]`) puts

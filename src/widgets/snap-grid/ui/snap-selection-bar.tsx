@@ -60,7 +60,7 @@ export function SnapSelectionBar({
       <View style={styles.counts}>
         <ThemedText type="smallBold">{selectedCount}개 선택</ThemedText>
         <ThemedText
-          type="edge"
+          type="note"
           themeColor={room === 0 ? 'danger' : 'textSecondary'}
           numberOfLines={1}
           style={styles.room}

@@ -15,8 +15,7 @@ export function AnimatedSplashOverlay() {
   // The native splash follows the OS appearance (expo-splash-screen `dark`
   // variant), not the in-app theme mode, so the mirror must read the OS too.
   const systemScheme = useColorScheme();
-  const background =
-    systemScheme === 'light' ? Colors.light.background : Colors.dark.background;
+  const background = systemScheme === 'light' ? Colors.light.background : Colors.dark.background;
 
   if (!visible) return null;
 

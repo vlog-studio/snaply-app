@@ -12,9 +12,7 @@ const ForcedColorSchemeContext = createContext<ForcedColorScheme | null>(null);
  */
 export function ThemeScope({ children, scheme }: PropsWithChildren<{ scheme: ForcedColorScheme }>) {
   return (
-    <ForcedColorSchemeContext.Provider value={scheme}>
-      {children}
-    </ForcedColorSchemeContext.Provider>
+    <ForcedColorSchemeContext.Provider value={scheme}>{children}</ForcedColorSchemeContext.Provider>
   );
 }
 

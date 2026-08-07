@@ -37,13 +37,12 @@ The cost of the chosen approach is that `openapi-typescript` produces **no Zod s
 
 ## Spec source of truth
 
-Commit the spec file into the repository (for example `docs/api/openapi.json`) rather than generating from a live URL. The backend server does not need to be running to regenerate types, and every spec change lands as a reviewable diff. Add a generation script to `package.json`:
+Commit the spec file into the repository at `docs/api/openapi.json` rather than generating from a live URL. The backend server does not need to be running to regenerate types, and every spec change lands as a reviewable diff. Two `package.json` scripts implement this:
 
-```json
-"gen:api": "openapi-typescript docs/api/openapi.json -o src/shared/api/schema.d.ts"
-```
+- `npm run api:pull` (`scripts/pull-api-spec.sh`) refreshes the committed spec from the backend's live Swagger JSON endpoint at `${EXPO_PUBLIC_API_BASE_URL}/docs/json`. The origin comes from `.env` — the same `EXPO_PUBLIC_API_BASE_URL` the app uses at runtime, so there is a single place to update when the backend moves (currently the backend developer's laptop on the local network; later a shared dev server).
+- `npm run gen:api` regenerates `src/shared/api/schema.d.ts` from the committed spec.
 
-Refresh the committed spec from the backend, run `npm run gen:api`, and commit both the spec and the regenerated `schema.d.ts` together.
+When the backend contract changes, run `npm run api:pull && npm run gen:api` and commit the spec and the regenerated `schema.d.ts` together.
 
 ## Generated types
 
@@ -77,10 +76,10 @@ openapi-fetch (DTO types)  →  entities/<e>/api: Zod parse + map  →  domain m
 
 ## Setup procedure
 
-Follow this order when the API layer is first introduced:
+Follow this order when the API layer is first introduced. Steps 1–2 were completed on 2026-08-07; the client, provider, and slice layers (3–6) do not exist yet.
 
-1. Add `openapi-typescript` and `openapi-fetch` (client dependency) and the `gen:api` script.
-2. Commit the spec to `docs/api/openapi.json` and run `npm run gen:api` to produce `src/shared/api/schema.d.ts`.
+1. ✅ Add `openapi-typescript` and `openapi-fetch` (client dependency) and the `api:pull`/`gen:api` scripts. Note: `openapi-typescript` declares a `typescript@^5.x` peer while this project uses TypeScript 6, so it is installed with `--legacy-peer-deps`; generated output typechecks cleanly under TS 6.
+2. ✅ Commit the spec to `docs/api/openapi.json` and run `npm run gen:api` to produce `src/shared/api/schema.d.ts`.
 3. Create `src/shared/api/client.ts` (and its Public API `index.ts`): an `openapi-fetch` client with middleware for the base URL, auth header, and error normalization.
 4. Introduce `QueryClient` and `QueryClientProvider` in `src/_app/providers`.
 5. For each entity, add `entities/<entity>/api`: a request function that maps the DTO to a domain model (with Zod where warranted) and a `queryOptions` factory. Export only the domain contract from the slice `index.ts`.
@@ -88,7 +87,7 @@ Follow this order when the API layer is first introduced:
 
 ## Open decisions to confirm before implementing
 
-- **Spec source:** committed file (recommended) versus a live URL.
+- ~~**Spec source:**~~ decided 2026-08-07: committed file, refreshed via the `api:pull` script (see "Spec source of truth").
 - **Entity list:** which business entities the first endpoints map to, so the `entities/<entity>/api` slices can be scaffolded.
 - **Validation scope:** which responses warrant Zod validation rather than trusting the generated types.
 

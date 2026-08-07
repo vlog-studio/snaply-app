@@ -145,7 +145,7 @@ export function MovieActionsSheet({
   );
 }
 
-type ActionRowProps = {
+export type ActionRowProps = {
   icon: ComponentProps<typeof Ionicons>['name'];
   label: string;
   /** Why the row cannot be pressed, shown under the label. */
@@ -157,7 +157,8 @@ type ActionRowProps = {
   onPress: () => void;
 };
 
-function ActionRow({ icon, label, note, disabled, danger, divider, onPress }: ActionRowProps) {
+/** One row of a sheet's action group — shared by this slice's sheets. */
+export function ActionRow({ icon, label, note, disabled, danger, divider, onPress }: ActionRowProps) {
   const theme = useTheme();
   const color = danger ? theme.danger : theme.text;
 

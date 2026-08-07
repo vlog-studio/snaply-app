@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, type Movie } from '@/entities/movie';
@@ -18,6 +18,13 @@ export type MovieWatchProps = {
   /** The finished composition's cuts — the render snapshot when one exists. */
   cuts: Cut[];
   sharing: MovieSharing;
+  /**
+   * True when the stored cut list drifted from this render's composition —
+   * the stage is playing the finished movie, not the edits.
+   */
+  editedSinceRender: boolean;
+  /** Opens the studio on the edited composition. */
+  onReviewEdits: () => void;
 };
 
 /**
@@ -35,8 +42,19 @@ export type MovieWatchProps = {
  * in the ⋯ sheet). It is visible but disabled until a render produces a real
  * file, the same idiom as the studio footer — with the reason written under
  * it, because a lone disabled primary action explains nothing by itself.
+ *
+ * A drifted cut list says so here too: the stage plays the render's own
+ * composition, so edits kept for later (`editedSinceRender`) are invisible on
+ * this face — without the notice, the only place that admits they exist is
+ * the studio the user just chose to leave.
  */
-export function MovieWatch({ movie, cuts, sharing }: MovieWatchProps) {
+export function MovieWatch({
+  movie,
+  cuts,
+  sharing,
+  editedSinceRender,
+  onReviewEdits,
+}: MovieWatchProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const playbackCuts = toPlaybackCuts(cuts);
@@ -71,6 +89,24 @@ export function MovieWatch({ movie, cuts, sharing }: MovieWatchProps) {
       </ThemedText>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.three }]}>
+        {editedSinceRender ? (
+          <View style={[styles.notice, { borderColor: theme.border }]}>
+            <ThemedText type="small" themeColor="textSecondary">
+              편집한 컷 구성이 있어요. 다시 만들기 전까지는 완성 당시 구성으로 재생돼요.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="편집한 구성 확인하고 다시 만들기"
+              onPress={onReviewEdits}
+              hitSlop={Spacing.two}
+              style={({ pressed }) => [styles.review, { opacity: pressed ? 0.7 : 1 }]}
+            >
+              <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                구성 확인하고 다시 만들기
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
         <SnaplyButton
           title="공유"
           variant="secondary"
@@ -130,4 +166,12 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   centerText: { textAlign: 'center' },
+  notice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    borderCurve: 'continuous',
+    padding: Spacing.three,
+    gap: Spacing.one,
+  },
+  review: { alignSelf: 'flex-start' },
 });

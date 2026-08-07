@@ -40,6 +40,12 @@ export type MovieCuts = {
   canUndo: boolean;
   canRedo: boolean;
   /**
+   * How many edits deep this visit's history is (`undo` shrinks it). Lets the
+   * screen tell edits made since a point in time — e.g. since the studio face
+   * was entered — apart from ones already answered for.
+   */
+  editCount: number;
+  /**
    * True when the cut list no longer matches what the current render was made
    * from — the user edited a finished movie, knowingly or not.
    */
@@ -233,6 +239,7 @@ export function useMovieCuts(movieId: string | undefined): MovieCuts {
     refusal,
     canUndo: history.past.length > 0,
     canRedo: history.future.length > 0,
+    editCount: history.past.length,
     editedSinceRender: movie !== undefined && isEditedSinceRender(movie),
     restoreRenderCuts,
     moveCut,

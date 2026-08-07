@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
@@ -19,6 +19,7 @@ import { useWatchCuts } from '../model/watch-cuts';
 import { CutInspector } from './cut-inspector';
 import { CutPlayer, type CutPlayerHandle } from './cut-player';
 import { DetailSheet } from './detail-sheet';
+import { EditExitSheet } from './edit-exit-sheet';
 import { GenerateFooter } from './generate-footer';
 import { GenerationProgress } from './generation-progress';
 import { MovieActionsSheet } from './movie-actions-sheet';
@@ -63,7 +64,9 @@ export type MoviePageProps = {
  * - `ready` — **watch mode**: the stage plays the render's own composition and
  *   every edit tool is out of sight; the ⋯ sheet holds 편집·이름 바꾸기·공유·
  *   삭제. "무비 편집하기" brings the studio (this screen's other face) back,
- *   with the same controls plus "이 구성으로 다시 만들기".
+ *   with the same controls plus "이 구성으로 다시 만들기" — and its ← undoes
+ *   the switch rather than the visit, back to watch mode, asking about this
+ *   visit's drift on the way out (`EditExitSheet`).
  * - `failed` — the studio controls, led by the reason and a retry in the
  *   footer.
  */
@@ -73,7 +76,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const insets = useSafeAreaInsets();
   const { saveStyle, setArranger, startGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
-  const { movie, cuts, totalSec, canEdit, refusal } = list;
+  const { movie, cuts, totalSec, canEdit, refusal, editedSinceRender, editCount } = list;
   const sharing = useShareMovie(movie);
   const deleteMovie = useDeleteMovie();
   const watchCuts = useWatchCuts(movie);
@@ -86,6 +89,8 @@ export function MoviePage({ movieId }: MoviePageProps) {
   // 편집하기" in the ⋯ sheet) rather than being the screen's default face.
   // Cleared when a run starts, so the next result opens as a result again.
   const [editing, setEditing] = useState(false);
+  // The back-out question for a finished movie's studio (`EditExitSheet`).
+  const [exitAsking, setExitAsking] = useState(false);
   const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
 
   // Which cut the strip and the inspector point at; the stage follows a tap and
@@ -105,6 +110,42 @@ export function MoviePage({ movieId }: MoviePageProps) {
   // A direct link can land here with nothing behind it, and the screen has no
   // navigation bar to fall back on — so going back means the studio.
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+
+  // Watch mode's "무비 편집하기" switches faces in place, so the studio's back
+  // must leave in place too: on a finished movie it returns to watch mode
+  // instead of popping the route. Drift made *since this studio entry* gets one
+  // question on the way out (`EditExitSheet`); drift already answered for — an
+  // earlier entry's, or an earlier visit's — is watch mode's standing notice
+  // instead, so peeking into the studio and backing out is never re-asked.
+  const studioOnReady = movie?.status === 'ready' && editing;
+  const editsAtStudioEntry = useRef(0);
+  const openStudio = () => {
+    editsAtStudioEntry.current = editCount;
+    setEditing(true);
+  };
+  const closeStudio = () => {
+    setExitAsking(false);
+    setEditing(false);
+  };
+  const leaveStudio = () => {
+    if (editedSinceRender && editCount > editsAtStudioEntry.current) setExitAsking(true);
+    else closeStudio();
+  };
+
+  // Android's hardware back follows the same rule as the bar's ←: out of the
+  // studio face first, off the screen only from watch mode.
+  useEffect(() => {
+    if (!studioOnReady) return;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (editedSinceRender && editCount > editsAtStudioEntry.current) setExitAsking(true);
+      else {
+        setExitAsking(false);
+        setEditing(false);
+      }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [studioOnReady, editedSinceRender, editCount]);
 
   if (!movie) {
     return (
@@ -170,7 +211,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
           this screen spends every dp it can on the stage. Watch mode's one
           trailing act is the ⋯ sheet; the studio keeps the rename pencil. */}
       <BackBar
-        onPress={goBack}
+        onPress={studioOnReady ? leaveStudio : goBack}
         title={movie.title}
         action={
           viewing
@@ -180,7 +221,13 @@ export function MoviePage({ movieId }: MoviePageProps) {
       />
 
       {viewing ? (
-        <MovieWatch movie={movie} cuts={watchCuts} sharing={sharing} />
+        <MovieWatch
+          movie={movie}
+          cuts={watchCuts}
+          sharing={sharing}
+          editedSinceRender={editedSinceRender}
+          onReviewEdits={openStudio}
+        />
       ) : (
         <>
           {/* The stage: the player on an editable movie, the ring under a job. It
@@ -371,7 +418,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
         shareBlocked={sharing.blocked !== undefined}
         onEdit={() => {
           setActionsOpen(false);
-          setEditing(true);
+          openStudio();
         }}
         onRename={() => {
           setActionsOpen(false);
@@ -389,6 +436,22 @@ export function MoviePage({ movieId }: MoviePageProps) {
           deleteMovie(movie.id);
         }}
         onClose={() => setActionsOpen(false)}
+      />
+
+      <EditExitSheet
+        visible={exitAsking}
+        onRemake={() => {
+          setExitAsking(false);
+          // A refused start keeps the studio open with the refusal in the
+          // footer — leaving would hide the answer to what was just asked.
+          runGeneration();
+        }}
+        onKeep={closeStudio}
+        onDiscard={() => {
+          list.restoreRenderCuts();
+          closeStudio();
+        }}
+        onClose={() => setExitAsking(false)}
       />
 
       <StylePickerSheet

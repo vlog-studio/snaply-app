@@ -7,6 +7,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { PushTokenRegistrar } from '@/features/register-push-token';
+import { SnapUploadGate } from '@/features/upload-snap';
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
 import { GeofenceGate } from './geofence-gate';
@@ -54,6 +55,9 @@ export function AppProviders({ children }: PropsWithChildren) {
             option they were shot with; this reads the real length back from the
             files, once, in the background. */}
         <SnapDurationBackfill />
+        {/* Uploads live here for the same reason generation does: a capture's
+            trip to the backend continues wherever the user navigates next. */}
+        <SnapUploadGate />
         {/* Gesture-handler gestures need this ancestor; expo-router's native
             stack does not provide one. */}
         <GestureHandlerRootView style={styles.root}>{children}</GestureHandlerRootView>

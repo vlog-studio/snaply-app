@@ -2,7 +2,7 @@ import { useIsFocused, useRouter, useScrollToTop } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import type { Snap } from '@/entities/snap';
+import { useFailedUploadCount, useRetryFailedUploads, type Snap } from '@/entities/snap';
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatSeconds } from '@/shared/lib/datetime';
@@ -54,6 +54,8 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
   const setTabBarHidden = useSetTabBarHidden();
   const isFocused = useIsFocused();
+  const failedUploadCount = useFailedUploadCount();
+  const retryFailedUploads = useRetryFailedUploads();
 
   // Re-tapping the 스냅 tab returns to today; switching tabs keeps the day the
   // user had scrolled to. Selection mode takes the tab bar away entirely, so
@@ -217,6 +219,30 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
           </View>
         ) : null}
 
+        {failedUploadCount > 0 ? (
+          <View
+            style={[
+              styles.notice,
+              styles.uploadNotice,
+              { borderColor: theme.danger, backgroundColor: theme.warmSurface },
+            ]}
+          >
+            <ThemedText type="small" style={styles.uploadNoticeText}>
+              스냅 {failedUploadCount}개를 업로드하지 못했어요.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="업로드 다시 시도"
+              hitSlop={12}
+              onPress={retryFailedUploads}
+            >
+              <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                다시 시도
+              </ThemedText>
+            </Pressable>
+          </View>
+        ) : null}
+
         <SnapDayGrid
           days={days}
           selecting={selecting}
@@ -296,6 +322,13 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     padding: Spacing.three,
   },
+  uploadNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+  },
+  uploadNoticeText: { flexShrink: 1 },
   empty: {
     borderWidth: 1.5,
     borderStyle: 'dashed',

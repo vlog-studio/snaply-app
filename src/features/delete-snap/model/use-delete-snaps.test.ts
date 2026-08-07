@@ -5,6 +5,7 @@ import { useDeleteSnaps, type DeletableSnap } from './use-delete-snaps';
 const mockDeleteLocalRecording = jest.fn();
 const mockDeleteVideoThumbnail = jest.fn();
 const mockRemoveSnaps = jest.fn();
+const mockForgetSnapSync = jest.fn();
 const mockRemoveSnapsEverywhere = jest.fn();
 const mockRemoveSnapsFromTray = jest.fn();
 
@@ -17,6 +18,7 @@ jest.mock('@/shared/lib/video-thumbnails', () => ({
 }));
 jest.mock('@/entities/snap', () => ({
   useRemoveSnaps: () => mockRemoveSnaps,
+  useForgetSnapSync: () => mockForgetSnapSync,
 }));
 jest.mock('@/entities/movie', () => ({
   useRemoveSnapsEverywhere: () => mockRemoveSnapsEverywhere,
@@ -48,6 +50,7 @@ describe('useDeleteSnaps', () => {
     expect(mockRemoveSnapsEverywhere).toHaveBeenCalledWith(['snaply-1.mp4']);
     expect(mockRemoveSnapsFromTray).toHaveBeenCalledWith(['snaply-1.mp4']);
     expect(mockRemoveSnaps).toHaveBeenCalledWith(['snaply-1.mp4']);
+    expect(mockForgetSnapSync).toHaveBeenCalledWith(['snaply-1.mp4']);
   });
 
   it('returns the deleted ids', async () => {
@@ -106,6 +109,7 @@ describe('useDeleteSnaps', () => {
     expect(mockRemoveSnapsEverywhere).not.toHaveBeenCalled();
     expect(mockRemoveSnapsFromTray).not.toHaveBeenCalled();
     expect(mockRemoveSnaps).not.toHaveBeenCalled();
+    expect(mockForgetSnapSync).not.toHaveBeenCalled();
     expect(result.current.errorMessage).toBe('스냅을 삭제하지 못했어요.'); // 스냅을 삭제하지 못했어요.
   });
 

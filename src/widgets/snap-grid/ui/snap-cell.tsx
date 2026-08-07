@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import type { Snap } from '@/entities/snap';
+import { useSnapSyncStatus, type Snap, type SnapSyncStatus } from '@/entities/snap';
 import { formatSeconds } from '@/shared/lib/datetime';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -22,8 +22,23 @@ export type SnapCellProps = {
 };
 
 /**
+ * What the sync badge says per status. `uploaded` is the normal state and says
+ * nothing — a library where every snap is announcing success would be noise.
+ * `pending` is also silent: it is every snap's resting state whenever the
+ * worker cannot run (signed out, offline), and a permanent "업로드 중" would be
+ * a lie. Only an actual transfer and an actual failure speak.
+ */
+const SyncBadgeLabel: Record<SnapSyncStatus, string | undefined> = {
+  pending: undefined,
+  uploading: '업로드 중',
+  uploaded: undefined,
+  failed: '업로드 실패',
+};
+
+/**
  * One snap in the grid: its first frame, its length, its pick number while
- * selecting, and a "담김" badge whenever the target already holds it.
+ * selecting, a "담김" badge whenever the target already holds it, and its
+ * upload state while it is not settled on the backend yet.
  *
  * The badge stays visible during selection because that is exactly when it
  * matters: picking a snap the target already has does nothing, and without the
@@ -31,7 +46,9 @@ export type SnapCellProps = {
  * the pick circle so the two never collide.
  *
  * Memoized because selecting one snap re-renders the whole library; without it
- * every cell would re-run its thumbnail lookup on every tap.
+ * every cell would re-run its thumbnail lookup on every tap. The sync status is
+ * subscribed per cell (not passed down) so an upload finishing re-renders one
+ * cell, not the grid.
  */
 export const SnapCell = memo(function SnapCell({
   snap,
@@ -44,12 +61,14 @@ export const SnapCell = memo(function SnapCell({
 }: SnapCellProps) {
   const theme = useTheme();
   const isPicked = pickNumber !== undefined;
+  const syncStatus = useSnapSyncStatus(snap.id);
+  const syncLabel = SyncBadgeLabel[syncStatus];
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={selecting ? { selected: isPicked } : undefined}
-      accessibilityLabel={`${formatSeconds(snap.durationSec)} 스냅${isHeld ? ' · 이미 담김' : ''}`}
+      accessibilityLabel={`${formatSeconds(snap.durationSec)} 스냅${isHeld ? ' · 이미 담김' : ''}${syncLabel ? ` · ${syncLabel}` : ''}`}
       accessibilityHint={selecting ? '탭하면 선택해요' : '탭하면 재생해요. 길게 누르면 선택해요'}
       onPress={() => onPress(snap)}
       onLongPress={() => onLongPress(snap)}
@@ -85,6 +104,20 @@ export const SnapCell = memo(function SnapCell({
         <View style={[styles.heldBadge, { backgroundColor: theme.primary }]}>
           <ThemedText selectable={false} type="note" style={{ color: theme.onPrimary }}>
             담김
+          </ThemedText>
+        </View>
+      ) : null}
+      {syncLabel ? (
+        <View
+          style={[
+            styles.syncBadge,
+            syncStatus === 'failed'
+              ? { backgroundColor: theme.danger }
+              : styles.syncBadgeInProgress,
+          ]}
+        >
+          <ThemedText selectable={false} type="note" style={styles.syncBadgeText}>
+            {syncLabel}
           </ThemedText>
         </View>
       ) : null}
@@ -132,6 +165,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     paddingVertical: 1,
   },
+  // Opposite corner from the duration, mirroring how 담김 avoids the pick circle.
+  syncBadge: {
+    position: 'absolute',
+    bottom: Spacing.one,
+    left: Spacing.one,
+    borderRadius: Radius.small,
+    paddingHorizontal: Spacing.one,
+    paddingVertical: 1,
+  },
+  syncBadgeInProgress: { backgroundColor: 'rgba(0,0,0,0.55)' },
+  // Drawn over arbitrary video (or the danger fill), so plain white.
+  syncBadgeText: { color: '#FFFFFF' },
   duration: {
     position: 'absolute',
     bottom: Spacing.one,

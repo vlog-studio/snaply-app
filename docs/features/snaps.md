@@ -7,7 +7,8 @@ Users can see every 3–5 second original they have shot, play any of them, pick
 ```text
 /snaps  (스냅)
 ├── 오늘 / 어제 / 2026년 7월 20일     day sections, newest first
-│   └── 3-column grid, square cells with a length badge and a 담김 badge for tray members
+│   └── 3-column grid, square cells with a length badge, a 담김 badge for tray members,
+│       and an upload badge while a snap is transferring or failed
 ├── tap a cell            → full-screen playback
 ├── long-press / 선택      → selection mode
 └── selection bar         n개 선택 · 트레이 n/10 · 해제 · 삭제 · 트레이에 담기
@@ -42,7 +43,7 @@ Picking *into a movie* is a screen of its own — `/movie/[id]/add-snaps`, on th
 
 ## Deleting an original
 
-An original exists in five places, and `features/delete-snap` removes it from all five in one action:
+An original exists in six places, and `features/delete-snap` removes it from all six in one action:
 
 ```text
 1. the video file            shared/lib/recording-files
@@ -50,7 +51,10 @@ An original exists in five places, and `features/delete-snap` removes it from al
 3. every movie that refers    entities/movie               (removeSnapsEverywhere)
 4. the tray, if it holds it   entities/tray                (removeSnaps)
 5. its snap metadata          entities/snap                (removeSnaps)
+6. its sync state             entities/snap                (forgetSnaps — an uploaded snap leaves a delete tombstone)
 ```
+
+The remote copy is the sixth place's indirection rather than a seventh step: retiring an uploaded snap's sync entry leaves its `videoId` as a tombstone, and the upload worker (see below) owes the server that `DELETE /videos/{id}` — so a local delete never waits on the network and an offline delete still propagates later.
 
 It takes `DeletableSnap` — `{ id, uri }` — rather than a file record, so the snap grid hands it a `Snap` and the capture library a `LocalRecording` without either converting.
 
@@ -79,11 +83,37 @@ LocalRecording
 
 Accepted video extensions are `.m4v`, `.mov`, `.mp4`, and `.webm`. New files are named `snaply-<timestamp>.<extension>` and live in the app document directory's `recordings` folder.
 
-Recordings are app-private local files. They are not entries in the device media library and are not synchronized to a backend. App deletion removes them.
+Recordings are app-private local files. They are not entries in the device media library. App deletion removes them. The local file stays the source of truth for every screen; the backend upload described below is a copy that trails behind it, never a precondition.
 
 A snap's id **is** its file name (`create-snap` reuses the recording's id), which is what lets a movie's `snapRefs` and a file on disk address the same thing without a join table. `localRecordingExists(uri)` answers whether the file behind a snap is still there — a synchronous stat, so a caller can decide in the event that opens a sheet.
 
 Thumbnails are derived cover art, held by no model. Extraction and caching live in `shared/lib/video-thumbnails`, which pulls the first frame on first request and caches it under the cache directory keyed by the source file's base name (`<base>.jpg`), exposing `useVideoThumbnail(uri)` for one frame. Because the cache key is the base name, the same file resolves to one thumbnail shared across every surface that previews it (the snap grid, the tray strip, movie covers) whether the caller holds a `Snap` or a `LocalRecording`. Losing the cache only forces re-extraction; it never loses a snap. The web variant returns no thumbnail.
+
+## Backend upload sync (2026-08-07)
+
+Every snap is uploaded to the backend automatically, so that by the time movie generation moves server-side (`POST /edit-jobs` takes `videoIds`), the material is already there and the user never waits on a bulk upload at the moment they ask for a movie.
+
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Upload worker | `Functional (mock)` | `features/upload-snap`, mounted app-wide as `SnapUploadGate` in `_app/providers` — an upload continues wherever the user navigates, like movie generation. Runs only while authenticated (the endpoints tie videos to the caller) and after both snap stores hydrate. Strictly serial: one transfer at a time, oldest capture first. Routes to in-code mocks under `USE_MOCK_API`, like every other API caller. |
+| Pipeline per snap | `Functional (mock)` | The backend's three steps: `GET /videos/upload-url` (presign) → PUT the bytes to the presigned URL (`expo/fetch` with the `expo-file-system` `File` as body — no auth header, no envelope, so it bypasses `apiRequest`) → `POST /videos` (register ready, integer `durationSeconds`). The `Content-Type` is derived once from the file extension and used for both the presign query and the PUT header, which S3-style storage requires to match. |
+| Derived queue | `Functional` | The queue is never stored: a snap with no sync entry **is** pending. New captures, a signed-out backlog that waits for sign-in, and transfers the app died inside (uploading entries are not persisted, so they rehydrate as pending) all become the same thing — pending snaps the worker finds on its next trigger. Triggers: a snap or tombstone appearing, a manual retry, sign-in, and the app returning to the foreground. |
+| Retry and backoff | `Functional` | A failed step marks the snap `failed` and backs off in-memory (5s → 30s → 2m). After 5 recorded attempts the snap waits for a manual retry. The attempt count persists; the backoff does not — a restart retries immediately. |
+| Sync badges | `Functional` | The grid cell shows `업로드 중` during an actual transfer and `업로드 실패` (danger fill) on failure. `uploaded` and `pending` are silent on purpose: success everywhere is noise, and pending is every snap's resting state whenever the worker cannot run (signed out, offline) — a permanent "업로드 중" would be a lie. |
+| Failed banner | `Functional` | The snaps tab shows `스냅 N개를 업로드하지 못했어요 · 다시 시도` when any snap is failed; retry clears the failed entries, which requeues them. |
+| Delete propagation | `Functional (mock)` | Tombstoned `videoId`s are drained with `DELETE /videos/{id}` at the start of every worker pass; a refused delete stays owed and is retried on the next trigger. A snap deleted mid-upload after its row was registered ready leaves a tombstone too; one deleted before registration leaves the never-ready row to the backend's GC. |
+
+Sync state lives in `entities/snap/model/snap-sync-store.ts` (persisted as `snaply.snap-sync`), separate from the snap store because a snap is an immutable original and its sync progress is not part of what it is — and because `upload-snap`, `delete-snap`, and (later) movie creation must meet at an entity, features being unable to import each other.
+
+```text
+SnapSyncEntry (per snap id; absence = pending)
+├── uploading                    not persisted — rehydrates as pending
+├── uploaded { videoId }         the snap's remote identity
+└── failed { attempts }
+deleteTombstones: videoId[]      remote deletes still owed
+```
+
+The presign response shape is spec-confirmed since the 2026-08-07 spec update (`{ videoId, uploadUrl, s3Key }`); the Zod contract validates the two fields the app consumes. What remains unverified is live-server behavior — the transfer has only ever run against the in-code mocks (see Known limitations).
 
 ## Data model
 
@@ -116,8 +146,9 @@ Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on t
 
 - `src/pages/snaps` owns the tab screen: playback, selection mode and its bottom-chrome takeover, the tray commit, the delete-impact read model (`model/use-movie-delete-impact.ts`), and the delete dialog.
 - `src/widgets/snap-grid` owns what both picking screens are built from: the day grouping (`model/use-snap-days.ts`), the pick-order and cap rules (`model/use-snap-picking.ts`), the day-sectioned grid and its derived cell width (`ui/snap-day-grid.tsx`), the cell (`ui/snap-cell.tsx`), and the selection bar (`ui/snap-selection-bar.tsx`, whose 삭제 action is optional because a movie's picker does not own deletion). Promoted out of `pages/snaps` on 2026-08-06, when the movie's picker became a screen of its own and a second surface needed the block.
-- `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
-- `src/features/delete-snap` owns the cascading deletion across files, thumbnails, movies, the tray, and snap metadata.
+- `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), the sync-state store (`snaply.snap-sync` — upload status, `videoId` mapping, delete tombstones), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
+- `src/features/upload-snap` owns the upload worker (`SnapUploadGate`, mounted in `_app/providers`), the three transfer steps against `/videos`, the tombstone drain against `DELETE /videos/{id}`, and the retry/backoff policy.
+- `src/features/delete-snap` owns the cascading deletion across files, thumbnails, movies, the tray, snap metadata, and sync state.
 - `src/pages/add-snaps` owns the movie's picker screen (`/movie/[id]/add-snaps`), which appends its picks through `features/compose-movie`.
 - `src/features/manage-recordings` owns reusable local-recording listing for the capture library.
 - `src/shared/ui/video-frame`, `src/shared/ui/video-player-modal`, and `src/shared/lib/datetime` supply the frame, the player chrome, and the day/duration formatting.
@@ -128,5 +159,8 @@ Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on t
 
 - The whole grid renders at once; there is no virtualization, so a very large library scrolls a long list of mounted cells.
 - Selection has no "select all" or range selection.
-- Snaps are local-only: nothing is uploaded, exported to the media library, or synced between devices.
+- Upload sync has run only against the in-code mocks (`USE_MOCK_API` is on). The presign response field names are spec-confirmed, but the end-to-end transfer, the accepted content types (the spec constrains `contentType` only to a string), and any file-size limit are unverified against the live backend.
+- Only the file and its rounded length are uploaded. `capturedAt`, `place`, and dimensions stay local, so the server's video list cannot yet rebuild the library (reinstall, second device) — that phase needs backend metadata fields first, and until then snaps are not synced between devices or exported to the media library.
+- Transfers are foreground-only: backgrounding mid-upload fails the attempt, which is retried on the next foreground return. There is no Wi-Fi-only setting; uploads use whatever network is available.
+- A snap deleted mid-upload before its row is registered leaves a never-ready row on the server; the client does not clean those, by design — they are the backend GC's.
 - Day labels come from `formatDayHeading`, which reads the clock, so "오늘" can go stale if the app is left open past midnight.

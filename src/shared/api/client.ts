@@ -4,6 +4,7 @@ import { API_BASE_URL } from '@/shared/config/api';
 import { supabase } from '@/shared/lib/supabase';
 
 import { ApiError } from './api-error';
+import type { ApiPath, ResolvedApiPath } from './paths';
 
 type QueryValue = string | number | boolean | undefined | null;
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -53,7 +54,10 @@ async function authHeader(): Promise<Record<string, string>> {
  * normalization into `ApiError`. It never knows about domain models — callers in
  * an entity/page `api` segment map the validated `data` to their domain type.
  */
-export async function apiRequest<T>(path: string, options: ApiRequestOptions<T>): Promise<T> {
+export async function apiRequest<T>(
+  path: ApiPath | ResolvedApiPath,
+  options: ApiRequestOptions<T>,
+): Promise<T> {
   const { method = 'GET', query, body, schema, signal } = options;
 
   let response: Response;

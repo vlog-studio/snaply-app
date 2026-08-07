@@ -40,7 +40,6 @@
     "expo-video": "~57.0.1",
     "expo-video-thumbnails": "~57.0.1",
     "expo-web-browser": "~57.0.1",
-    "openapi-fetch": "^0.17.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.81.0",
@@ -68,6 +67,11 @@
     "openapi-typescript": "^7.13.0",
     "prettier": "3.9.5",
     "typescript": "~6.0.3"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   },
   "scripts": {
     "start": "expo start",

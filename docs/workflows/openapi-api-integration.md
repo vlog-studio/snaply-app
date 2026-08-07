@@ -1,18 +1,27 @@
 # Integrating an OpenAPI/Swagger backend
 
-This document records the agreed approach for consuming a separately developed backend that publishes an OpenAPI (Swagger) specification. It is a decision record and a setup procedure to follow **when the API layer is first introduced** — no API layer exists yet. TanStack Query v5 and Zod are installed but unused, and no `QueryClientProvider` exists (see [`state-and-data.md`](../frameworks/state-and-data.md)).
+This document records the approach for consuming the separately developed Snaply backend, which publishes an OpenAPI (Swagger) specification. The API layer exists: `src/shared/api` owns the transport (`apiRequest`), `_app/providers` owns the `QueryClient`, and the first entity/feature slices consume them (see [`state-and-data.md`](../frameworks/state-and-data.md)).
 
-For where each piece of state and data code lives, read [`state-and-data.md`](../frameworks/state-and-data.md). For import direction and Public API rules that this procedure must obey, read [`module-boundaries.md`](../conventions/module-boundaries.md).
+For where each piece of state and data code lives, read [`state-and-data.md`](../frameworks/state-and-data.md). For import direction and Public API rules, read [`module-boundaries.md`](../conventions/module-boundaries.md).
 
 ## Decision
 
 Use **type-only code generation plus a hand-written client, query, and mapping layer**:
 
 - Generate **types only** from the OpenAPI spec with [`openapi-typescript`](https://openapi-ts.dev/) (no runtime, no client code).
-- Perform transport with [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/), a thin typed wrapper over `fetch` that consumes the generated types.
+- Perform transport with the hand-written `apiRequest` in `src/shared/api/client.ts` — a thin `fetch` wrapper that owns the base URL, Supabase JWT injection, the backend's response envelope, and `ApiError` normalization.
 - Write Zod validation, domain mapping, `queryOptions` factories, and mutations **by hand**, placed in the owning FSD slice.
 
 The generated artifact is confined to the `shared/api` type boundary; slice code (entity queries, domain mapping, feature mutations) stays hand-managed so it keeps obeying FSD rules. When the spec changes, regenerate the types; slice code is unaffected unless a contract it depends on actually changed.
+
+### Why not `openapi-fetch` (2026-08-07 amendment)
+
+The original plan was to transport with [`openapi-fetch`](https://openapi-ts.dev/openapi-fetch/). Two facts of the actual backend made it a poor fit, verified against the live server:
+
+- The spec defines **no response schemas** — every response is a bare "Default Response". `openapi-fetch`'s value is compile-time response typing, and with this spec it would type every response body as `never`. Zod at the entity boundary is the real response contract either way.
+- Every endpoint wraps its payload in a `{ success: true, data }` / `{ success: false, error: { code, message } }` envelope. `apiRequest` unwraps and normalizes it once; with `openapi-fetch` the envelope would still need hand-written handling on top.
+
+What the generated types do provide today — endpoint paths, methods, request bodies, query parameters — is consumed as types: `apiRequest` accepts only an `ApiPath` (a path present in the spec) or a `ResolvedApiPath` produced by the `apiPath()` placeholder-substitution helper, so a typo'd or removed endpoint is a compile error. **Revisit `openapi-fetch` if the backend starts publishing response schemas**; the migration would be contained to `shared/api`.
 
 ### Why not full code generation
 
@@ -29,11 +38,14 @@ The cost of the chosen approach is that `openapi-typescript` produces **no Zod s
 
 | Concern | Tool | Location |
 | --- | --- | --- |
-| DTO types | `openapi-typescript` (dev dependency, type-only output) | `src/shared/api/schema.d.ts` |
-| Typed transport | `openapi-fetch` | `src/shared/api/client.ts` |
+| Endpoint/request types | `openapi-typescript` (dev dependency, type-only output) | `src/shared/api/schema.d.ts` |
+| Typed endpoint paths | `ApiPath` / `apiPath()` over the generated `paths` | `src/shared/api/paths.ts` |
+| Transport | hand-written `apiRequest` (`fetch` + envelope + `ApiError`) | `src/shared/api/client.ts` |
 | DTO validation + domain mapping | Zod (hand-written) | `entities/<entity>/api` |
 | Queries and mutations | TanStack Query `queryOptions` factories | `entities/<entity>/api`, `features/<action>` |
 | QueryClient and provider | hand-written | `src/_app/providers` |
+
+`openapi-typescript` declares a `typescript@^5.x` peer while this project uses TypeScript 6; a `package.json` `overrides` entry pins its peer to the root `typescript` so plain `npm install` resolves. Do not install with `--legacy-peer-deps` — it silently drops other packages' auto-installed peers (this broke `jest-expo` once).
 
 ## Spec source of truth
 
@@ -44,19 +56,21 @@ Commit the spec file into the repository at `docs/api/openapi.json` rather than 
 
 When the backend contract changes, run `npm run api:pull && npm run gen:api` and commit the spec and the regenerated `schema.d.ts` together.
 
+The edit-progress WebSocket (`/edit-jobs/:id/progress`) is not representable in OpenAPI; its contract lives in the backend repository's `docs/api-spec.md`.
+
 ## Generated types
 
 - `src/shared/api/schema.d.ts` is a **generated artifact**: commit it, never edit it by hand.
-- Reference the generated types **only** inside `shared/api/client.ts` and at the input boundary of each entity's `api` segment. Do not let a DTO type escape into `ui` or `model` — those see domain models only.
+- Reference the generated types **only** inside `shared/api` and at the input boundary of each entity's `api` segment. Do not let a DTO type escape into `ui` or `model` — those see domain models only.
 
 ## Layered data flow
 
 ```text
-openapi-fetch (DTO types)  →  entities/<e>/api: Zod parse + map  →  domain model
-        [shared/api]                     [entities]                   [ui / model]
+apiRequest (typed paths)  →  entities/<e>/api: Zod parse + map  →  domain model
+       [shared/api]                   [entities]                    [ui / model]
 ```
 
-- **`shared/api`** encapsulates transport: base URL, the `Authorization` header, HTTP status handling, and transport-error normalization. Implement these as `openapi-fetch` middleware. It exposes a client, not DTOs.
+- **`shared/api`** encapsulates transport: base URL, the `Authorization` header, the response envelope, HTTP status handling, and transport-error normalization into `ApiError`. It exposes `apiRequest`/`apiPath`, not DTOs.
 - **`entities/<entity>/api`** calls the client, validates the response with Zod where validation is warranted, and maps the DTO to the domain model. Keep query keys and query functions together in a `queryOptions` factory (`<entity>.queries.ts`) as shown in [`state-and-data.md`](../frameworks/state-and-data.md).
 - **`features/<action>`** owns mutations, including cache invalidation and optimistic updates. Place a mutation by the user action, not next to the read queries.
 - **`pages/<page>/api`** holds a composite endpoint or a mutation meaningful to only one screen.
@@ -67,29 +81,30 @@ openapi-fetch (DTO types)  →  entities/<e>/api: Zod parse + map  →  domain m
 
 ## Authentication and error ownership
 
-- Token injection (the `Authorization` header) and HTTP/transport error normalization live in `shared/api/client.ts` middleware.
+- Token injection (the Supabase JWT `Authorization` header) and HTTP/transport error normalization live in `shared/api/client.ts`.
 - The **meaning** of a session token — which keys are stored and when they are cleared — belongs to the session domain, not to `shared`. Persist tokens through the `shared/lib/secure-storage` adapter, orchestrated by `entities/session` and a sign-in feature, per [`state-and-data.md`](../frameworks/state-and-data.md).
 
 ## Zod validation policy
 
-`openapi-typescript` gives compile-time types but no runtime guarantees. Apply Zod at the entity `api` boundary for responses where a malformed payload would corrupt domain state or where the backend contract is not yet stable. Do not blanket-validate every field of every response; validate where a mapping or data-safety error would otherwise surface deep in the UI (see the error-placement table in [`state-and-data.md`](../frameworks/state-and-data.md)).
+`openapi-typescript` gives compile-time types but no runtime guarantees — and this backend publishes no response schemas at all, so Zod at the entity `api` boundary is the only response contract. Every `apiRequest` call requires a schema for the envelope's `data`. Keep schemas focused on the fields the app actually consumes; do not blanket-validate every field of every response (see the error-placement table in [`state-and-data.md`](../frameworks/state-and-data.md)).
 
 ## Setup procedure
 
-Follow this order when the API layer is first introduced. Steps 1–2 were completed on 2026-08-07; the client, provider, and slice layers (3–6) do not exist yet.
+The original six-step introduction plan, with current status:
 
-1. ✅ Add `openapi-typescript` and `openapi-fetch` (client dependency) and the `api:pull`/`gen:api` scripts. Note: `openapi-typescript` declares a `typescript@^5.x` peer while this project uses TypeScript 6, so it is installed with `--legacy-peer-deps`; generated output typechecks cleanly under TS 6.
-2. ✅ Commit the spec to `docs/api/openapi.json` and run `npm run gen:api` to produce `src/shared/api/schema.d.ts`.
-3. Create `src/shared/api/client.ts` (and its Public API `index.ts`): an `openapi-fetch` client with middleware for the base URL, auth header, and error normalization.
-4. Introduce `QueryClient` and `QueryClientProvider` in `src/_app/providers`.
-5. For each entity, add `entities/<entity>/api`: a request function that maps the DTO to a domain model (with Zod where warranted) and a `queryOptions` factory. Export only the domain contract from the slice `index.ts`.
-6. Place mutations in the owning `features/<action>` or `pages/<page>/api`, including invalidation and optimistic updates.
+1. ✅ `openapi-typescript` dev dependency and the `api:pull`/`gen:api` scripts (`openapi-fetch` was added, then dropped — see the 2026-08-07 amendment).
+2. ✅ Spec committed at `docs/api/openapi.json`; `npm run gen:api` produces `src/shared/api/schema.d.ts`.
+3. ✅ `src/shared/api`: `apiRequest` transport, `ApiError`, `apiPath`, Public API `index.ts`.
+4. ✅ `QueryClient` and `QueryClientProvider` in `src/_app/providers`.
+5. 🔄 Entity `api` segments: `entities/location/api` exists (DTO schema + mapper + mock routing via `USE_MOCK_API`); the remaining entities (video, edit-job, profile, subscription, SNS connection) are added as their features land.
+6. 🔄 Mutations in the owning `features/<action>` or `pages/<page>/api`: `features/geofence-monitor` and `features/register-push-token` exist; the rest follow their features.
 
 ## Open decisions to confirm before implementing
 
 - ~~**Spec source:**~~ decided 2026-08-07: committed file, refreshed via the `api:pull` script (see "Spec source of truth").
-- **Entity list:** which business entities the first endpoints map to, so the `entities/<entity>/api` slices can be scaffolded.
-- **Validation scope:** which responses warrant Zod validation rather than trusting the generated types.
+- ~~**Transport:**~~ decided 2026-08-07: hand-written `apiRequest`; `openapi-fetch` deferred until the backend publishes response schemas.
+- **Entity list:** which business entities the remaining endpoints map to, so the `entities/<entity>/api` slices can be scaffolded.
+- **Validation scope:** which responses warrant field-level Zod strictness beyond the fields the app consumes.
 
 ## Sources
 

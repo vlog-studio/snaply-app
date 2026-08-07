@@ -10,7 +10,25 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 /movies       any tile                  →  /movie/[id]
 /template/[id]  이대로 만들기            →  /movie/[id]   (an editable draft)
 
-/movie/[id]  (무비) — a timeline studio, not a scroll: every zone is always on screen
+The one route has two faces (2026-08-07). A `ready` movie opens in **watch
+mode** — a player and nothing else, with every act behind the back bar's ⋯
+sheet — and the **studio** below is what a `draft`/`failed` movie opens on,
+what a `generating` movie shows as a read-out, and what "무비 편집하기" in the
+⋯ sheet switches a finished movie back to. Watch mode:
+
+/movie/[id]  (무비, ready) — watch mode
+├── back bar             ← · the movie's title · ⋯ (the actions sheet)
+├── stage                the player, on the render's own composition
+│                         (`render.snapRefs`), paused on the first frame;
+│                         tapping the stage plays and pauses
+├── facts line           {완성 시각} 완성 · 길이 · 스타일 · BGM — read-outs, not chips
+├── footer               공유 (disabled until a render produces a file, with the
+│                         reason written under it)
+└── ⋯ sheet              무비 편집하기 · 이름 바꾸기 · 공유하기 → and, grouped
+                          apart in danger color, 무비 삭제하기 (a confirm step
+                          inside the same sheet)
+
+/movie/[id]  (무비) — the studio: a timeline studio, not a scroll: every zone is always on screen
 ├── back bar             ← · the movie's title · ✎ (rename sheet) — the title rides
 │                         the bar, so naming the movie costs the stage no height
 ├── stage                the player on an editable movie; the progress ring under a job
@@ -36,7 +54,7 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 
 **Editing happens outside a run, never under one.** Generation becomes slow remote work once a real backend runs it (the LLM integration), so a `draft` is where the user settles the cut order, the cut lengths, and the style **before** paying for a run — and fixing a result afterwards is the same controls on the same screen. Only a `generating` movie is frozen, because an edit under a job would make the result describe a cut list that no longer exists. This replaced the edit-after-generation rule from the 2026-08-03 planning round on 2026-08-05, which itself had replaced the three-step wizard (조립 → 스타일 → 생성).
 
-There is no separate playback route. Watching a finished movie and fixing it are the same visit, and two routes would have meant two places that can edit one cut list.
+There is no separate playback route. Watching a finished movie and fixing it are the same visit, and two routes would have meant two places that can edit one cut list. Watch mode is a face of this screen, not a route: one local flag (`editing`, cleared whenever a run starts so the next result opens as a result), no navigation, and the same undo history rules — switching to the studio and back within a visit keeps the visit's history.
 
 **The layout is a timeline studio (2026-08-05).** The previous layout was one long scroll — player, cut list, 순서 고정, style panel, generate panel — so checking an edit meant scrolling back to the top. Now the stage, the strip, and the inspector are fixed zones that never scroll apart: the stage always shows the cut list being edited, the strip and the stage point at the same cut in both directions, and the settings that used to be sections (스타일, 세부, 순서 고정) are sheets opened from chips. Nothing about *what* can be edited changed; only where it sits.
 
@@ -61,7 +79,7 @@ Where each part is read now:
 | --- | --- |
 | `draft` | The stage previews the cuts, the transport plays and walks edits, the strip and inspector are controls, the chips open editable sheets, and the footer's slot runs `AI로 생성 시작` — or holds the inspector while a cut is selected. |
 | `generating` | The progress ring and the five-step checklist fill the stage; the strip stays visible as a read-out (no add tile, no inspector), the sheets open read-only, and the footer is empty. Leaving is expected. |
-| `ready` | The stage plays the result, the same controls, and the footer offers `이 구성으로 다시 만들기` beside 공유. If the cut list has been edited since the render, a notice above the footer says what plays is the changed composition and offers `완성 당시 구성으로 되돌리기`. |
+| `ready` | **Watch mode** (2026-08-07): the stage plays the render's own composition (`render.snapRefs`, resolved by `model/watch-cuts.ts` — the live list only when the render kept no snapshot), a facts line replaces the chips, 공유 is the one standing action, and the ⋯ sheet holds 무비 편집하기 · 이름 바꾸기 · 공유하기 · 무비 삭제하기. 무비 편집하기 switches to the studio: the same controls as a draft, the footer offers `이 구성으로 다시 만들기` beside 공유, and if the cut list has been edited since the render, a notice above the footer says what plays is the changed composition and offers `완성 당시 구성으로 되돌리기`. |
 | `failed` | The same controls, with the stored reason and `다시 시도` in the footer. |
 
 ## Running a movie
@@ -87,6 +105,15 @@ There is no remote work to break, so `failed` is not a simulated coin flip. It i
 **There is no rendered video file.** No compositing backend exists, so a finished movie is played by running its cuts back to back, each inside its trim window. That is deliberate rather than a placeholder: the order and lengths the user settled on are exactly what they get back. The same player previews a `draft`, so a trim can be judged before the run is started.
 
 **The stage plays the stored cut list — which is always current, because edits commit as they land** (the staged-copy model and its save button were removed with the transport, 2026-08-05). The point of keeping the stage on screen is that a reorder, a trim, or a removal is *seen*: the stage holds its place in the edited list and pauses on the new frame the moment the edit lands. What the stage shows is exactly what a generation is built from.
+
+**Watch mode plays the render's composition instead (2026-08-07).** A `ready` movie's live list can lawfully drift after the run, but what the user came to watch is the finished movie — so watch mode resolves `render.snapRefs` rather than the working list (`model/watch-cuts.ts`), and an edited finished movie still *watches* as what was made. A render stored before the snapshot field existed falls back to the live list, as does a snapshot emptied by snap deletions (`removeSnapsEverywhere` strips the snapshot too). The same `CutPlayer` runs both faces, so watch mode inherits sequential trim-aware playback, the per-cut progress segments, and the stage-tap play/pause; what it drops is everything around the player — the transport, the strip, the chips, and the footer's generate slot. When a compositing backend fills `render.uri`, watch mode is where the single file plays.
+
+| Capability | Status | Actual behavior |
+| --- | --- | --- |
+| Watch mode | `Functional` | The default face of a `ready` movie: stage, facts line (`{완성 시각} 완성 · 길이 · 스타일 · BGM`; the length is `render.durationSec` while the render remembers its composition, and the playing cuts' own sum when watch mode fell back to the live list — the stored length must not describe cuts it is not playing; `watchDurationSec`), and a 공유 button. No edit surface is reachable without going through the ⋯ sheet's 무비 편집하기. |
+| ⋯ actions sheet | `Functional` | The back bar's ⋯ (watch mode's one trailing act, standing where the studio keeps its rename ✎) opens `MovieActionsSheet`: 무비 편집하기 · 이름 바꾸기 · 공유하기 in one group, 무비 삭제하기 grouped apart in danger color. 공유하기 is disabled with its reason written under it while no rendered file exists. |
+| Delete from this screen | `Functional` | 무비 삭제하기 confirms as a second step *inside the same sheet* (two platform Modals swapping visibility race each other's animations), naming the movie, its cut count, and its length, and promising the snap originals survive — the same reassurance the movie tab's sheet gives. Confirming leaves the screen first, then deletes, so the not-found state never flashes. |
+| Back to the studio | `Functional` | 무비 편집하기 switches faces in place. Starting a run from the studio clears the flag, so the movie the job finishes reopens as a result rather than as a workbench. |
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
@@ -122,7 +149,7 @@ Available whenever no job owns the movie — the same controls settle a `draft` 
 | Style, BGM, subtitles | `Functional` | The 스타일 chip opens a sheet with the four style cards (it stays open after a pick — choosing a look is comparing looks); the 세부 chip opens a sheet with the five BGM tracks as pills (`무음` included), the captions switch, and 순서 고정. Each writes straight through; there is nothing to stage. The chips carry the current style and track, so the sheets only need opening to change something. A draft starts from the defaults or, for a template, what the template asked for. |
 | Ratio, target length | `Functional` | Read-outs in the 세부 sheet. 9:16 is the only ratio the product has, and the length follows the trims. |
 | Catalogs | `Prototype` | Both catalogs are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
-| Rename | `Functional` | The ✎ on the back bar, beside the title it edits, opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
+| Rename | `Functional` | The ✎ on the back bar in the studio (watch mode reaches the same sheet through the ⋯ sheet's 이름 바꾸기), beside the title it edits, opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
 
 **No style has any effect on what plays.** The settings are stored and shown; nothing is composited.
 
@@ -149,7 +176,7 @@ The switch is offered rather than required: **rearranging a cut by hand already 
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| 무비 공유 | `Not implemented` | The export path is complete — `features/share-movie`'s `useShareMovie` hands `Movie.render.uri` to the OS share sheet through `shared/lib/sharing` (`expo-sharing`) — but no movie has a rendered file. Two surfaces offer it, each in its own idiom: this screen's footer keeps the control visible but disabled, while the movie tab's selection bar shows 공유 only while one movie is selected and a rendered file exists — so today it shows none ([Studio and movies](studio.md)). |
+| 무비 공유 | `Not implemented` | The export path is complete — `features/share-movie`'s `useShareMovie` hands `Movie.render.uri` to the OS share sheet through `shared/lib/sharing` (`expo-sharing`) — but no movie has a rendered file. Three surfaces offer it, each in its own idiom: watch mode keeps its 공유 button (and the ⋯ sheet's 공유하기 row) visible but disabled with the reason written beside it, the studio footer keeps its control visible but disabled, and the movie tab's selection bar shows 공유 only while one movie is selected and a rendered file exists — so today it shows none ([Studio and movies](studio.md)). |
 
 A movie's cuts are the user's own originals; the movie is the composition of them. There is no composition — no on-device compositor is available in the Expo SDK 57 toolchain, and no backend renders one — so there is no file that *is* the movie. The app does not paper over that: it will not share one cut in a movie's place, or a re-labelled original. When a renderer fills `Movie.render.uri`, the control enables itself with no further change.
 
@@ -171,7 +198,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 
 ## Ownership
 
-- `src/pages/movie` owns the screen and its parts (`ui/movie-page.tsx`, `timeline-strip.tsx`, `timeline-cut.tsx`, `cut-inspector.tsx`, `cut-player.tsx`, `style-picker-sheet.tsx`, `detail-sheet.tsx`, `generate-footer.tsx`, `generation-progress.tsx`, `refusal-notice.tsx` — which owns the wording of every refusal, so the footer's notice and the one a `generating` movie shows in its place cannot state the same rule differently), the cut list's write-through edits, their undo/redo history, and the render-source restore (`model/use-movie-cuts.ts`), the cut-list→playlist resolution, the strip↔player index mapping, and how often the stage reports its position (`model/playback-cuts.ts`), the strip's seconds↔pixels layout, ruler marks, and playhead placement (`model/timeline-layout.ts`), the trim gesture's geometry (`model/trim-geometry.ts`), and the job clock the ring reads (`model/use-job-clock.ts`). It replaced `pages/movie-editor` and `pages/movie-detail`, which were one screen split across two routes; the timeline layout later replaced the long-scroll layout (`cut-list.tsx`, `cut-row.tsx`, `style-panel.tsx`, `arrangement-row.tsx`, `generate-panel.tsx`, `model/use-movie-playback.ts`) in place.
+- `src/pages/movie` owns the screen and its parts (`ui/movie-page.tsx`, `movie-watch.tsx` — watch mode's stage, facts line, and 공유, `movie-actions-sheet.tsx` — the ⋯ sheet and its delete-confirm step, `timeline-strip.tsx`, `timeline-cut.tsx`, `cut-inspector.tsx`, `cut-player.tsx`, `style-picker-sheet.tsx`, `detail-sheet.tsx`, `generate-footer.tsx`, `generation-progress.tsx`, `refusal-notice.tsx` — which owns the wording of every refusal, so the footer's notice and the one a `generating` movie shows in its place cannot state the same rule differently), the cut list's write-through edits, their undo/redo history, and the render-source restore (`model/use-movie-cuts.ts`), the watch-mode cut-list resolution — the render snapshot over the live list (`model/watch-cuts.ts`), the cut-list→playlist resolution, the strip↔player index mapping, and how often the stage reports its position (`model/playback-cuts.ts`), the strip's seconds↔pixels layout, ruler marks, and playhead placement (`model/timeline-layout.ts`), the trim gesture's geometry (`model/trim-geometry.ts`), and the job clock the ring reads (`model/use-job-clock.ts`). It replaced `pages/movie-editor` and `pages/movie-detail`, which were one screen split across two routes; the timeline layout later replaced the long-scroll layout (`cut-list.tsx`, `cut-row.tsx`, `style-panel.tsx`, `arrangement-row.tsx`, `generate-panel.tsx`, `model/use-movie-playback.ts`) in place.
 - `src/features/compose-movie` owns starting a movie from the tray or a template, committing cut lists and style settings, the arrangement rules, starting generation, and `MovieGenerationGate` — the app-wide runner that carries a job to its render or to a failure (`model/use-generation-runner.ts`) and, when asked, announces the end (`lib/announce-job-end.ts`).
 - `src/_app/providers/movie-generation-bridge.tsx` mounts the gate with the user's 무비 완성 알림 preference. The preference belongs to `features/notification-settings` and features must not import each other, so the app layer composes them — the same shape as `GeofenceGate`.
 - `src/features/rename-movie` owns the rename form (`RenameMovieForm`), the sheet that wraps it (`RenameMovieSheet`), and its schema. This screen is its only consumer since the movie tab's selection mode dropped rename (2026-08-07) — the grid's appearing-and-vanishing single-selection action read as inconsistent. It stays a feature: the slice predates the change and the movie screen's rename is slated to grow.
@@ -187,7 +214,7 @@ The rules about what a *trim* may be belong to the entity, not the feature: `wit
 
 - **Nothing is composited.** Generation is a local simulation: the steps are paced by a clock, no video is produced, `render.uri` is empty, and a finished movie is played by running its cuts in order. Style, BGM, and subtitles are stored settings with no effect on what plays. **The screen no longer says this** — the footer's `아직 프로토타입` line was removed with the rest of the summary prose on 2026-08-05, so nothing in the app tells the user that a `ready` movie is a playlist rather than a file. Restore a disclosure here before this reaches anyone outside the team.
 - Regeneration keeps no history. The previous render is dropped when the new job starts, so there is no way back to the version the user just replaced. The one thing that survives a run is the *current* render's source cut list (`render.snapRefs`), which is what 완성 당시 구성으로 되돌리기 restores — the composition, not the render.
-- The movie can be deleted, but not from here: deletion lives on the movie tab (selection mode on the grid — see [Studio and movies](studio.md)), so a movie recognized as wrong while it is open has to be left before it can be removed.
+- Deletion from this screen exists only in watch mode's ⋯ sheet: a `draft` or `failed` movie recognized as wrong while it is open still has to be removed from the movie tab's grid (selection mode — see [Studio and movies](studio.md)).
 - Losing every original is the only way a job fails today. Backend errors join it when `POST /movies` exists; the store field (`Movie.error`) and the recovery UI already take an arbitrary message.
 - AI arrangement is capture-time order, not a model's judgement.
 - Reordering is button-based, not drag-based, and trim is set on a tenth-second grid.

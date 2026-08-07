@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { movieBgmLabel, movieStyleLabel } from '@/entities/movie';
+import { movieBgmLabel, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
 import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { useShareMovie } from '@/features/share-movie';
@@ -15,11 +15,14 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { toCutIndex, toPlaybackCuts, toPlaybackIndex } from '../model/playback-cuts';
 import type { TimelinePlayhead } from '../model/timeline-layout';
 import { useMovieCuts } from '../model/use-movie-cuts';
+import { useWatchCuts } from '../model/watch-cuts';
 import { CutInspector } from './cut-inspector';
 import { CutPlayer, type CutPlayerHandle } from './cut-player';
 import { DetailSheet } from './detail-sheet';
 import { GenerateFooter } from './generate-footer';
 import { GenerationProgress } from './generation-progress';
+import { MovieActionsSheet } from './movie-actions-sheet';
+import { MovieWatch } from './movie-watch';
 import { CutsRefusalMessages, RefusalNotice } from './refusal-notice';
 import { StylePickerSheet } from './style-picker-sheet';
 import { TimelineStrip } from './timeline-strip';
@@ -57,9 +60,12 @@ export type MoviePageProps = {
  * - `draft` — the stage previews the cuts, and the footer runs the first job.
  * - `generating` — the stage holds the progress ring; everything else is a
  *   read-out. Leaving is expected.
- * - `ready` — the stage plays the result, and the same controls plus "이
- *   구성으로 다시 만들기" are the way to say "not like that".
- * - `failed` — the same controls, led by the reason and a retry in the footer.
+ * - `ready` — **watch mode**: the stage plays the render's own composition and
+ *   every edit tool is out of sight; the ⋯ sheet holds 편집·이름 바꾸기·공유·
+ *   삭제. "무비 편집하기" brings the studio (this screen's other face) back,
+ *   with the same controls plus "이 구성으로 다시 만들기".
+ * - `failed` — the studio controls, led by the reason and a retry in the
+ *   footer.
  */
 export function MoviePage({ movieId }: MoviePageProps) {
   const theme = useTheme();
@@ -69,10 +75,17 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const list = useMovieCuts(movieId);
   const { movie, cuts, totalSec, canEdit, refusal } = list;
   const sharing = useShareMovie(movie);
+  const deleteMovie = useDeleteMovie();
+  const watchCuts = useWatchCuts(movie);
 
   const [renaming, setRenaming] = useState(false);
   const [styleOpen, setStyleOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  // A ready movie opens as something to watch; the studio is asked for ("무비
+  // 편집하기" in the ⋯ sheet) rather than being the screen's default face.
+  // Cleared when a run starts, so the next result opens as a result again.
+  const [editing, setEditing] = useState(false);
   const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
 
   // Which cut the strip and the inspector point at; the stage follows a tap and
@@ -107,6 +120,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
 
   const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
+  const viewing = movie.status === 'ready' && !editing;
 
   // The picker is a screen of its own on the root stack, not the Snap tab: a
   // pushed tab route brings a whole second tab navigator with it, and that
@@ -117,6 +131,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const runGeneration = () => {
     const outcome = startGeneration(movie.id);
     setGenerationRefusal(outcome.refused);
+    // The result of this run should open as a result: back to watch mode when
+    // the job lands on `ready`.
+    if (!outcome.refused) setEditing(false);
   };
 
   // A strip tap selects the cut and shows its frame, paused — playing is the
@@ -150,188 +167,229 @@ export function MoviePage({ movieId }: MoviePageProps) {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
       {/* The movie names itself on the bar rather than in a row of its own —
-          this screen spends every dp it can on the stage. */}
+          this screen spends every dp it can on the stage. Watch mode's one
+          trailing act is the ⋯ sheet; the studio keeps the rename pencil. */}
       <BackBar
         onPress={goBack}
         title={movie.title}
-        action={{ icon: 'pencil', label: '무비 이름 바꾸기', onPress: () => setRenaming(true) }}
+        action={
+          viewing
+            ? { icon: 'ellipsis-horizontal', label: '더보기', onPress: () => setActionsOpen(true) }
+            : { icon: 'pencil', label: '무비 이름 바꾸기', onPress: () => setRenaming(true) }
+        }
       />
 
-      {/* The stage: the player on an editable movie, the ring under a job. It
+      {viewing ? (
+        <MovieWatch movie={movie} cuts={watchCuts} sharing={sharing} />
+      ) : (
+        <>
+          {/* The stage: the player on an editable movie, the ring under a job. It
           takes whatever height the timeline below leaves over. */}
-      <View style={styles.stage}>
-        {isGenerating ? (
-          <ScrollView contentContainerStyle={styles.progressScroll}>
-            <GenerationProgress movie={movie} />
-          </ScrollView>
-        ) : playbackCuts.length > 0 ? (
-          <View style={styles.playerBox}>
-            <CutPlayer
-              ref={playerRef}
-              cuts={playbackCuts}
-              editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
-              onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
-              onProgress={(playbackIndex, secIntoCut) =>
-                setPlayhead({ index: toCutIndex(cuts, playbackIndex), secIntoCut })
-              }
-              onPlayingChange={setIsPlaying}
-              style={styles.player}
-            />
+          <View style={styles.stage}>
+            {isGenerating ? (
+              <ScrollView contentContainerStyle={styles.progressScroll}>
+                <GenerationProgress movie={movie} />
+              </ScrollView>
+            ) : playbackCuts.length > 0 ? (
+              <View style={styles.playerBox}>
+                <CutPlayer
+                  ref={playerRef}
+                  cuts={playbackCuts}
+                  editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
+                  onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
+                  onProgress={(playbackIndex, secIntoCut) =>
+                    setPlayhead({ index: toCutIndex(cuts, playbackIndex), secIntoCut })
+                  }
+                  onPlayingChange={setIsPlaying}
+                  style={styles.player}
+                />
+              </View>
+            ) : (
+              <View style={[styles.empty, { borderColor: theme.border }]}>
+                <ThemedText type="heading">재생할 컷이 없어요</ThemedText>
+                <ThemedText themeColor="textSecondary" style={styles.centerText}>
+                  이 무비가 쓰던 스냅 원본이 모두 지워졌어요.
+                </ThemedText>
+              </View>
+            )}
           </View>
-        ) : (
-          <View style={[styles.empty, { borderColor: theme.border }]}>
-            <ThemedText type="heading">재생할 컷이 없어요</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              이 무비가 쓰던 스냅 원본이 모두 지워졌어요.
-            </ThemedText>
-          </View>
-        )}
-      </View>
 
-      {/* The transport, right under the stage: play on the left, the edit
+          {/* The transport, right under the stage: play on the left, the edit
           history on the right — watching and undoing are both about what the
           stage just showed. */}
-      {!isGenerating ? (
-        <View style={styles.transport}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={isPlaying ? '일시정지' : '재생'}
-            accessibilityState={{ disabled: playbackCuts.length === 0 }}
-            disabled={playbackCuts.length === 0}
-            onPress={() => playerRef.current?.togglePlayback()}
-            style={[
-              styles.transportTool,
-              { borderColor: theme.border, opacity: playbackCuts.length === 0 ? 0.35 : 1 },
-            ]}
-          >
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={theme.text} />
-          </Pressable>
+          {!isGenerating ? (
+            <View style={styles.transport}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={isPlaying ? '일시정지' : '재생'}
+                accessibilityState={{ disabled: playbackCuts.length === 0 }}
+                disabled={playbackCuts.length === 0}
+                onPress={() => playerRef.current?.togglePlayback()}
+                style={[
+                  styles.transportTool,
+                  { borderColor: theme.border, opacity: playbackCuts.length === 0 ? 0.35 : 1 },
+                ]}
+              >
+                <Ionicons name={isPlaying ? 'pause' : 'play'} size={20} color={theme.text} />
+              </Pressable>
 
-          {canEdit ? (
-            <View style={styles.historyTools}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="되돌리기"
-                accessibilityState={{ disabled: !list.canUndo }}
-                disabled={!list.canUndo}
-                onPress={list.undo}
-                style={[
-                  styles.transportTool,
-                  { borderColor: theme.border, opacity: list.canUndo ? 1 : 0.35 },
-                ]}
-              >
-                <Ionicons name="arrow-undo" size={18} color={theme.text} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="복원하기"
-                accessibilityState={{ disabled: !list.canRedo }}
-                disabled={!list.canRedo}
-                onPress={list.redo}
-                style={[
-                  styles.transportTool,
-                  { borderColor: theme.border, opacity: list.canRedo ? 1 : 0.35 },
-                ]}
-              >
-                <Ionicons name="arrow-redo" size={18} color={theme.text} />
-              </Pressable>
+              {canEdit ? (
+                <View style={styles.historyTools}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="되돌리기"
+                    accessibilityState={{ disabled: !list.canUndo }}
+                    disabled={!list.canUndo}
+                    onPress={list.undo}
+                    style={[
+                      styles.transportTool,
+                      { borderColor: theme.border, opacity: list.canUndo ? 1 : 0.35 },
+                    ]}
+                  >
+                    <Ionicons name="arrow-undo" size={18} color={theme.text} />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="복원하기"
+                    accessibilityState={{ disabled: !list.canRedo }}
+                    disabled={!list.canRedo}
+                    onPress={list.redo}
+                    style={[
+                      styles.transportTool,
+                      { borderColor: theme.border, opacity: list.canRedo ? 1 : 0.35 },
+                    ]}
+                  >
+                    <Ionicons name="arrow-redo" size={18} color={theme.text} />
+                  </Pressable>
+                </View>
+              ) : null}
             </View>
           ) : null}
-        </View>
-      ) : null}
 
-      <TimelineStrip
-        cuts={cuts}
-        selectedIndex={selected}
-        playhead={playhead}
-        isPlaying={isPlaying}
-        canEdit={canEdit}
-        onSelect={selectCut}
-        onScrub={scrubTo}
-        onDeselect={deselectCut}
-        onTrim={list.trimCut}
-        onAddSnaps={addSnaps}
-      />
-
-      <View style={styles.content}>
-        {/* Settings are visited, cuts are worked on: the chips carry the current
-            values so the sheets only need opening to change something. */}
-        <View style={styles.chips}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`스타일 ${movieStyleLabel(movie.style)}`}
-            onPress={() => setStyleOpen(true)}
-            style={[styles.chip, { borderColor: theme.border }]}
-          >
-            <ThemedText selectable={false} type="smallBold">
-              스타일
-            </ThemedText>
-            <ThemedText selectable={false} type="small" themeColor="textSecondary">
-              {movieStyleLabel(movie.style)}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`세부 설정, 배경 음악 ${movieBgmLabel(movie.bgm)}`}
-            onPress={() => setDetailOpen(true)}
-            style={[styles.chip, { borderColor: theme.border }]}
-          >
-            <ThemedText selectable={false} type="smallBold">
-              세부
-            </ThemedText>
-            <ThemedText selectable={false} type="small" themeColor="textSecondary">
-              {movieBgmLabel(movie.bgm)}
-            </ThemedText>
-          </Pressable>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.footer,
-          {
-            borderTopColor: theme.border,
-            paddingBottom: insets.bottom + Spacing.three,
-          },
-        ]}
-      >
-        {/* An edit refused while the footer's own notices are hidden (a job
-            owns the movie) still has to be answered somewhere. */}
-        {isGenerating && refusal ? <RefusalNotice message={CutsRefusalMessages[refusal]} /> : null}
-
-        {isGenerating ? null : (
-          <GenerateFooter
-            movie={movie}
-            cutCount={cuts.length}
-            refusal={generationRefusal}
-            cutsRefusal={refusal}
-            editedSinceRender={list.editedSinceRender}
-            onRestoreCuts={list.restoreRenderCuts}
-            sharing={sharing}
-            onStart={runGeneration}
-            // The selected cut's controls take the generate button's slot
-            // rather than a row of their own: the slot's height is fixed, so
-            // selecting and releasing a cut cannot resize the zones the stage
-            // is sized against.
-            inspector={
-              canEdit && selected >= 0 ? (
-                <CutInspector
-                  cut={cuts[selected]}
-                  index={selected}
-                  count={cuts.length}
-                  canRemove={cuts.length > 1}
-                  onMove={(index, direction) => {
-                    list.moveCut(index, direction);
-                    setSelectedIndex(index + direction);
-                  }}
-                  onRemove={list.removeCut}
-                  onResetTrim={list.resetTrim}
-                />
-              ) : undefined
-            }
+          <TimelineStrip
+            cuts={cuts}
+            selectedIndex={selected}
+            playhead={playhead}
+            isPlaying={isPlaying}
+            canEdit={canEdit}
+            onSelect={selectCut}
+            onScrub={scrubTo}
+            onDeselect={deselectCut}
+            onTrim={list.trimCut}
+            onAddSnaps={addSnaps}
           />
-        )}
-      </View>
+
+          <View style={styles.content}>
+            {/* Settings are visited, cuts are worked on: the chips carry the current
+            values so the sheets only need opening to change something. */}
+            <View style={styles.chips}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`스타일 ${movieStyleLabel(movie.style)}`}
+                onPress={() => setStyleOpen(true)}
+                style={[styles.chip, { borderColor: theme.border }]}
+              >
+                <ThemedText selectable={false} type="smallBold">
+                  스타일
+                </ThemedText>
+                <ThemedText selectable={false} type="small" themeColor="textSecondary">
+                  {movieStyleLabel(movie.style)}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`세부 설정, 배경 음악 ${movieBgmLabel(movie.bgm)}`}
+                onPress={() => setDetailOpen(true)}
+                style={[styles.chip, { borderColor: theme.border }]}
+              >
+                <ThemedText selectable={false} type="smallBold">
+                  세부
+                </ThemedText>
+                <ThemedText selectable={false} type="small" themeColor="textSecondary">
+                  {movieBgmLabel(movie.bgm)}
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.footer,
+              {
+                borderTopColor: theme.border,
+                paddingBottom: insets.bottom + Spacing.three,
+              },
+            ]}
+          >
+            {/* An edit refused while the footer's own notices are hidden (a job
+            owns the movie) still has to be answered somewhere. */}
+            {isGenerating && refusal ? (
+              <RefusalNotice message={CutsRefusalMessages[refusal]} />
+            ) : null}
+
+            {isGenerating ? null : (
+              <GenerateFooter
+                movie={movie}
+                cutCount={cuts.length}
+                refusal={generationRefusal}
+                cutsRefusal={refusal}
+                editedSinceRender={list.editedSinceRender}
+                onRestoreCuts={list.restoreRenderCuts}
+                sharing={sharing}
+                onStart={runGeneration}
+                // The selected cut's controls take the generate button's slot
+                // rather than a row of their own: the slot's height is fixed, so
+                // selecting and releasing a cut cannot resize the zones the stage
+                // is sized against.
+                inspector={
+                  canEdit && selected >= 0 ? (
+                    <CutInspector
+                      cut={cuts[selected]}
+                      index={selected}
+                      count={cuts.length}
+                      canRemove={cuts.length > 1}
+                      onMove={(index, direction) => {
+                        list.moveCut(index, direction);
+                        setSelectedIndex(index + direction);
+                      }}
+                      onRemove={list.removeCut}
+                      onResetTrim={list.resetTrim}
+                    />
+                  ) : undefined
+                }
+              />
+            )}
+          </View>
+        </>
+      )}
+
+      <MovieActionsSheet
+        visible={actionsOpen}
+        movie={movie}
+        cutCount={watchCuts.length}
+        totalSec={watchCuts.reduce((sum, cut) => sum + cut.usedSec, 0)}
+        shareBlocked={sharing.blocked !== undefined}
+        onEdit={() => {
+          setActionsOpen(false);
+          setEditing(true);
+        }}
+        onRename={() => {
+          setActionsOpen(false);
+          setRenaming(true);
+        }}
+        onShare={() => {
+          setActionsOpen(false);
+          sharing.share();
+        }}
+        onConfirmDelete={() => {
+          setActionsOpen(false);
+          // Leave first: a deleted movie renders this screen's not-found state,
+          // and the user should see the studio instead of that flash.
+          goBack();
+          deleteMovie(movie.id);
+        }}
+        onClose={() => setActionsOpen(false)}
+      />
 
       <StylePickerSheet
         visible={styleOpen}

@@ -14,28 +14,56 @@ export type MovieTileProps = {
   /** Tile width in points; the square cover takes the same value for height. */
   width: number;
   onPress: (movieId: string) => void;
-  /** A long press opens the movie's actions; absent, a long press does nothing. */
+  /** A long press starts acting on the movie; absent, a long press does nothing. */
   onLongPress?: (movie: MovieSummary) => void;
+  /** Whether the grid is in selection mode — a tap selects instead of opens. */
+  selecting?: boolean;
+  /** Whether this movie is selected. Read only while `selecting`. */
+  selected?: boolean;
 };
 
 /**
  * One movie in the movie tab's grid: a square cover of its first cut with the
  * length and status over it, and the title beneath.
+ *
+ * In selection mode a check circle joins the cover — opposite corner from the
+ * status badge, so the two never collide — and the border thickens on the
+ * selected tiles, the same vocabulary as the snap grid's cells.
  */
-export function MovieTile({ movie, width, onPress, onLongPress }: MovieTileProps) {
+export function MovieTile({
+  movie,
+  width,
+  onPress,
+  onLongPress,
+  selecting = false,
+  selected = false,
+}: MovieTileProps) {
   const theme = useTheme();
   const cover = movie.coverUris[0];
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={selecting ? { selected } : undefined}
       accessibilityLabel={`${movie.title} · ${MovieStatusLabels[movie.status]} · ${formatSeconds(movie.totalSec)}`}
-      accessibilityHint={onLongPress ? '탭하면 열고, 길게 누르면 무비 옵션이 열려요' : undefined}
+      accessibilityHint={
+        selecting
+          ? '탭하면 선택하거나 해제해요'
+          : onLongPress
+            ? '탭하면 열고, 길게 누르면 선택돼요'
+            : undefined
+      }
       onPress={() => onPress(movie.id)}
       onLongPress={onLongPress ? () => onLongPress(movie) : undefined}
       style={({ pressed }) => [{ width, opacity: pressed ? 0.85 : 1 }, styles.tile]}
     >
-      <View style={[styles.cover, { height: width, borderColor: theme.border }]}>
+      <View
+        style={[
+          styles.cover,
+          { height: width, borderColor: selected ? theme.primary : theme.border },
+          selected && styles.selectedCover,
+        ]}
+      >
         {cover ? <VideoFrame uri={cover} /> : null}
         <View style={styles.badge}>
           <MovieStatusBadge status={movie.status} />
@@ -53,6 +81,23 @@ export function MovieTile({ movie, width, onPress, onLongPress }: MovieTileProps
                 { backgroundColor: theme.ai, width: `${Math.round(movie.progress * 100)}%` },
               ]}
             />
+          </View>
+        ) : null}
+        {selecting ? (
+          <View
+            style={[
+              styles.check,
+              {
+                backgroundColor: selected ? theme.primary : 'rgba(0,0,0,0.45)',
+                borderColor: selected ? theme.primary : 'rgba(255,255,255,0.7)',
+              },
+            ]}
+          >
+            {selected ? (
+              <ThemedText selectable={false} type="smallBold" style={{ color: theme.onPrimary }}>
+                ✓
+              </ThemedText>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -81,7 +126,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  selectedCover: { borderWidth: 2 },
   badge: { position: 'absolute', top: Spacing.two, left: Spacing.two },
+  check: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.two,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   duration: {
     position: 'absolute',
     bottom: Spacing.two,

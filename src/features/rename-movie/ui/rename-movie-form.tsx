@@ -22,8 +22,9 @@ export type RenameMovieFormProps = {
 
 /**
  * The rename form itself, apart from any sheet — so a host that already has a
- * modal open (the movie tab's actions sheet) can show it in place instead of
- * closing one modal to open another, which drops the second one on iOS.
+ * modal open can show it in place instead of closing one modal to open
+ * another, which drops the second one on iOS. Today the movie screen opens
+ * `RenameMovieSheet`; the split survives for the next such host.
  *
  * The form is mounted with the movie's current name as its default, so hosts
  * key it by `movieId` (or mount it fresh per opening) to reset the field.

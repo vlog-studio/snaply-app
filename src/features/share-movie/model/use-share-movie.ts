@@ -21,7 +21,7 @@ export type MovieSharing = {
  * Exporting a finished movie through the OS share sheet.
  *
  * A feature rather than page code because two screens offer the same act: the
- * movie screen's 공유 button and the movie tab's long-press actions sheet.
+ * movie screen's 공유 button and the movie tab's selection bar.
  *
  * What is shared is the rendered file and nothing else. The cuts are the user's
  * own originals and the app will not quietly send one of those in a movie's

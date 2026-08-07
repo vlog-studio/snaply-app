@@ -21,7 +21,18 @@ The original plan was to transport with [`openapi-fetch`](https://openapi-ts.dev
 - The spec defines **no response schemas** — every response is a bare "Default Response". `openapi-fetch`'s value is compile-time response typing, and with this spec it would type every response body as `never`. Zod at the entity boundary is the real response contract either way.
 - Every endpoint wraps its payload in a `{ success: true, data }` / `{ success: false, error: { code, message } }` envelope. `apiRequest` unwraps and normalizes it once; with `openapi-fetch` the envelope would still need hand-written handling on top.
 
-What the generated types do provide today — endpoint paths, methods, request bodies, query parameters — is consumed as types: `apiRequest` accepts only an `ApiPath` (a path present in the spec) or a `ResolvedApiPath` produced by the `apiPath()` placeholder-substitution helper, so a typo'd or removed endpoint is a compile error. **Revisit `openapi-fetch` if the backend starts publishing response schemas**; the migration would be contained to `shared/api`.
+What the generated types provide is consumed as types by `apiRequest` itself (2026-08-07): the path — or the template a `ResolvedApiPath<P>` was built from, which the brand carries — plus the method select the operation in `paths`, and from it `apiRequest` derives the allowed `query` keys, the JSON `body` shape, whether `method` may be omitted (only where the spec defines a GET), and the success envelope's `data`, which the call's Zod schema must be *assignable from* — a schema may narrow the spec to the consumed fields but cannot invent a field or contradict a type. A typo'd endpoint, query key, or body field is therefore a compile error at the call site. The compile-time cases live in `src/shared/api/client.test.ts` as `@ts-expect-error` contract tests.
+
+#### Re-evaluated after the backend published response schemas (2026-08-07)
+
+The same-day spec update added full response schemas (success envelope and per-status error bodies on every endpoint), which was this decision's stated revisit trigger. Re-evaluated against that spec, **the deferral stands**, but the reason has changed:
+
+- The first objection is gone: `openapi-fetch` would now type responses meaningfully (e.g. `GET /videos/upload-url` → `{ success: true; data: { videoId; uploadUrl; s3Key } }`), not as `never`.
+- The second objection is structural and remains. Every response still wraps its payload in the `success` envelope, and the app's error model is throw-based (`ApiError`), while `openapi-fetch` returns result-shaped `{ data, error }`. Keeping one transport surface would mean wrapping `openapi-fetch` inside `apiRequest` — and a *generic* wrapper erases the literal per-call inference that is `openapi-fetch`'s main value. Using `client.GET(...)` directly at call sites instead would fork error handling into result-based returns at every entity/feature caller.
+- Zod at the entity boundary stays either way: generated types are compile-time only, and the runtime response contract is a project policy, not a gap `openapi-fetch` fills.
+- The genuinely uncovered gap was **request-side** typing: `apiRequest` accepted `body: unknown` and untyped query keys. Closed the same day without a transport swap — `apiRequest` now derives `query`, `body`, and the response-data compatibility check from the generated `paths` (see above), which was the main typing benefit `openapi-fetch` would have brought.
+
+Next revisit: when the read-heavy entity queries land (`GET /videos` list/detail, edit-job polling) and the call-site count makes hand-maintained request/response typing burdensome — or if the backend ever drops the envelope.
 
 ### Why not full code generation
 
@@ -86,7 +97,7 @@ apiRequest (typed paths)  →  entities/<e>/api: Zod parse + map  →  domain mo
 
 ## Zod validation policy
 
-`openapi-typescript` gives compile-time types but no runtime guarantees — and this backend publishes no response schemas at all, so Zod at the entity `api` boundary is the only response contract. Every `apiRequest` call requires a schema for the envelope's `data`. Keep schemas focused on the fields the app actually consumes; do not blanket-validate every field of every response (see the error-placement table in [`state-and-data.md`](../frameworks/state-and-data.md)).
+`openapi-typescript` gives compile-time types but no runtime guarantees. Since the 2026-08-07 spec update the backend does publish response schemas, which makes the generated types a useful cross-check when *writing* a Zod schema — but Zod at the entity `api` boundary remains the only **runtime** response contract. Every `apiRequest` call requires a schema for the envelope's `data`. Keep schemas focused on the fields the app actually consumes; do not blanket-validate every field of every response (see the error-placement table in [`state-and-data.md`](../frameworks/state-and-data.md)).
 
 ## Setup procedure
 
@@ -102,7 +113,7 @@ The original six-step introduction plan, with current status:
 ## Open decisions to confirm before implementing
 
 - ~~**Spec source:**~~ decided 2026-08-07: committed file, refreshed via the `api:pull` script (see "Spec source of truth").
-- ~~**Transport:**~~ decided 2026-08-07: hand-written `apiRequest`; `openapi-fetch` deferred until the backend publishes response schemas.
+- ~~**Transport:**~~ decided 2026-08-07, re-affirmed the same day after the response schemas landed: hand-written `apiRequest` stays; the envelope and the throw-based `ApiError` model are what keep `openapi-fetch` a poor fit (see the re-evaluation under the amendment above, including the next revisit trigger).
 - **Entity list:** which business entities the remaining endpoints map to, so the `entities/<entity>/api` slices can be scaffolded.
 - **Validation scope:** which responses warrant field-level Zod strictness beyond the fields the app consumes.
 

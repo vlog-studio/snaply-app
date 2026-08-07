@@ -5,19 +5,77 @@ import { supabase } from '@/shared/lib/supabase';
 
 import { ApiError } from './api-error';
 import type { ApiPath, ResolvedApiPath } from './paths';
+import type { paths } from './schema';
 
 type QueryValue = string | number | boolean | undefined | null;
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-export type ApiRequestOptions<T> = {
-  method?: HttpMethod;
-  query?: Record<string, QueryValue>;
+/** How `apiRequest`'s uppercase methods index the generated (lowercase) spec. */
+type MethodKeyMap = { GET: 'get'; POST: 'post'; PATCH: 'patch'; DELETE: 'delete' };
+
+/**
+ * The methods the spec actually defines for a path. An absent method is
+ * generated as `get?: never`, so it reads back as `undefined` here.
+ */
+export type ApiMethod<P extends ApiPath> = {
+  [M in HttpMethod]: paths[P][MethodKeyMap[M]] extends undefined ? never : M;
+}[HttpMethod];
+
+type OperationOf<P extends ApiPath, M extends ApiMethod<P>> = NonNullable<
+  paths[P][MethodKeyMap[M]]
+>;
+
+/** The operation's query parameters; `never` when it takes none. */
+type QueryOf<Op> = Op extends { parameters: { query?: infer Q } } ? NonNullable<Q> : never;
+
+/** The operation's JSON request body; `never` when it takes none. */
+// The bodyless case needs its own branch: an absent body is generated as
+// `requestBody?: never`, and `never extends { content: … }` is trivially true,
+// which would leave `B` unconstrained instead of forbidding the body.
+type BodyOf<Op> = Op extends { requestBody?: infer RB }
+  ? [NonNullable<RB>] extends [never]
+    ? never
+    : NonNullable<RB> extends { content: { 'application/json': infer B } }
+      ? B
+      : never
+  : never;
+
+/**
+ * The `data` carried by the operation's success envelope (2xx JSON response).
+ * `unknown` — imposing no constraint — when the spec declares none.
+ */
+type ApiSuccessData<Op> = Op extends { responses: infer Rs }
+  ? {
+      [C in Extract<keyof Rs, 200 | 201 | 202>]: Rs[C] extends {
+        content: { 'application/json': { success: true; data: infer D } };
+      }
+        ? D
+        : unknown;
+    }[Extract<keyof Rs, 200 | 201 | 202>]
+  : unknown;
+
+/**
+ * The response contract: a Zod schema whose output the spec's `data` must be
+ * assignable to. Assignable-to rather than equal on purpose — the project
+ * validates only the fields the app consumes, so a schema may narrow the spec
+ * (omit fields, widen an enum to `string`) but may not invent a field or
+ * disagree on a type. On mismatch, the marker property below surfaces in the
+ * compile error and names the spec type the schema must accept.
+ */
+type ResponseSchema<Op, T> = z.ZodType<T> &
+  ([ApiSuccessData<Op>] extends [T] ? unknown : { __schemaMustAcceptApiData: ApiSuccessData<Op> });
+
+export type ApiRequestOptions<P extends ApiPath, M extends ApiMethod<P>, T> = {
+  query?: QueryOf<OperationOf<P, M>>;
   /** Serialized as JSON; omit for bodyless requests. */
-  body?: unknown;
+  body?: BodyOf<OperationOf<P, M>>;
   /** Validates and types the envelope's `data` field. */
-  schema: z.ZodType<T>;
+  schema: ResponseSchema<OperationOf<P, M>, T>;
   signal?: AbortSignal;
-};
+  // `method` may be omitted only where the runtime default (GET) is an
+  // operation the spec defines — otherwise omitting it would silently GET a
+  // POST-only endpoint.
+} & ('GET' extends ApiMethod<P> ? { method?: M } : { method: M });
 
 /** The common success/failure envelope every endpoint returns. */
 type ApiEnvelope =
@@ -53,16 +111,25 @@ async function authHeader(): Promise<Record<string, string>> {
  * URL/query building, JWT injection, the shared response envelope, and error
  * normalization into `ApiError`. It never knows about domain models — callers in
  * an entity/page `api` segment map the validated `data` to their domain type.
+ *
+ * Fully typed against the generated spec: the path (or the template a
+ * `ResolvedApiPath` was built from) and the method select the operation, and
+ * from it come the allowed `query` keys, the `body` shape, and the response
+ * `data` the Zod schema must be compatible with — a typo'd request field or a
+ * schema that contradicts the spec is a compile error, at the call site.
  */
-export async function apiRequest<T>(
-  path: ApiPath | ResolvedApiPath,
-  options: ApiRequestOptions<T>,
-): Promise<T> {
+export async function apiRequest<
+  P extends ApiPath,
+  T,
+  M extends ApiMethod<P> = Extract<'GET', ApiMethod<P>>,
+>(path: P | ResolvedApiPath<P>, options: ApiRequestOptions<P, M, T>): Promise<T> {
   const { method = 'GET', query, body, schema, signal } = options;
 
   let response: Response;
   try {
-    response = await fetch(buildUrl(path, query), {
+    // The spec-derived query type is an exact object; the URL builder only
+    // needs to know its values are primitives.
+    response = await fetch(buildUrl(path, query as Record<string, QueryValue> | undefined), {
       method,
       signal,
       headers: {

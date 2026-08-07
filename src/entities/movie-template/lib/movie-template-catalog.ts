@@ -8,13 +8,19 @@ import type { MovieTemplate } from '../model/movie-template';
  * past. They are ordered from the most ordinary day out to the most specific.
  *
  * A local constant with no operations behind it — see `MovieTemplate` for why.
+ *
+ * The `style` each one asks for is one of the three backend presets (2026-08-07):
+ * a walk and a cafe visit want 감성's soft transitions, a day summary wants
+ * 일상's plain cuts, and an outing wants 여행's brighter, faster ones. Two
+ * templates naming the same preset is fine — a template describes an outing, not
+ * a look.
  */
 export const MovieTemplateCatalog: readonly MovieTemplate[] = [
   {
     id: 'walk',
     name: '동네 산책',
     description: '걸으며 담은 여섯 장면',
-    style: 'calm',
+    style: 'emotional',
     bgm: 'lofi-walk',
     slots: [
       { id: 'start', label: '출발', hint: '집 앞이나 지하철 출구' },
@@ -29,7 +35,7 @@ export const MovieTemplateCatalog: readonly MovieTemplate[] = [
     id: 'day',
     name: '하루 요약',
     description: '오늘 하루를 네 장면으로',
-    style: 'plain',
+    style: 'daily',
     bgm: 'morning-tape',
     slots: [
       { id: 'morning', label: '아침', hint: '하루를 여는 컷' },
@@ -56,7 +62,7 @@ export const MovieTemplateCatalog: readonly MovieTemplate[] = [
     id: 'trip',
     name: '나들이',
     description: '멀리 다녀온 하루를 한 편으로',
-    style: 'upbeat',
+    style: 'travel',
     bgm: 'sunny-side',
     slots: [
       { id: 'leave', label: '떠나는 길', hint: '차 안, 역, 버스 창' },

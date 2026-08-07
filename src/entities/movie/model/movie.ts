@@ -6,11 +6,24 @@
 export const MovieSnapLimit = 10;
 
 /**
- * The look a movie is generated with. Four is deliberate — enough to feel like a
- * choice, few enough to pick without deliberating (concept §6 step ②). The
- * catalog is local until the backend serves `GET /styles`.
+ * The look a movie is generated with — the three presets the backend's editing
+ * pipeline actually implements, no more and no fewer (2026-08-07).
+ *
+ * It used to be four looks of the app's own invention (`calm`/`upbeat`/`plain`/
+ * `emotional`), which the backend could not honor: its presets are named for
+ * *occasions* rather than looks, and two of the four had no counterpart at all,
+ * so a mapping would have had to lie about what a run would produce.
+ *
+ * The values stay English while the backend's are Korean (`감성`/`여행`/`일상`).
+ * The correspondence is one-to-one, and the translation is the API boundary's
+ * job (`features/compose-movie/api`) — so a preset renamed on the server moves
+ * one mapping instead of every identifier, key, and test in the app.
+ *
+ * A stored movie may still carry one of the old four: the local store has no
+ * migration step. Read the style through `movieStyleOrDefault` rather than
+ * trusting this type at runtime.
  */
-export type MovieStyle = 'calm' | 'upbeat' | 'plain' | 'emotional';
+export type MovieStyle = 'emotional' | 'travel' | 'daily';
 
 /**
  * A movie's lifecycle.

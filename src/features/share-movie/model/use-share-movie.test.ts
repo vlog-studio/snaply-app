@@ -20,7 +20,7 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
     createdAt: 1_754_000_000_000,
     updatedAt: 1_754_000_000_000,
     snapRefs: [{ snapId: 's1', order: 0 }],
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',

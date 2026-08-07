@@ -57,7 +57,7 @@ function generatingMovie(overrides: Partial<Movie> = {}): Movie {
     createdAt: startedAt,
     updatedAt: startedAt,
     snapRefs: [{ snapId: 's1', order: 0 }],
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',

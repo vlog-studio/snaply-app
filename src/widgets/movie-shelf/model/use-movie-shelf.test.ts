@@ -46,7 +46,7 @@ function makeMovie(overrides: Partial<Movie> & Pick<Movie, 'id'>): Movie {
     createdAt: 1_753_200_000_000,
     updatedAt: 1_753_200_000_000,
     snapRefs: [],
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',

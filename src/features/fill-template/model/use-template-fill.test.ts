@@ -32,7 +32,7 @@ const template: MovieTemplate = {
   id: 'walk',
   name: '동네 산책',
   description: '세 장면',
-  style: 'calm',
+  style: 'emotional',
   bgm: 'lofi-walk',
   slots: [
     { id: 'start', label: '출발', hint: '집 앞' },

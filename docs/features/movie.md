@@ -46,8 +46,8 @@ what a `generating` movie shows as a read-out, and what "무비 편집하기" in
 │                         footage remains, a bar where the file ends)
 │                         + tile = 스냅 더 넣기 → /movie/[id]/add-snaps
 ├── chips                스타일 · 세부 — each opens a bottom sheet
-│                         스타일: the four style cards
-│                         세부: 배경 음악, 자동 자막, 순서 고정, 비율, 목표 길이, 완성(있으면)
+│                         스타일: the three style cards
+│                         세부: 배경 음악, 순서 고정, 비율, 목표 길이, 완성(있으면)
 └── footer               a fixed-height action slot (plus notices above it):
                           no selection — 생성: AI로 생성 시작 / 다시 시도 /
                             이 구성으로 다시 만들기 · 공유 (ready)
@@ -153,12 +153,27 @@ Available whenever no job owns the movie — the same controls settle a `draft` 
 | Store moved underneath | `Functional` | If the stored cut list changes for a reason other than this screen's own write — a snap deleted from the Snap tab, snaps appended by the picker — the undo/redo history is dropped rather than replayed onto a list it no longer describes. |
 | Edited since the render | `Functional` | The composition the user edits and the render a run produced are different objects, and only `generating` freezes edits — so a `ready` movie's cuts can lawfully drift out from under its render. The render remembers its input: `finishMovieJob` freezes the cut list into `render.snapRefs` as the job ends, and `isEditedSinceRender` (`entities/movie/lib/movie-render.ts`) compares it against the live list — snaps, sequence, and trim windows; the `order` values themselves are storage form, not composition. When they differ on a `ready` movie, a notice above the footer says the stage is playing the changed composition, not the one that was made. A render stored before the field existed has no snapshot and reads as unchanged — no notice, no restore, rather than a guess. |
 | 완성 당시 구성으로 되돌리기 | `Functional` | The notice's action puts the cut list back to the render's own composition — the durable answer to a mis-tap on a finished movie, since the screen's undo history dies with the visit and the snapshot does not. It is an ordinary commit through `saveCuts` (`useMovieCuts.restoreRenderCuts`): it obeys the same rules, lands in the undo history (the restore itself can be undone), and — like any manual reorder — locks 순서 고정 if it moved cuts on an AI-arranged movie. Deleting a snap original strips it from the snapshot exactly as from the live list (`removeSnapsEverywhere`), so restoring can never resurrect a cut with nothing to play, and a deletion alone never shows as a drift the user could undo. |
-| Style, BGM, subtitles | `Functional` | The 스타일 chip opens a sheet with the four style cards (it stays open after a pick — choosing a look is comparing looks); the 세부 chip opens a sheet with the five BGM tracks as pills (`무음` included), the captions switch, and 순서 고정. Each writes straight through; there is nothing to stage. The chips carry the current style and track, so the sheets only need opening to change something. A draft starts from the defaults or, for a template, what the template asked for. |
+| Style, BGM | `Functional` | The 스타일 chip opens a sheet with the three style cards (it stays open after a pick — choosing a look is comparing looks); the 세부 chip opens a sheet with the five BGM tracks as pills (`무음` included) and 순서 고정. Each writes straight through; there is nothing to stage. The chips carry the current style and track, so the sheets only need opening to change something. A draft starts from the defaults or, for a template, what the template asked for. |
+| Subtitles | `Not offered` | The 자동 자막 switch was removed on 2026-08-07. The backend's pipeline transcribes and inserts subtitles on **every** run and `POST /edit-jobs` carries no field to turn that off, so the switch decided nothing. `Movie.captions` is still stored — movies carry it and a real per-movie choice would land back on it — but nothing reads it. It is gone rather than shown as a permanently-on read-out, which would be a control the user cannot act on. |
 | Ratio, target length | `Functional` | Read-outs in the 세부 sheet. 9:16 is the only ratio the product has, and the length follows the trims. |
-| Catalogs | `Prototype` | Both catalogs are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
+| Catalogs | `Partial` | Both are local constants (`entities/movie/lib/movie-style.ts`, `movie-bgm.ts`) until the backend serves `GET /styles` and `GET /bgms`. The style catalog is no longer a local *invention* though (2026-08-07): its three entries are exactly the presets `POST /edit-jobs` accepts, and each card's description states what that preset's pipeline really does to the footage. The BGM catalog still is one — the backend picks a track from the preset and takes no track id. `Movie.bgm` is a plain string rather than a union so a stored movie can point at a track this build has never heard of. |
 | Rename | `Functional` | The ✎ on the back bar in the studio (watch mode reaches the same sheet through the ⋯ sheet's 이름 바꾸기), beside the title it edits, opens a sheet with the current name. Clearing it is a valid submission — the movie goes back to being called after the day it was started. Capped at `MovieTitleMaxLength` (20) on the input and in the schema, because a paste arrives past the cap without being typed. |
 
 **No style has any effect on what plays.** The settings are stored and shown; nothing is composited.
+
+### The three styles are the backend's presets (2026-08-07)
+
+`MovieStyle` used to be four looks of the app's own naming — `calm`, `upbeat`, `plain`, `emotional` — chosen before the editing backend was known. The backend implements **three** presets, named for occasions rather than looks, and two of the four had no counterpart at all, so no mapping could have described what a run would produce. The app follows the backend:
+
+| `MovieStyle` | Card | What the pipeline does | Sent as |
+| --- | --- | --- | --- |
+| `daily` (default) | 일상 · 원본 색감 · 컷 편집 | no color filter, hard cuts | `일상` |
+| `emotional` | 감성 · 차분한 색감 · 부드러운 전환 | desaturates, crossfades between cuts | `감성` |
+| `travel` | 여행 · 밝은 색감 · 빠른 컷 전환 | brightens, short hard cuts | `여행` |
+
+The identifiers stay English while the backend's preset names are Korean, and the translation is the API boundary's job — a preset renamed on the server moves one mapping instead of every identifier, key, and test in the app. `daily` is the default because it is also the preset the backend falls back to for a name it does not recognize, so the two agree.
+
+Movies stored by an older build still name a retired look, and the local store has no migration step, so every reader goes through `movieStyleOrDefault`: `emotional` keeps its movies and the other three read as `daily`. Nothing guesses at a closer match — the old looks and the new presets classify by different things, and a guess would silently restyle a movie the user had already settled. Sending an unmapped name would be a `400` from `POST /edit-jobs`.
 
 ## 순서 고정 — who arranges the cuts
 

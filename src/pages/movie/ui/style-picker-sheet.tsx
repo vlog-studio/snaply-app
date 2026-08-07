@@ -1,6 +1,11 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { MovieStyleCatalog, type Movie, type MovieStylePatch } from '@/entities/movie';
+import {
+  MovieStyleCatalog,
+  movieStyleOrDefault,
+  type Movie,
+  type MovieStylePatch,
+} from '@/entities/movie';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -20,7 +25,7 @@ export type StylePickerSheetProps = {
  * Each card writes straight through — a style is one tap, so there is nothing
  * to stage and no save button to explain. The sheet stays open after a pick:
  * choosing a look is comparing looks, and closing on the first tap would turn
- * comparison into four open-pick-reopen loops.
+ * comparison into three open-pick-reopen loops.
  */
 export function StylePickerSheet({
   visible,
@@ -30,6 +35,9 @@ export function StylePickerSheet({
   onClose,
 }: StylePickerSheetProps) {
   const theme = useTheme();
+  // A movie stored by an older build can name a style this build dropped; the
+  // card that would be selected then is the one it will actually be made with.
+  const current = movieStyleOrDefault(movie.style);
 
   return (
     <BottomSheet visible={visible} onClose={onClose} accessibilityLabel="스타일 선택">
@@ -43,7 +51,7 @@ export function StylePickerSheet({
 
         <View style={styles.grid}>
           {MovieStyleCatalog.map((option) => {
-            const selected = option.id === movie.style;
+            const selected = option.id === current;
             return (
               <Pressable
                 key={option.id}
@@ -63,7 +71,7 @@ export function StylePickerSheet({
                 ]}
               >
                 {/* Two flat tones rather than a gradient: the palette carries one
-                    accent, and four looks need four identities of their own. */}
+                    accent, and three looks need three identities of their own. */}
                 <View style={styles.swatch}>
                   <View style={[styles.swatchHalf, { backgroundColor: option.swatch[0] }]} />
                   <View style={[styles.swatchHalf, { backgroundColor: option.swatch[1] }]} />

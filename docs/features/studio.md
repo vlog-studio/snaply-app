@@ -70,10 +70,10 @@ Movie
 ├── status        draft | generating | ready | failed
 ├── createdAt, updatedAt
 ├── snapRefs[]    { snapId, order, trim? }   — per-movie order and trim; the snap original is never mutated
-├── style         calm | upbeat | plain | emotional
+├── style         emotional | travel | daily — the backend's three editing presets
 ├── bgm, ratio    track id, '9:16'
 ├── arranger?     user | ai — who owns the cut order (see the movie screen)
-├── captions      whether generation should burn in automatic subtitles
+├── captions      stored but unused — the backend subtitles every run and offers no switch
 ├── job?          { id, stepIndex, startedAt } while a generation job is in flight
 ├── render?       { uri?, renderedAt, durationSec }
 └── error?        why the last generation failed

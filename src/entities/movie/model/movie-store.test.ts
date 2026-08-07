@@ -35,7 +35,7 @@ function makeMovie(id: string, snapIds: string[]): Movie {
     createdAt: 1_753_200_000_000,
     updatedAt: 1_753_200_000_000,
     snapRefs: snapIds.map((snapId, order) => ({ snapId, order })),
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',
@@ -249,10 +249,10 @@ describe('editing a movie', () => {
   it('writes only the style settings it is given', async () => {
     const { result } = await renderHook(() => useUpdateMovieStyle());
 
-    await act(async () => result.current('m1', { style: 'upbeat' }, 999));
+    await act(async () => result.current('m1', { style: 'travel' }, 999));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
-      style: 'upbeat',
+      style: 'travel',
       bgm: 'lofi-walk',
       captions: true,
       updatedAt: 999,
@@ -263,7 +263,7 @@ describe('editing a movie', () => {
     const before = useMovieStore.getState().movies[0];
     const { result } = await renderHook(() => useUpdateMovieStyle());
 
-    await act(async () => result.current('m1', { style: 'calm', captions: true }, 999));
+    await act(async () => result.current('m1', { style: 'daily', captions: true }, 999));
 
     expect(useMovieStore.getState().movies[0]).toBe(before);
   });
@@ -284,7 +284,7 @@ describe('editing a movie', () => {
         const store = useMovieStore.getState();
         if (action === 'updateMovieCuts') store.updateMovieCuts('nope', [], 1);
         else if (action === 'renameMovie') store.renameMovie('nope', 'x', 1);
-        else store.updateMovieStyle('nope', { style: 'plain' }, 1);
+        else store.updateMovieStyle('nope', { style: 'travel' }, 1);
       });
 
       expect(useMovieStore.getState().movies).toBe(before);
@@ -427,7 +427,7 @@ describe('generating a movie', () => {
         { snapId: 's1', order: 0 },
         { snapId: 's2', order: 1 },
       ],
-      style: 'calm',
+      style: 'daily',
       bgm: 'lofi-walk',
     });
   });

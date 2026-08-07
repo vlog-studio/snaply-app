@@ -19,9 +19,16 @@ export type DetailSheetProps = {
 };
 
 /**
- * Everything about the movie that is not a cut and not the look: the sound,
- * the subtitles, who owns the cut order, and the read-outs — 비율, 목표 길이,
- * and, once there is a render, when it was finished.
+ * Everything about the movie that is not a cut and not the look: the sound, who
+ * owns the cut order, and the read-outs — 비율, 목표 길이, and, once there is a
+ * render, when it was finished.
+ *
+ * **자동 자막 is not offered (2026-08-07).** The backend's editing pipeline
+ * transcribes and inserts subtitles on every run, and `POST /edit-jobs` takes no
+ * field that could turn that off — a switch here would have decided nothing.
+ * `Movie.captions` is still stored (movies carry it, and a real per-movie choice
+ * would land back on it) but nothing reads it, so the row is gone rather than
+ * shown as a permanently-on read-out the user cannot act on.
  *
  * Every control writes straight through — nothing here is staged, so the sheet
  * can be opened, flipped, and dismissed without a save step. BGM is a row of
@@ -86,21 +93,6 @@ export function DetailSheet({
         </View>
 
         <View style={[styles.rows, { backgroundColor: theme.backgroundSelected }]}>
-          <View style={styles.row}>
-            <ThemedText type="small">자동 자막</ThemedText>
-            <Switch
-              accessibilityLabel="자동 자막"
-              disabled={!canEdit}
-              value={movie.captions}
-              onValueChange={(captions) => onChangeStyle({ captions })}
-              trackColor={{ false: theme.border, true: theme.primary }}
-              thumbColor="#FFFFFF"
-              ios_backgroundColor={theme.border}
-            />
-          </View>
-
-          <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
           <View style={styles.row}>
             <View style={styles.rowCopy}>
               <ThemedText type="small">순서 고정</ThemedText>

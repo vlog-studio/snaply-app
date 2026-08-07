@@ -59,7 +59,7 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
       { snapId: 's2', order: 1 },
       { snapId: 's3', order: 2 },
     ],
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',

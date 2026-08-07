@@ -50,7 +50,7 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
       { snapId: 's1', order: 0 },
       { snapId: 's2', order: 1 },
     ],
-    style: 'calm',
+    style: 'daily',
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',
@@ -106,14 +106,14 @@ describe('startMovieFromTemplate', () => {
     await act(async () => {
       result.current.startMovieFromTemplate({
         snapIds: ['s2', 's1'],
-        style: 'upbeat',
+        style: 'travel',
         bgm: 'sunny-side',
       });
     });
 
     expect(mockCreateMovie).toHaveBeenCalledWith({
       snapIds: ['s2', 's1'],
-      style: 'upbeat',
+      style: 'travel',
       bgm: 'sunny-side',
       arranger: 'ai',
     });
@@ -124,7 +124,7 @@ describe('startMovieFromTemplate', () => {
     const { result } = await renderHook(() => useComposeMovie());
 
     await act(async () => {
-      result.current.startMovieFromTemplate({ snapIds: ['s1'], style: 'calm', bgm: 'silence' });
+      result.current.startMovieFromTemplate({ snapIds: ['s1'], style: 'daily', bgm: 'silence' });
     });
 
     expect(mockClearTray).not.toHaveBeenCalled();
@@ -135,7 +135,7 @@ describe('startMovieFromTemplate', () => {
 
     let movie;
     await act(async () => {
-      movie = result.current.startMovieFromTemplate({ snapIds: [], style: 'calm', bgm: 'silence' });
+      movie = result.current.startMovieFromTemplate({ snapIds: [], style: 'daily', bgm: 'silence' });
     });
 
     expect(movie).toBeUndefined();
@@ -346,10 +346,10 @@ describe('saveStyle', () => {
 
     let applied;
     await act(async () => {
-      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+      applied = result.current.saveStyle('m1', { style: 'travel' });
     });
 
-    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'upbeat' });
+    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'travel' });
     expect(applied).toBe(true);
   });
 
@@ -359,11 +359,11 @@ describe('saveStyle', () => {
 
     let applied;
     await act(async () => {
-      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+      applied = result.current.saveStyle('m1', { style: 'travel' });
     });
 
     expect(applied).toBe(true);
-    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'upbeat' });
+    expect(mockUpdateMovieStyle).toHaveBeenCalledWith('m1', { style: 'travel' });
   });
 
   it('refuses a generating movie', async () => {
@@ -372,7 +372,7 @@ describe('saveStyle', () => {
 
     let applied;
     await act(async () => {
-      applied = result.current.saveStyle('m1', { style: 'upbeat' });
+      applied = result.current.saveStyle('m1', { style: 'travel' });
     });
 
     expect(applied).toBe(false);

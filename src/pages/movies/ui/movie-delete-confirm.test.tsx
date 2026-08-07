@@ -9,7 +9,7 @@ function makeSummary(overrides: Partial<MovieSummary> = {}): MovieSummary {
     id: 'm1',
     title: '\uBB34\uBE44 08-03', // 무비 08-03
     status: 'ready',
-    style: 'calm',
+    style: 'daily',
     snapCount: 3,
     totalSec: 12,
     dateLabel: '\uC624\uB298', // 오늘

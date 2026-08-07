@@ -52,9 +52,9 @@ The cost of the chosen approach is that `openapi-typescript` produces **no Zod s
 Commit the spec file into the repository at `docs/api/openapi.json` rather than generating from a live URL. The backend server does not need to be running to regenerate types, and every spec change lands as a reviewable diff. Two `package.json` scripts implement this:
 
 - `npm run api:pull` (`scripts/pull-api-spec.sh`) refreshes the committed spec from the backend's live Swagger JSON endpoint at `${EXPO_PUBLIC_API_BASE_URL}/docs/json`. The origin comes from `.env` — the same `EXPO_PUBLIC_API_BASE_URL` the app uses at runtime, so there is a single place to update when the backend moves (currently the backend developer's laptop on the local network; later a shared dev server).
-- `npm run gen:api` regenerates `src/shared/api/schema.d.ts` from the committed spec.
+- `npm run api:gen` regenerates `src/shared/api/schema.d.ts` from the committed spec.
 
-When the backend contract changes, run `npm run api:pull && npm run gen:api` and commit the spec and the regenerated `schema.d.ts` together.
+When the backend contract changes, run `npm run api:pull && npm run api:gen` and commit the spec and the regenerated `schema.d.ts` together.
 
 The edit-progress WebSocket (`/edit-jobs/:id/progress`) is not representable in OpenAPI; its contract lives in the backend repository's `docs/api-spec.md`.
 
@@ -92,8 +92,8 @@ apiRequest (typed paths)  →  entities/<e>/api: Zod parse + map  →  domain mo
 
 The original six-step introduction plan, with current status:
 
-1. ✅ `openapi-typescript` dev dependency and the `api:pull`/`gen:api` scripts (`openapi-fetch` was added, then dropped — see the 2026-08-07 amendment).
-2. ✅ Spec committed at `docs/api/openapi.json`; `npm run gen:api` produces `src/shared/api/schema.d.ts`.
+1. ✅ `openapi-typescript` dev dependency and the `api:pull`/`api:gen` scripts (`openapi-fetch` was added, then dropped — see the 2026-08-07 amendment).
+2. ✅ Spec committed at `docs/api/openapi.json`; `npm run api:gen` produces `src/shared/api/schema.d.ts`.
 3. ✅ `src/shared/api`: `apiRequest` transport, `ApiError`, `apiPath`, Public API `index.ts`.
 4. ✅ `QueryClient` and `QueryClientProvider` in `src/_app/providers`.
 5. 🔄 Entity `api` segments: `entities/location/api` exists (DTO schema + mapper + mock routing via `USE_MOCK_API`); the remaining entities (video, edit-job, profile, subscription, SNS connection) are added as their features land.

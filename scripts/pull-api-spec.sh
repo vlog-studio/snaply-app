@@ -16,4 +16,4 @@ fi
 
 curl -fsS "${EXPO_PUBLIC_API_BASE_URL}/docs/json" -o docs/api/openapi.json
 echo "Saved docs/api/openapi.json from ${EXPO_PUBLIC_API_BASE_URL}/docs/json"
-echo "Next: npm run gen:api, then commit the spec and schema.d.ts together."
+echo "Next: npm run api:gen, then commit the spec and schema.d.ts together."

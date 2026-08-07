@@ -17,7 +17,7 @@ docs/guides/**/*.html
 # undone by the next download, so leave it exactly as the console produces it.
 google-services.json
 
-# Generated verbatim by openapi-typescript (npm run gen:api). Formatting it
+# Generated verbatim by openapi-typescript (npm run api:gen). Formatting it
 # would be undone by the next regeneration.
 src/shared/api/schema.d.ts
 

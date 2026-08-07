@@ -85,7 +85,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "api:pull": "bash scripts/pull-api-spec.sh",
-    "gen:api": "openapi-typescript docs/api/openapi.json -o src/shared/api/schema.d.ts",
+    "api:gen": "openapi-typescript docs/api/openapi.json -o src/shared/api/schema.d.ts",
     "test": "jest --watch",
     "test:ci": "jest --ci --runInBand"
   },

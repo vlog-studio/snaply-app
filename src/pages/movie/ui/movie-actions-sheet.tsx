@@ -158,7 +158,15 @@ export type ActionRowProps = {
 };
 
 /** One row of a sheet's action group — shared by this slice's sheets. */
-export function ActionRow({ icon, label, note, disabled, danger, divider, onPress }: ActionRowProps) {
+export function ActionRow({
+  icon,
+  label,
+  note,
+  disabled,
+  danger,
+  divider,
+  onPress,
+}: ActionRowProps) {
   const theme = useTheme();
   const color = danger ? theme.danger : theme.text;
 

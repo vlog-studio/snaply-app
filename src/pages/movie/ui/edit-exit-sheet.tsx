@@ -37,7 +37,13 @@ export type EditExitSheetProps = {
  * visit's — does not reopen this sheet: watch mode's notice keeps standing
  * for it.
  */
-export function EditExitSheet({ visible, onRemake, onKeep, onDiscard, onClose }: EditExitSheetProps) {
+export function EditExitSheet({
+  visible,
+  onRemake,
+  onKeep,
+  onDiscard,
+  onClose,
+}: EditExitSheetProps) {
   const theme = useTheme();
 
   return (

@@ -14,13 +14,11 @@
 | --- | --- | --- |
 | 1. 스타일 3종(백엔드 프리셋)으로 교체 | ✅ | `6b5b85c` |
 | 2. 자동 자막 토글 감추기 | ✅ | `6b5b85c` |
-| 3. WS·REST API 세그먼트 | ✅ | 미커밋 |
-| 4. 생성 흐름을 서버 job으로 교체 | ✅ | 미커밋 |
-| 5. 렌더된 결과 재생 | ✅ 5-1만 (5-2 공유는 미해결) | 미커밋 |
-| 6. trim·출력 프로필 전송 | ✅ 앱 구현 완료(실서버 검증 전) | 미커밋 |
-| 7. 실기기·실서버 검증 | ⬜ | — |
-
-3·4단계는 아직 커밋 전입니다. 검증 전에 커밋을 나눌지는 작업자 판단.
+| 3. WS·REST API 세그먼트 | ✅ | `ee640f7` |
+| 4. 생성 흐름을 서버 job으로 교체 | ✅ | `ee640f7` |
+| 5. 렌더된 결과 재생 | ✅ 5-1·5-1b 재생 검증 완료 (5-2 공유는 미해결) | `4b952b6` |
+| 6. trim·출력 프로필 전송 | ✅ 전송·9:16 검증 완료 (트림 반영 여부는 미확인) | `b58ba9a` |
+| 7. 실기기·실서버 검증 | 🔶 진행 중 (5장) | — |
 
 6단계는 원래 "trim 미반영 안내"였습니다. 2026-08-10 명세 갱신으로 `POST /edit-jobs`가 컷별 구간을 받게 돼서, 안내를 붙이는 일에서 **실제로 전송하는 일**로 바뀌었습니다(→ 4장). 5단계보다 싸고 검증도 같이 되므로 5단계보다 먼저 하는 편이 낫습니다.
 
@@ -28,7 +26,7 @@
 
 ## 1.5. 2026-08-10 API 명세 갱신 요약
 
-`docs/api/openapi.json`·`src/shared/api/schema.d.ts`가 갱신됐습니다(미커밋). 바뀐 것은 `/edit-jobs` 두 엔드포인트뿐이고 `/videos`, `/videos/upload-url`, billing, sns는 그대로이며 WebSocket 계약도 변동 없습니다(백엔드 `docs/api-spec.md` 기준).
+`docs/api/openapi.json`·`src/shared/api/schema.d.ts`가 갱신됐습니다(`b58ba9a`). 바뀐 것은 `/edit-jobs` 두 엔드포인트뿐이고 `/videos`, `/videos/upload-url`, billing, sns는 그대로이며 WebSocket 계약도 변동 없습니다(백엔드 `docs/api-spec.md` 기준).
 
 **`POST /edit-jobs` 요청 body**
 
@@ -55,7 +53,7 @@ fitMode?: contain | cover | blur_background                                     
 
 ## 2. 5단계 — 렌더된 결과 재생
 
-### 5-1. 단일 원격 영상 재생 분기 ✅ (2026-08-10, 미커밋)
+### 5-1. 단일 원격 영상 재생 분기 ✅ (2026-08-10, `4b952b6`)
 
 구현됐습니다. watch 모드만 파일을 재생합니다("완성본을 본다 = 파일, 고친다 = 내 컷").
 
@@ -65,15 +63,15 @@ fitMode?: contain | cover | blur_background                                     
 - `editedSinceRender` 드리프트 안내는 그대로 유효합니다(재생되는 것이 지금 컷 구성이 아니라는 사실이 파일 재생에서 더 정확해짐).
 - 스튜디오 스테이지는 의도적으로 컷 재생 유지 — 단, 프리뷰에 BGM·자막·스타일이 없다는 고지가 없다는 부채는 `movie.md` Known limitations에 남김.
 
-### 5-1b. fresh URL 재조회 ✅ (2026-08-10, 미커밋) — ⚠️ 백엔드 작업 필요
+### 5-1b. fresh URL 재조회 ✅ (2026-08-10, `4b952b6` · 실서버 검증 완료)
 
-첫 실기기 재생에서 AccessDenied: 워커가 `edited_url`에 **비서명 객체 URL**을 저장하고 API가 그대로 돌려주는데 버킷은 비공개입니다. **백엔드가 `GET /videos/{id}` 응답 시점에 presigned GET URL을 만들어 주도록 바꿔야 합니다** (`apps/api/src/services/storage.service.ts`의 presign 인프라를 `GetObjectCommand`로 재사용; 버킷 public-read는 사용자 영상이라 비권장).
+첫 실기기 재생에서 AccessDenied가 났던 문제: 워커가 `edited_url`에 비서명 객체 URL을 저장하고 API가 그대로 돌려주는데 버킷은 비공개였습니다. **백엔드가 `GET /videos/{id}` 응답 시점에 presigned GET URL을 발급하도록 수정됐고, 실기기에서 재생까지 확인했습니다(2026-08-10). 결과물은 9:16 세로(1080×1920) — 6-2의 `outputProfile` 전송도 이 재생으로 검증됐습니다.**
 
-presigned URL은 만료되므로 앱은 저장된 `render.uri`를 영구 신뢰할 수 없습니다. 앱 쪽 대비는 구현 완료:
+presigned URL은 만료되므로 앱은 저장된 `render.uri`를 영구 신뢰하지 않습니다:
 
-- `MovieRender.videoId` 추가 — 결과 영상의 서버 id가 렌더에 남습니다(finish-time 조회가 실패해도 저장).
-- `features/compose-movie`의 `useRenderSource` + `editedVideoQueries` — watch 모드 진입마다 `GET /videos/{id}`로 fresh URL을 다시 받아 재생. 실패 시 저장된 uri로 폴백, fresh 응답이 "파일 없음"이면 컷 재생으로.
-- 백엔드가 presign을 넣기 전까지는 fresh URL도 지금과 같은 비서명 URL이라 **여전히 AccessDenied**입니다. 앱은 준비됐고, 백엔드 수정만 남았습니다.
+- `MovieRender.videoId` — 결과 영상의 서버 id가 렌더에 남습니다(finish-time 조회가 실패해도 저장).
+- `useRenderSource` + `editedVideoQueries` — watch 모드 진입마다 `GET /videos/{id}`로 fresh URL을 다시 받아 재생. 실패 시 저장된 uri로 폴백, fresh 응답이 "파일 없음"이면 컷 재생으로.
+- ⚠️ **2026-08-10 이전에 완성된 무비는 `videoId`가 없어 복구 불가** — 저장된 비서명 URL로 폴백하고, 그 링크는 이제 AccessDenied입니다(URL 경로의 id는 jobId라 역산도 안 됨). 한 번 재생성하는 것이 복구 방법입니다. `movie.md` Known limitations에 기록.
 
 ### 5-2. 공유가 실제로 동작하게 만들기 ⚠️ (5-1 이후 더 급해짐)
 
@@ -95,7 +93,7 @@ presigned URL은 만료되므로 앱은 저장된 `render.uri`를 영구 신뢰�
 
 ## 3. 6단계 — trim·출력 프로필 전송
 
-**6-1·6-2는 2026-08-10 구현 완료(미커밋).** `create-edit-job.ts`가 `clips` + `outputProfile`/`fitMode`를 보내고, `use-compose-movie.ts`의 `remoteVideoIds`는 컷의 trim을 함께 모으는 `remoteClips`가 됐습니다. 전체 테스트 712건 통과, `tsc` 클린. `fitMode`는 서버 기본값과 같은 `blur_background`로 두었으므로 **렌더 결과는 아직 바뀌지 않은 상태이며, 제품 결정은 그대로 열려 있습니다.** 남은 것은 6-3(워커 미반영 확인 시 안내)과 실서버 검증입니다.
+**6-1·6-2는 2026-08-10 구현 완료(`b58ba9a`).** `create-edit-job.ts`가 `clips` + `outputProfile`/`fitMode`를 보내고, `use-compose-movie.ts`의 `remoteVideoIds`는 컷의 trim을 함께 모으는 `remoteClips`가 됐습니다. 전체 테스트 712건 통과, `tsc` 클린. `fitMode`는 서버 기본값과 같은 `blur_background`로 두었으므로 **렌더 결과는 아직 바뀌지 않은 상태이며, 제품 결정은 그대로 열려 있습니다.** 남은 것은 6-3(워커 미반영 확인 시 안내)과 실서버 검증입니다.
 
 ### 6-1. `videoIds` → `clips` ✅
 
@@ -132,8 +130,8 @@ presigned URL은 만료되므로 앱은 저장된 `render.uri`를 영구 신뢰�
 
 | 항목 | 현재 | 필요한 것 | 진행 |
 | --- | --- | --- | --- |
-| **결과 파일 URL presign** ⚠️ | 워커가 비서명 객체 URL을 저장, API가 그대로 반환 → 비공개 버킷이라 AccessDenied, **완성본 재생이 전부 막힘** | `GET /videos/{id}` 응답 시점에 `editedUrl`/`thumbnailUrl`을 presigned GET으로 발급 (→ 5-1b) | 미착수. 앱은 fresh 재조회로 대비 완료 |
-| **9:16 세로 렌더** | `pipeline/render_spec.py`의 `PROFILE_V1`이 `short_vertical = 1080×1920`을 정의하고 워커가 `renderSpec`대로 렌더 | — | ✅ 스펙·워커 모두 구현됨. 실서버 결과물 확인만 남음 |
+| **결과 파일 URL presign** | ~~비서명 URL이라 AccessDenied~~ → `GET /videos/{id}` 응답 시점 presign 발급으로 수정됨 | — | ✅ 2026-08-10 실기기 재생으로 검증 완료 |
+| **9:16 세로 렌더** | `pipeline/render_spec.py`의 `PROFILE_V1`이 `short_vertical = 1080×1920`을 정의하고 워커가 `renderSpec`대로 렌더 | — | ✅ 2026-08-10 실기기 재생으로 결과물 확인 완료 |
 | **trim 전송** | 명세는 `clips: [{videoId, startMs, endMs}]`를 받지만 워커(`worker.py`)는 `stylePreset`만 읽음 | 워커가 컷별 구간을 실제로 잘라내기 | ⚠️ 명세만 선반영된 것으로 보임 — 1.5장 확인 필요 |
 | 완료 후 재접속 시 `outputUrl` | `done` 분기가 `{progress:100, step:'완료'}`만 보내고 닫음 | 있으면 좋음. 없어도 앱이 REST 폴백으로 처리 중 | 미요청 |
 | BGM 선택 | 프리셋이 트랙을 결정 | 트랙 id를 받을지 여부 (제품 판단) | 미정 |
@@ -167,11 +165,12 @@ JS 테스트로는 증명되지 않는 것들입니다. 지금까지 **실서버
 - [ ] 무료 플랜 월 3편 초과 → 백엔드 메시지가 그대로 노출되는가
 - [ ] 실패한 job → 서버 사유가 푸터에 남는가
 - [ ] 생성 중 마지막 스냅 원본 삭제 → 로컬 실패 처리
-- [ ] 결과 영상이 실제로 9:16(1080×1920)인가
+- [x] ~~결과 영상이 실제로 9:16(1080×1920)인가~~ — 2026-08-10 실기기 재생으로 확인
 - [ ] `GET /edit-jobs/{id}`의 `renderSpec`이 앱이 보낸 `outputProfile`/`fitMode`를 그대로 되돌려주는가
 - [ ] 6단계 완료 후: **트림한 컷이 실제로 잘려서 렌더되는가** (여기서 워커 반영 여부가 판명됩니다)
 - [ ] 6단계 완료 후: 가로로 찍은 스냅의 `fitMode` 결과가 의도한 모양인가
-- [ ] 5단계 완료 후: 원격 파일 재생, 공유 시트
+- [x] ~~원격 파일 재생~~ — 2026-08-10 확인 (presign 발급 + fresh URL 재조회 경로로 재생)
+- [ ] 공유 시트 (5-2 구현 후)
 
 검증 결과는 `docs/features/movie.md`에 기록하고, 구현 상태(`Prototype`/`Partial`/`Functional`)를 실제에 맞게 올리세요.
 
@@ -189,11 +188,11 @@ JS 테스트로는 증명되지 않는 것들입니다. 지금까지 **실서버
 ## 7. 완료 후 정리
 
 - [ ] 갱신된 `docs/api/openapi.json`·`src/shared/api/schema.d.ts` 커밋
-- [x] ~~5-1 구현 및 문서 반영 (원격 파일 재생)~~ — 2026-08-10 완료
+- [x] ~~5-1 구현 및 문서 반영 (원격 파일 재생)~~ — 2026-08-10 완료, 실서버 재생 검증까지 완료
 - [ ] 5-2 구현 및 문서 반영 (공유: 다운로드 후 로컬 경로 공유)
 - [x] ~~6단계 구현 및 문서 반영 (`clips` 전송 + `outputProfile`/`fitMode` 명시)~~ — 2026-08-10 완료(6-3은 워커 확인 후)
 - [ ] `fitMode` 결정 기록 (`blur_background` 유지 vs `contain`)
-- [ ] 백엔드 9:16 렌더 결과물 확인
+- [x] ~~백엔드 9:16 렌더 결과물 확인~~ — 2026-08-10 확인
 - [ ] 백엔드 워커의 trim 반영 확인 (미반영이면 6-3 안내 유지 결정 기록)
 - [ ] 실기기·실서버 검증 완료 및 `docs/features/movie.md`에 결과 기록
 - [ ] **이 파일 삭제**

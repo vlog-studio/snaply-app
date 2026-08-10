@@ -80,8 +80,6 @@ export function RenderPlayer({ uri, style }: RenderPlayerProps) {
   const overlayIcon = isEnded ? 'refresh' : isPlaying ? 'pause' : 'play';
   const overlayLabel = isEnded ? '무비 다시 재생' : isPlaying ? '일시정지' : '재생';
 
-  console.log('URI:', uri);
-
   return (
     <View style={[styles.stage, { backgroundColor: theme.media }, style]}>
       <VideoView

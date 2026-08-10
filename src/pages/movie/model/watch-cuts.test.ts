@@ -64,7 +64,11 @@ describe('watchDurationSec', () => {
     // The file outlives the snaps it was made from: with every original (and
     // so the snapshot) gone, the stage still plays `render.uri`, and the cut
     // sum would put 0초 beside a movie that runs.
-    const movie = makeMovie([], { uri: 'https://cdn.example/m.mp4', durationSec: 18, snapRefs: [] });
+    const movie = makeMovie([], {
+      uri: 'https://cdn.example/m.mp4',
+      durationSec: 18,
+      snapRefs: [],
+    });
     expect(watchDurationSec(movie, [])).toBe(18);
   });
 

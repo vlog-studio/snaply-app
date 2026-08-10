@@ -446,7 +446,9 @@ describe('generating a movie', () => {
     await act(async () => result.current.finish('m1', render, 999));
     const before = useMovieStore.getState().movies[0];
 
-    await act(async () => result.current.setThumbnail('m1', render.renderedAt - 1, 'file:///old.jpg'));
+    await act(async () =>
+      result.current.setThumbnail('m1', render.renderedAt - 1, 'file:///old.jpg'),
+    );
 
     expect(useMovieStore.getState().movies[0]).toBe(before);
   });

@@ -160,7 +160,11 @@ describe('startMovieFromTemplate', () => {
 
     let movie;
     await act(async () => {
-      movie = result.current.startMovieFromTemplate({ snapIds: [], style: 'daily', bgm: 'silence' });
+      movie = result.current.startMovieFromTemplate({
+        snapIds: [],
+        style: 'daily',
+        bgm: 'silence',
+      });
     });
 
     expect(movie).toBeUndefined();
@@ -617,7 +621,8 @@ describe('startGeneration', () => {
   // A 403 is an ownership problem or the free plan's cap, and only the message
   // says which — so it is carried through rather than reworded.
   it('reports the backend’s own words when it refuses the run', async () => {
-    const reason = '\uBB34\uB8CC \uD50C\uB79C\uC740 \uC6D4 3\uD3B8\uAE4C\uC9C0 \uD3B8\uC9D1\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.';
+    const reason =
+      '\uBB34\uB8CC \uD50C\uB79C\uC740 \uC6D4 3\uD3B8\uAE4C\uC9C0 \uD3B8\uC9D1\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.';
     // 무료 플랜은 월 3편까지 편집할 수 있습니다.
     mockCreateEditJob.mockRejectedValue(new ApiError(reason, 403));
     const { result } = await renderHook(() => useComposeMovie());

@@ -32,7 +32,11 @@ const StyleOptions: Record<MovieStyle, Omit<MovieStyleOption, 'id'>> = {
     description: '차분한 색감 · 부드러운 전환',
     swatch: ['#7A5A8C', '#301F3C'],
   },
-  travel: { label: '여행', description: '밝은 색감 · 빠른 컷 전환', swatch: ['#C4562A', '#6B2A12'] },
+  travel: {
+    label: '여행',
+    description: '밝은 색감 · 빠른 컷 전환',
+    swatch: ['#C4562A', '#6B2A12'],
+  },
 };
 
 /** Presentation order, `daily` first as the default. */

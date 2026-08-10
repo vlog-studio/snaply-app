@@ -11,16 +11,17 @@ jest.mock('@/shared/api', () => ({
 
 /** A server response with the fields the app reads, overridable per case. */
 function respondWith(dto: Record<string, unknown>) {
-  mockApiRequest.mockImplementationOnce((_path: string, options: { schema: { parse: (v: unknown) => unknown } }) =>
-    Promise.resolve(
-      options.schema.parse({
-        status: 'processing',
-        progress: 40,
-        videoId: 'result-1',
-        errorMessage: null,
-        ...dto,
-      }),
-    ),
+  mockApiRequest.mockImplementationOnce(
+    (_path: string, options: { schema: { parse: (v: unknown) => unknown } }) =>
+      Promise.resolve(
+        options.schema.parse({
+          status: 'processing',
+          progress: 40,
+          videoId: 'result-1',
+          errorMessage: null,
+          ...dto,
+        }),
+      ),
   );
 }
 
@@ -33,10 +34,13 @@ describe('getEditJob', () => {
     expect(mockApiRequest.mock.calls[0][0]).toBe('/edit-jobs/job-1');
   });
 
-  it.each(['queued', 'processing', 'done', 'failed'])('keeps the known status %s', async (status) => {
-    respondWith({ status });
-    await expect(getEditJob('job-1')).resolves.toMatchObject({ status });
-  });
+  it.each(['queued', 'processing', 'done', 'failed'])(
+    'keeps the known status %s',
+    async (status) => {
+      respondWith({ status });
+      await expect(getEditJob('job-1')).resolves.toMatchObject({ status });
+    },
+  );
 
   // "Keep waiting" is the only answer that cannot lose a result: `failed` would
   // throw one away and `done` would claim a file that may not exist.

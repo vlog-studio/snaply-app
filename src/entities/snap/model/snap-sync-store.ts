@@ -96,7 +96,10 @@ export const useSnapSyncStore = create<SnapSyncState>()(
             }
             if (entry.status === 'uploaded') tombstoned.push(entry.videoId);
           }
-          if (tombstoned.length === 0 && Object.keys(entries).length === Object.keys(state.entries).length) {
+          if (
+            tombstoned.length === 0 &&
+            Object.keys(entries).length === Object.keys(state.entries).length
+          ) {
             return state;
           }
           return {

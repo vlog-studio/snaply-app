@@ -307,7 +307,10 @@ describe('useGenerationRunner', () => {
       await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('\uC2A4\uB0C5 \uC6D0\uBCF8')); // 스냅 원본
+    expect(mockFail).toHaveBeenCalledWith(
+      'm1',
+      expect.stringContaining('\uC2A4\uB0C5 \uC6D0\uBCF8'),
+    ); // 스냅 원본
     expect(mockGetEditJob).not.toHaveBeenCalled();
   });
 

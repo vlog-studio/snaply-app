@@ -133,7 +133,10 @@ describe('useUploadWorker', () => {
 
   it('uploads the oldest snap first', async () => {
     fakeStore.setState({
-      snaps: [makeSnap({ id: 'newer', capturedAt: 200 }), makeSnap({ id: 'older', capturedAt: 100 })],
+      snaps: [
+        makeSnap({ id: 'newer', capturedAt: 200 }),
+        makeSnap({ id: 'older', capturedAt: 100 }),
+      ],
     });
     mockRequestUploadUrl
       .mockResolvedValueOnce({ videoId: 'video-older', uploadUrl: 'https://storage/a' })

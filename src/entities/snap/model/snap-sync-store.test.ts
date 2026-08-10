@@ -133,9 +133,9 @@ describe('snap sync store', () => {
       deleteTombstones: ['video-4'],
     });
 
-    const persisted = useSnapSyncStore.persist.getOptions().partialize?.(
-      useSnapSyncStore.getState(),
-    );
+    const persisted = useSnapSyncStore.persist
+      .getOptions()
+      .partialize?.(useSnapSyncStore.getState());
 
     expect(persisted).toEqual({
       entries: {

@@ -123,7 +123,10 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
      * must not claim a length no cut can play.
      */
     const cutsSec = (movie: Movie) =>
-      cutsDurationSec(movie.snapRefs, (snapId) => latest.current.snapIndex.get(snapId)?.durationSec);
+      cutsDurationSec(
+        movie.snapRefs,
+        (snapId) => latest.current.snapIndex.get(snapId)?.durationSec,
+      );
 
     const fail = (movie: Movie, error: string) => {
       settled.add(movie.id);

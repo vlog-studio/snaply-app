@@ -141,7 +141,6 @@ export function RecordingLibrary({
             );
           }}
         />
-
       </View>
     </Modal>
   );

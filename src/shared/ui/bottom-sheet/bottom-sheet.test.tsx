@@ -43,4 +43,9 @@ describe('BottomSheet', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  // The deferred unmount (the Modal staying up until the close animation
+  // finishes) is not asserted here: Jest never delivers a layout pass, so the
+  // panel is never measured, the slide never starts, and the close resolves on
+  // the same tick. Verify the enter/exit motion on device instead.
 });

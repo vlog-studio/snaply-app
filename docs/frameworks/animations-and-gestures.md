@@ -29,6 +29,7 @@ Imitate the closest existing implementation instead of inventing a new shape.
 | One-shot choreography with a completion callback | `src/pages/capture-record/ui/capture-flight.tsx` | `withTiming` + `runOnJS` completion; callback held in a ref so the worklet never captures a stale closure |
 | Gesture/state-driven progress indicator | `src/pages/capture-record/ui/hold-ring.tsx` | Shared value + `useAnimatedProps` on an SVG element; fills while a prop is true, rewinds on release |
 | Positional reflow of in-flow items (FLIP) | `src/pages/movie/ui/timeline-cut.tsx` (`shiftX`) | Flex still owns placement; when an item's slot index changes it is pulled back by `oldX - newX` via a translate shared value and sprung to 0. The comparison and the write happen **inside `useAnimatedStyle`**, not in a JS effect: the worklet re-evaluates on the UI thread in the same update that delivers the new layout, where an effect runs after paint and flashes the item at its destination for a frame first. Keyed to the *slot* changing — not the coordinate — so layout shifts that already animated live (a neighbour's trim drag) are not replayed |
+| Sheet enter/exit inside a `Modal` | `src/shared/ui/bottom-sheet/bottom-sheet.tsx` | Two independent shared values over `animationType="none"`: the panel slides on `translateY` while the backdrop only fades, because the Modal's own `slide` animates the whole window and drags the dimming layer up with the panel. The travel distance is the panel's own `onLayout` height, so the panel holds `opacity: 0` until the first layout pass and the slide starts from the layout callback; the measurement is cleared when the close completes so the next open re-measures. Mount outlives `visible` — the Modal unmounts from the close animation's completion callback (`runOnJS`), while opening (and a reduced-motion close) adjust mount state during render rather than in an effect, which the compiler lint rejects |
 | Splash exit | `src/_app/routes/animated-splash-overlay.tsx` | The one `Keyframe`/`entering` usage in the app (see the Expo Go caveat below before adding another) |
 
 > The drag-reorder grid (`cut-sheet-grid.tsx` + `reorder-layout.ts`) was removed with
@@ -76,12 +77,19 @@ unit-testable — verify it on device and test the math instead.
 ### Work around the React Compiler lint, structurally
 
 `eslint-plugin-react-hooks` (compiler-powered) rejects shared-value `.value` writes
-it thinks happen during render: inside `useMemo`, and inside gesture-builder
-callbacks (`Gesture.Pan().onStart(...)`) defined in the component body. `'use no
+it thinks happen during render: inside `useMemo`, inside gesture-builder
+callbacks (`Gesture.Pan().onStart(...)`) defined in the component body, and inside
+any other callback declared there (a `useCallback` animation starter, an `onLayout`
+handler — `bottom-sheet.tsx` hit both). `'use no
 memo'` does **not** silence it. The accepted fix is structural: build the gesture in
 a plain module-level factory that takes the shared values as arguments
-(`buildDragGesture` did this). Writes inside `useEffect`,
-`useAnimatedReaction`, and `useAnimatedStyle` are fine.
+(`buildDragGesture` did this; `bottom-sheet.tsx`'s `drivePanelIn`/`driveClose` are
+the same fix for plain animation starters). Writes inside `useEffect`,
+`useAnimatedReaction`, and `useAnimatedStyle` are fine. The neighbouring
+`react-hooks` rule against synchronous `setState` in an effect bites the same
+components: a mount flag that must flip in the same commit as the animation start
+is adjusted during render (`if (visible && !mounted) setMounted(true)`), and the
+deferred unmount comes from the animation's `runOnJS` completion callback.
 
 ### Gestures inside scrollables
 
@@ -157,6 +165,9 @@ The house style is fast and settled — film equipment, not rubber:
 
 - Fades/mount motion: `withTiming`, 280–600ms, `Easing.out(Easing.cubic)`.
 - Micro state changes (lift scale): ~120ms timing.
+- Sheet presentation: panel 320ms in / 220ms out, backdrop 200ms in / 260ms out —
+  the panel leads on the way in and the dimming trails it out, so the two never
+  look welded together.
 - Positional reflow (a reordered item gliding to its new slot):
   near-critically-damped springs — `{ damping: 44, stiffness: 300 }`, live in the
   app as `timeline-cut.tsx`'s `ReorderSpring` (carried over from the removed

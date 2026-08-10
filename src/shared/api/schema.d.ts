@@ -1016,10 +1016,27 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        videoIds: string[];
+                        clips?: {
+                            /** Format: uuid */
+                            videoId: string;
+                            /** @default 0 */
+                            startMs?: number;
+                            endMs?: number;
+                        }[];
+                        videoIds?: string[];
                         /** @enum {string} */
                         stylePreset: "감성" | "여행" | "일상";
-                    };
+                        /**
+                         * @default short_vertical
+                         * @enum {string}
+                         */
+                        outputProfile?: "short_vertical" | "youtube_landscape" | "instagram_portrait" | "square";
+                        /**
+                         * @default blur_background
+                         * @enum {string}
+                         */
+                        fitMode?: "contain" | "cover" | "blur_background";
+                    } & (unknown | unknown);
                 };
             };
             responses: {
@@ -1160,6 +1177,35 @@ export interface paths {
                                 id: string;
                                 /** Format: uuid */
                                 videoId: string;
+                                pipelineVersion: string;
+                                editSpec: {
+                                    /** @enum {integer} */
+                                    version: 1;
+                                    /** @enum {string} */
+                                    stylePreset: "감성" | "여행" | "일상";
+                                } | {
+                                    /** @enum {integer} */
+                                    version: 2;
+                                    /** @enum {string} */
+                                    stylePreset: "감성" | "여행" | "일상";
+                                    clips: {
+                                        /** Format: uuid */
+                                        videoId: string;
+                                        startMs: number;
+                                        endMs?: number;
+                                    }[];
+                                };
+                                renderSpec: {
+                                    /** @enum {integer} */
+                                    profileVersion: 1;
+                                    /** @enum {string} */
+                                    outputProfile: "short_vertical" | "youtube_landscape" | "instagram_portrait" | "square";
+                                    width: number;
+                                    height: number;
+                                    fps: number;
+                                    /** @enum {string} */
+                                    fitMode: "contain" | "cover" | "blur_background";
+                                };
                                 /** @enum {string} */
                                 status: "queued" | "processing" | "done" | "failed";
                                 progress: number;

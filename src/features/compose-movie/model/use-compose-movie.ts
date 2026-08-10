@@ -19,7 +19,7 @@ import { getSnapSyncEntries, useSnapIndex } from '@/entities/snap';
 import { useClearTray, useTraySnapIds } from '@/entities/tray';
 import { ApiError } from '@/shared/api';
 
-import { createEditJob } from '../api/create-edit-job';
+import { createEditJob, type EditJobClip } from '../api/create-edit-job';
 
 /**
  * Why a cut edit was refused, or `undefined` when it landed.
@@ -126,28 +126,29 @@ function arrangeByCaptureTime(
 }
 
 /**
- * The cuts' ids on the server, in cut order — or `undefined` when one of them has
- * not got there yet.
+ * The run's cuts — each one's id on the server and the window of it to use, in
+ * cut order — or `undefined` when one of them has not got there yet.
  *
- * The mapping lives on `entities/snap`'s sync store, which is where the upload
+ * The id mapping lives on `entities/snap`'s sync store, which is where the upload
  * worker writes the id each snap earned. Read at call time rather than
  * subscribed to: this answers "can this run start *now*", and a stale answer
  * would either refuse a movie that just finished uploading or send an id that
- * does not exist yet.
+ * does not exist yet. The trim comes from the cut itself, so what the user
+ * shortened on the timeline is what the server renders.
  *
  * All-or-nothing on purpose. `POST /edit-jobs` refuses the whole batch when one
  * source is missing, and half a movie is not a movie the user asked for.
  */
-function remoteVideoIds(snapRefs: readonly SnapRef[]): string[] | undefined {
+function remoteClips(snapRefs: readonly SnapRef[]): EditJobClip[] | undefined {
   const entries = getSnapSyncEntries();
   const ordered = [...snapRefs].sort((left, right) => left.order - right.order);
-  const videoIds: string[] = [];
+  const clips: EditJobClip[] = [];
   for (const ref of ordered) {
     const entry = entries[ref.snapId];
     if (entry?.status !== 'uploaded') return undefined;
-    videoIds.push(entry.videoId);
+    clips.push({ videoId: entry.videoId, ...(ref.trim ? { trim: ref.trim } : null) });
   }
-  return videoIds;
+  return clips;
 }
 
 /**
@@ -337,19 +338,29 @@ export function useComposeMovie() {
         }
       }
 
-      const videoIds = remoteVideoIds(snapRefs);
-      if (!videoIds) return { started: false, refused: 'uploading' };
+      const clips = remoteClips(snapRefs);
+      if (!clips) return { started: false, refused: 'uploading' };
 
       let jobId: string;
       try {
-        jobId = await createEditJob({ videoIds, style: movie.style });
+        jobId = await createEditJob({ clips, style: movie.style });
       } catch (error) {
         // A refusal the backend can explain is reported in its own words; a
         // transport failure is not the user's to interpret.
         if (error instanceof ApiError && error.status === 403) {
           return { started: false, refused: 'rejected', message: error.message };
         }
-        if (__DEV__) console.warn(`[compose-movie] could not queue ${movieId}:`, String(error));
+        // The status and code are logged, not just the message: everything that
+        // is not a 403 lands in one refusal the user is told is a connection
+        // problem, and a 401, a 429 (the endpoint allows five runs a minute), and
+        // a genuinely unreachable server are indistinguishable on screen.
+        if (__DEV__) {
+          const detail =
+            error instanceof ApiError
+              ? `${error.status ?? '-'} ${error.code}: ${error.message}`
+              : String(error);
+          console.warn(`[compose-movie] could not queue ${movieId}: ${detail}`);
+        }
         return { started: false, refused: 'unreachable' };
       }
 

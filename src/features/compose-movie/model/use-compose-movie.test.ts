@@ -545,7 +545,7 @@ describe('startGeneration', () => {
     expect(outcome).toEqual({ started: false, refused: 'frozen' });
   });
 
-  it('sends the cut ids in cut order, which is the only channel the order has', async () => {
+  it('sends the cuts in cut order, which is the only channel the order has', async () => {
     mockGetMovieById.mockReturnValue(
       makeMovie({
         arranger: 'user',
@@ -561,7 +561,34 @@ describe('startGeneration', () => {
       await result.current.startGeneration('m1');
     });
 
-    expect(mockCreateEditJob).toHaveBeenCalledWith({ videoIds: ['v2', 'v1'], style: 'daily' });
+    expect(mockCreateEditJob).toHaveBeenCalledWith({
+      clips: [{ videoId: 'v2' }, { videoId: 'v1' }],
+      style: 'daily',
+    });
+  });
+
+  // What the user shortened on the timeline is what the run renders — the trim
+  // travels with the cut it belongs to, not as a separate list to line up.
+  it('sends each cut’s trim window with it', async () => {
+    mockGetMovieById.mockReturnValue(
+      makeMovie({
+        arranger: 'user',
+        snapRefs: [
+          { snapId: 's1', order: 0, trim: { startSec: 0.5, endSec: 2 } },
+          { snapId: 's2', order: 1 },
+        ],
+      }),
+    );
+    const { result } = await renderHook(() => useComposeMovie());
+
+    await act(async () => {
+      await result.current.startGeneration('m1');
+    });
+
+    expect(mockCreateEditJob).toHaveBeenCalledWith({
+      clips: [{ videoId: 'v1', trim: { startSec: 0.5, endSec: 2 } }, { videoId: 'v2' }],
+      style: 'daily',
+    });
   });
 
   // The run is made from the server's copies, and `POST /edit-jobs` refuses the

@@ -19,24 +19,73 @@ const StylePresets: Record<MovieStyle, '감성' | '여행' | '일상'> = {
   daily: '일상',
 };
 
+/**
+ * The shape and the ratio the render is asked for.
+ *
+ * Sent explicitly even though these are the server's own defaults: the app makes
+ * vertical short-form and nothing else, and depending on the default would hand
+ * the app's output ratio to whoever next edits the backend's profile table.
+ *
+ * `fitMode` decides what fills the canvas beside a clip that is not 9:16 —
+ * `blur_background` puts a blurred copy of the clip there, `contain` black bars.
+ * Kept at the server's `blur_background` until the product decision is made
+ * (see the movie feature document); it only shows on a landscape snap.
+ */
+const OutputProfile = 'short_vertical';
+const FitMode = 'blur_background';
+
+/**
+ * One cut of the run: the snap's id on the server, plus the window of it to use.
+ *
+ * The trim is carried in **seconds**, the unit the app trims in, and converted
+ * where the request is built — so the wire's milliseconds live in this file only.
+ * An absent `trim` means the cut plays whole, which is the same single
+ * representation the movie store keeps (`withTrim` drops a full-width window).
+ */
+export type EditJobClip = {
+  videoId: string;
+  trim?: { startSec: number; endSec: number };
+};
+
 export type CreateEditJobInput = {
   /**
-   * The server ids of the cuts, **in cut order** — the backend renders them in
-   * the order they arrive (its `fetch_source_keys` is explicit about it), which
-   * is the only channel the app has for the order the user settled on.
+   * The cuts, **in cut order** — the backend renders them in the order they
+   * arrive (its `fetch_source_keys` is explicit about it), which is the only
+   * channel the app has for the order the user settled on.
+   *
+   * Must not be empty: the endpoint requires exactly one of `clips` and
+   * `videoIds`, and the generated body type cannot express that (`oneOf` widens
+   * both fields to optional), so an empty list would compile and 400.
    */
-  videoIds: readonly string[];
+  clips: readonly EditJobClip[];
   style: MovieStyle;
 };
 
 const jobStartSchema = z.object({ jobId: z.string() });
 
+/**
+ * The wire form of a cut. The window goes as integer milliseconds, which loses
+ * nothing: a trim lands on a multiple of `CutTrimStepSec` (0.1s) and is stored
+ * rounded to the millisecond, so every window the app holds is a whole number of
+ * them.
+ */
+function toWireClip(clip: EditJobClip) {
+  if (!clip.trim) return { videoId: clip.videoId };
+  return {
+    videoId: clip.videoId,
+    startMs: Math.round(clip.trim.startSec * 1000),
+    endMs: Math.round(clip.trim.endSec * 1000),
+  };
+}
+
 async function createFromApi(input: CreateEditJobInput, signal?: AbortSignal): Promise<string> {
   const { jobId } = await apiRequest('/edit-jobs', {
     method: 'POST',
     body: {
-      videoIds: [...input.videoIds],
+      clips: input.clips.map(toWireClip),
       stylePreset: StylePresets[movieStyleOrDefault(input.style)],
+      outputProfile: OutputProfile,
+      fitMode: FitMode,
     },
     schema: jobStartSchema,
     signal,
@@ -46,7 +95,7 @@ async function createFromApi(input: CreateEditJobInput, signal?: AbortSignal): P
 
 function createMock(input: CreateEditJobInput): Promise<string> {
   if (__DEV__) {
-    console.log(`[compose-movie][mock] edit job queued for ${input.videoIds.length} videos`);
+    console.log(`[compose-movie][mock] edit job queued for ${input.clips.length} cuts`);
   }
   return Promise.resolve(`mock-job-${Date.now()}`);
 }
@@ -54,10 +103,10 @@ function createMock(input: CreateEditJobInput): Promise<string> {
 /**
  * Queue a generation run (`POST /edit-jobs`) and return the server's job id.
  *
- * The endpoint accepts nothing but the cut ids and a preset, so a movie's trim
- * windows, BGM choice, captions flag, title, and ratio do not travel with it —
- * see the movie feature document for what that means on screen. Everything it
- * *can* refuse it refuses with a `403`: a video that is not the caller's, is not
+ * The endpoint takes the cuts with their trim windows, a style preset, and the
+ * output shape; a movie's BGM choice, captions flag, and title do not travel with
+ * it — see the movie feature document for what that means on screen. Everything
+ * it *can* refuse it refuses with a `403`: a video that is not the caller's, is not
  * `ready`, or is itself a generated result, and the free plan's monthly cap.
  * Both cases share the code `FORBIDDEN` and differ only in the message, so the
  * message is what the user is shown.

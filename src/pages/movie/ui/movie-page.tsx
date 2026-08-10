@@ -100,18 +100,24 @@ export function MoviePage({ movieId }: MoviePageProps) {
   // than by the footer that draws it.
   const [refusalMessage, setRefusalMessage] = useState<string>();
 
-  // Which cut the strip and the inspector point at; the stage follows a tap and
-  // the highlight follows playback. Clamped rather than reset when the list
-  // shrinks, so removing a cut selects its neighbor instead of jumping home.
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  // Which cut is being *worked on* — the strip's held clip and the inspector's
+  // subject. Only an explicit pick sets it (a strip tap, or a move carrying its
+  // own cut along); playback and scrubbing move the playhead below and leave
+  // this alone, because passing over a cut is not choosing it. Clamped rather
+  // than reset when the list shrinks, so removing a cut holds its neighbor
+  // instead of jumping home. Opens at -1 — nothing held, so the footer's slot
+  // offers the run rather than one cut's edit controls.
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const playerRef = useRef<CutPlayerHandle>(null);
   const selected = cuts.length > 0 ? Math.min(selectedIndex, cuts.length - 1) : -1;
   // Mirrors the stage, for the transport's play/pause button.
   const [isPlaying, setIsPlaying] = useState(false);
-  // Where the stage is, for the strip's playhead. The player reports it; a strip
-  // tap or scrub sets it up front so the timeline settles on the picked moment
-  // without waiting for the seek to land, and so a dead cut — which the stage
-  // cannot follow — still moves the playhead.
+  // Where the stage is, for the strip's playhead — the *playback* position, kept
+  // apart from the selection above. The player reports it (`onProgress`, which
+  // carries the cut it is on, so landing on a cut and running through one both
+  // arrive here); a strip tap or scrub sets it up front so the timeline settles
+  // on the picked moment without waiting for the seek to land, and so a dead cut
+  // — which the stage cannot follow — still moves the playhead.
   const [playhead, setPlayhead] = useState<TimelinePlayhead>({ index: 0, secIntoCut: 0 });
 
   // A direct link can land here with nothing behind it, and the screen has no
@@ -128,6 +134,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const editsAtStudioEntry = useRef(0);
   const openStudio = () => {
     editsAtStudioEntry.current = editCount;
+    // Same opening as a first visit: nothing held, so the footer offers the run
+    // rather than the cut controls a previous visit left behind.
+    setSelectedIndex(-1);
     setEditing(true);
   };
   const closeStudio = () => {
@@ -189,9 +198,10 @@ export function MoviePage({ movieId }: MoviePageProps) {
     if (!outcome.refused) setEditing(false);
   };
 
-  // A strip tap selects the cut and shows its frame, paused — playing is the
-  // transport's job. A dead cut is still selectable — the inspector is where it
-  // is removed — the stage just cannot follow it there.
+  // A strip tap is the one act that picks a cut to work on: it takes the cut and
+  // shows its frame, paused — playing is the transport's job. A dead cut is
+  // still selectable — the inspector is where it is removed — the stage just
+  // cannot follow it there.
   const selectCut = (index: number) => {
     setSelectedIndex(index);
     setPlayhead({ index, secIntoCut: 0 });
@@ -201,17 +211,16 @@ export function MoviePage({ movieId }: MoviePageProps) {
 
   // A tap on the strip's empty space lets go of the cut: the trim handles
   // retract and the inspector row closes. The playhead stays put — releasing
-  // a cut is not a seek. Playback re-selects on its own (`onCutChange`).
+  // a cut is not a seek, and nothing re-takes the cut on its own.
   const deselectCut = () => setSelectedIndex(-1);
 
   // A strip drag come to rest: whatever moment stopped under the playhead
   // becomes the playback position, paused on its frame — playing stays the
-  // transport's job. Selection follows so the inspector talks about the cut
-  // being scrubbed. A dead cut can be landed on but not shown; the playhead
-  // and selection still move so the inspector can offer its removal.
+  // transport's job. The selection is left alone: scrubbing is looking through
+  // the movie, and every cut the finger passed would otherwise end up held. A
+  // dead cut can be landed on but not shown; the playhead still moves there.
   const scrubTo = (target: TimelinePlayhead) => {
     if (target.index < 0) return;
-    setSelectedIndex(target.index);
     setPlayhead(target);
     const playbackIndex = toPlaybackIndex(cuts, target.index);
     if (playbackIndex !== undefined) playerRef.current?.seekTo(playbackIndex, target.secIntoCut);
@@ -256,7 +265,6 @@ export function MoviePage({ movieId }: MoviePageProps) {
                   ref={playerRef}
                   cuts={playbackCuts}
                   editIndex={selected >= 0 ? toPlaybackIndex(cuts, selected) : undefined}
-                  onCutChange={(playbackIndex) => setSelectedIndex(toCutIndex(cuts, playbackIndex))}
                   onProgress={(playbackIndex, secIntoCut) =>
                     setPlayhead({ index: toCutIndex(cuts, playbackIndex), secIntoCut })
                   }

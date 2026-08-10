@@ -30,7 +30,10 @@ import { TimelineCut, TimelineCutHeight } from './timeline-cut';
 
 export type TimelineStripProps = {
   cuts: Cut[];
-  /** Which cut the stage is on; -1 with an empty list. */
+  /**
+   * Which cut is being worked on — the held clip. -1 when none is; playback and
+   * scrubbing do not set it, they move the playhead.
+   */
   selectedIndex: number;
   /** Where the stage is right now — what the playhead points at. */
   playhead: TimelinePlayhead;
@@ -148,6 +151,14 @@ function syncFollow(follow: FollowState, restX: number) {
  * seek to. While the hand is on the strip the playhead's own following is off —
  * the drag owns the axis — and it takes the axis back when the scrub settles.
  *
+ * **Being played over is not being picked.** The playhead and the held clip are
+ * two different things and only the first follows the stage: playing through the
+ * movie, letting it run to the end, and dragging the strip past a cut all move
+ * the playhead and leave the selection where it was. Only a tap on a clip takes
+ * it. Merging the two meant the movie ending left its last cut held, and
+ * scrubbing back to the front swapped that for the first — the user was handed
+ * an edit target by watching.
+ *
  * Tapping a clip selects the cut — the stage jumps there and the inspector below
  * picks it up — and the strip runs to that cut's start. The selected clip is
  * also where the cut's length is set: while editable it grows trim handles at
@@ -155,11 +166,10 @@ function syncFollow(follow: FollowState, restX: number) {
  * scrolls nor follows while a handle is down, so the drag owns the axis. Tapping
  * the strip's empty space lets the cut go again (`onDeselect`), and so does
  * tapping the focused clip itself — the second tap folds the handles back in.
- * The toggle keys off the *focused* clip, not the selected one: selection
- * follows playback, and a tap on the playing clip must keep meaning "jump
- * here", not "deselect". A cut whose original was deleted keeps its clip
- * (marked, selectable) — a cut the user cannot see is a cut they cannot
- * remove.
+ * The toggle keys off the *focused* clip, not the selected one: while the stage
+ * plays, the handles are folded away, so a tap there has to stay a jump. A cut
+ * whose original was deleted keeps its clip (marked, selectable) — a cut the
+ * user cannot see is a cut they cannot remove.
  */
 export function TimelineStrip({
   cuts,
@@ -185,10 +195,10 @@ export function TimelineStrip({
   // the playhead's following stays off so the drag owns the axis.
   const [scrubbing, setScrubbing] = useState(false);
 
-  // The selected clip grows its trim handles only while the stage is stopped.
-  // Selection follows playback, so handles that appeared on the way past would
-  // flicker across the strip once per cut — and trim handles are not something
-  // anyone reaches for mid-play anyway.
+  // The held clip grows its trim handles only while the stage is stopped: a
+  // handle is something to drag, and it cannot be dragged against a strip that
+  // is gliding under the playhead. They come back when playback stops, on the
+  // same cut — the selection itself is untouched by playing.
   const focusedIndex =
     canEdit && !isPlaying && selectedIndex >= 0 && cuts[selectedIndex]?.snap !== undefined
       ? selectedIndex
@@ -241,8 +251,9 @@ export function TimelineStrip({
   }, [playheadX, isPlaying, trimming, scrubbing, reducedMotion, stripWidth]);
 
   // Tapping the focused clip again releases it — the same let-go as tapping
-  // empty space. Keyed to `focusedIndex`, not `selectedIndex`: while playing,
-  // selection tracks the playhead, and a tap there must stay a jump.
+  // empty space. Keyed to `focusedIndex`, not `selectedIndex`: a clip whose
+  // handles are folded away (the stage is playing) has nothing to fold back, so
+  // a tap on it stays a jump.
   const handleSelect = (index: number) => {
     if (index === focusedIndex) onDeselect();
     else onSelect(index);

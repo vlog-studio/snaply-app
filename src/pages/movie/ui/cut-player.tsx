@@ -31,12 +31,13 @@ export type CutPlayerProps = {
    * stage pauses there rather than wherever playback happened to be.
    */
   editIndex?: number;
-  /** Reports which cut the stage is showing, so the timeline can follow. */
-  onCutChange?: (index: number) => void;
   /**
-   * Reports where inside that cut the stage is, so the timeline's playhead can
-   * sit on the moment being played. Fires on every position report and once at
-   * zero whenever the stage lands on a cut.
+   * Reports which cut the stage is on and where inside it, so the timeline's
+   * playhead can sit on the moment being played. Fires on every position report
+   * and once whenever the stage lands on a cut, so it is the whole account of
+   * where playback is — there is no separate cut-changed signal, because the
+   * page keeps the playhead and the edit selection apart and only the playhead
+   * follows the stage.
    */
   onProgress?: (index: number, secIntoCut: number) => void;
   /** Reports whether the stage is playing, so the transport's button can say. */
@@ -63,9 +64,10 @@ function playlistSignature(cuts: PlaybackCut[]): string {
  * still catches the untrimmed case and any cut whose window reaches the file's end.
  *
  * **Linked to the timeline, both ways.** The `jumpTo` handle moves the stage to
- * the cut the strip picked; `onCutChange` reports every cut the stage moves onto, so the
- * strip's highlight follows playback, and `onProgress` reports where inside that cut it
- * is, so the strip can run the timeline under a fixed playhead. When the playlist itself changes under the
+ * the cut the strip picked, and `onProgress` reports which cut the stage moved onto and
+ * where inside it, so the strip can run the timeline under a fixed playhead. What it
+ * reports is the *playhead*, not a selection: the page holds the cut being edited
+ * separately, and playing past a cut never takes it. When the playlist itself changes under the
  * player — a reorder, a trim, a removal — the stage holds its place (clamped) and
  * pauses on the edited list's frame rather than remounting, because a remounted
  * video cannot paint its first frame without a blink
@@ -81,7 +83,6 @@ function playlistSignature(cuts: PlaybackCut[]): string {
 export function CutPlayer({
   cuts,
   editIndex,
-  onCutChange,
   onProgress,
   onPlayingChange,
   ref,
@@ -147,7 +148,6 @@ export function CutPlayer({
   const setIndex = (index: number, secIntoCut = 0) => {
     currentIndexRef.current = index;
     setCurrentIndex(index);
-    onCutChange?.(index);
     onProgress?.(index, secIntoCut);
   };
 

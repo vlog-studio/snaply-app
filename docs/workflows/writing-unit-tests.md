@@ -74,12 +74,10 @@ The copy-followable skeleton for each module kind lives in the
 
 ## Before you finish
 
-Run the JavaScript quality gates and confirm they pass:
+Run the canonical automated gate and confirm it passes:
 
 ```bash
-npm run test:ci
-npm run typecheck
-npm run lint
+npm run verify
 ```
 
-Use `npm test` for watch mode while iterating. A new user-visible behavior is not complete until it is covered by a test at the appropriate level and the affected document under `docs/features` is updated in the same change (see [`feature-development.md`](feature-development.md)).
+Its check list is defined once, in `package.json`. While iterating, `npm test` runs the suite in watch mode and `npm run test:ci` runs it once without the other gates. A new user-visible behavior is not complete until it is covered by a test at the appropriate level and the affected document under `docs/features` is updated in the same change (see [`feature-development.md`](feature-development.md)).

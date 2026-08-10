@@ -71,12 +71,13 @@ Follow [State and data placement](../frameworks/state-and-data.md) for detailed 
 
 ## 7. Verify the change
 
-Run checks appropriate to the scope of the change:
+Run the canonical automated gate before finishing:
 
 ```sh
-npm run lint
-npx tsc --noEmit
+npm run verify
 ```
+
+The list of checks it runs is defined once, in `package.json`'s `verify` script; CI runs the same command. A failure that pre-exists the change and is unrelated to it is reported, not fixed by expanding the change's scope.
 
 For route changes, also verify that:
 
@@ -103,7 +104,7 @@ Update the affected feature document in the same change. A feature is not comple
 - [ ] SDK APIs match the Expo SDK 57 documentation.
 - [ ] Every affected document under `docs/features` matches the implemented behavior, routes, ownership, platform support, persistence, status, and limitations.
 - [ ] A new feature document is linked from `docs/features/README.md` when no existing document owns the behavior.
-- [ ] Lint, typecheck, and affected-platform verification results are available.
+- [ ] `npm run verify` passes, and affected-platform verification results are available.
 
 ## When to update documentation
 

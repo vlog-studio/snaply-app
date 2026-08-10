@@ -39,6 +39,12 @@ Classify a document by its primary audience before creating or editing it:
 
 Preserve code identifiers, commands, API names, product names, and other technical terms when translating them would reduce precision.
 
+## Verification
+
+- Run `npm run verify` before finishing any code change. It is the canonical automated verification gate; its check list is defined once, in `package.json`, and CI runs the same command.
+- A `verify` failure that pre-exists your change and is unrelated to it: report it with evidence instead of expanding your scope to fix it.
+- On-device and platform verification is separate and stays governed by the workflow documents in the table above.
+
 ## Rule precedence
 
 1. The user's current request

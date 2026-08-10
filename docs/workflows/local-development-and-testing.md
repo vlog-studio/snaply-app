@@ -18,15 +18,13 @@ You can run **one iOS simulator and one Android emulator side by side** against 
 
 ## Automated checks
 
-Run the automated quality gates before device or simulator verification:
+Run the canonical automated gate before device or simulator verification:
 
 ```bash
-npm run lint
-npm run typecheck
-npm run test:ci
+npm run verify
 ```
 
-Use `npm test` during development for Jest watch mode. Tests use the `jest-expo` preset and should live beside the module they verify so their FSD ownership remains explicit. For what to test and the per-module-kind authoring patterns, see [`writing-unit-tests.md`](writing-unit-tests.md).
+The list of checks is defined once, in `package.json`'s `verify` script — CI runs the same command, so a change that passes locally passes CI's automated gate. The individual scripts (`npm run lint`, `npm run typecheck`, `npm run test:ci`, …) remain available for running one gate at a time; use `npm test` during development for Jest watch mode. Tests use the `jest-expo` preset and should live beside the module they verify so their FSD ownership remains explicit. For what to test and the per-module-kind authoring patterns, see [`writing-unit-tests.md`](writing-unit-tests.md).
 
 Jest and React Native Testing Library validate JavaScript logic and rendered interaction contracts; they do not replace iOS and Android verification for camera, permissions, file-system, animation, or other native behavior.
 

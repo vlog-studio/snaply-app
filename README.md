@@ -71,12 +71,14 @@ src/
 | `npm run web` | 웹 환경 실행(기준 개발 환경 아님) |
 | `npm run api:pull` | 백엔드에서 OpenAPI 스펙(`docs/api/openapi.json`) 갱신 |
 | `npm run api:gen` | 스펙에서 API 타입(`src/shared/api/schema.d.ts`) 생성 |
+| `npm run verify` | **자동 검증 게이트.** 검증 목록은 `package.json`의 `verify` 스크립트가 유일한 기준이며, CI도 같은 명령을 실행합니다 |
 | `npm run lint` | ESLint 검사 실행 |
 | `npm run format` | Prettier로 전체 코드 자동 포맷 |
-| `npm run format:check` | 포맷 위반 여부만 검사(CI용) |
+| `npm run format:check` | 포맷 위반 여부만 검사 |
 | `npm run typecheck` | TypeScript 타입 검사 실행 |
+| `npm run api:check` | 스펙과 생성된 API 타입의 동기화 검사 |
 | `npm test` | Jest 워치 모드로 테스트 실행 |
-| `npm run test:ci` | CI용 단일 실행 테스트(`--runInBand`) |
+| `npm run test:ci` | 단일 실행 테스트(`--runInBand`) |
 
 ## 런타임 의존성
 

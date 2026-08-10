@@ -187,14 +187,13 @@ Do not add behavior that the user or requirement did not request. If documentati
 
 ## Verification and review checklist
 
-After implementation, run checks appropriate to the change, including at minimum when available:
+After implementation, run the canonical automated gate (its check list is defined in `package.json`):
 
 ```sh
-npm run lint
-npx tsc --noEmit
+npm run verify
 ```
 
-Run affected tests and verify behavior on each relevant platform. Then confirm:
+Verify behavior on each relevant platform. Then confirm:
 
 - [ ] Each changed component, hook, and module has a clear reason to change.
 - [ ] Screen orchestration, presentation, state, external effects, and mapping are separated where their change reasons differ.
@@ -210,5 +209,5 @@ Run affected tests and verify behavior on each relevant platform. Then confirm:
 - [ ] Expo Go versus development-build requirements are documented when relevant.
 - [ ] List performance and image loading were reviewed when a virtualized list changed.
 - [ ] No client-bundled secrets or sensitive credentials were introduced.
-- [ ] Lint, typecheck, tests, and affected-platform verification results are recorded.
+- [ ] `npm run verify` and affected-platform verification results are recorded.
 - [ ] Documentation was updated if responsibilities, contracts, dependencies, or supported behavior changed.

@@ -86,8 +86,10 @@
     "typecheck": "tsc --noEmit",
     "api:pull": "bash scripts/pull-api-spec.sh",
     "api:gen": "openapi-typescript docs/api/openapi.json -o src/shared/api/schema.d.ts",
+    "api:check": "bash scripts/check-api-types.sh",
     "test": "jest --watch",
-    "test:ci": "jest --ci --runInBand"
+    "test:ci": "jest --ci --runInBand",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run api:check && npm run test:ci"
   },
   "private": true
 }

@@ -15,7 +15,13 @@ import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 
 import { impactFeedback } from '@/shared/lib/haptics';
 import { useTabBarHidden } from '@/shared/ui/tab-bar-chrome';
-import { Radius, TabBarContentHeight, useResolvedColorScheme, useTheme } from '@/shared/ui/theme';
+import {
+  Radius,
+  TabBarContentHeight,
+  useReducedMotion,
+  useResolvedColorScheme,
+  useTheme,
+} from '@/shared/ui/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type TabIconName = keyof typeof Ionicons.glyphMap;
@@ -66,6 +72,7 @@ export function AppTabs() {
   // own; while it does, the bar and the capture button step aside entirely
   // rather than painting on top of it.
   const tabBarHidden = useTabBarHidden();
+  const reducedMotion = useReducedMotion();
 
   return (
     <SceneBlurTargetContext value={setBlurTargetView}>
@@ -80,6 +87,16 @@ export function AppTabs() {
         screenOptions={{
           headerShown: false,
           tabBarShowLabel: false,
+          // Tab switches cross-fade with a slight lateral shift on both
+          // platforms — the JS tab navigator animates nothing by default,
+          // which reads as a hard cut on Android especially.
+          animation: reducedMotion ? 'none' : 'shift',
+          // All four scenes mount at launch: a lazily-mounted scene's first
+          // frame is its empty background, and the cross-fade stretches that
+          // blank frame into a visible blink on the first visit to a tab.
+          // Visited tabs stay mounted anyway (per-tab scroll retention), so
+          // this only moves render cost to startup, behind the splash overlay.
+          lazy: false,
           sceneStyle: { backgroundColor: theme.background },
           tabBarActiveTintColor: theme.primary,
           tabBarInactiveTintColor: theme.tabInactive,

@@ -82,7 +82,7 @@ export function AppTabs() {
           tabBarShowLabel: false,
           sceneStyle: { backgroundColor: theme.background },
           tabBarActiveTintColor: theme.primary,
-          tabBarInactiveTintColor: theme.textSecondary,
+          tabBarInactiveTintColor: theme.tabInactive,
           // The bar floats over the scene so its blur has content to sample;
           // screens offset their scroll content with `useTabBarHeight`.
           tabBarBackground: () => (

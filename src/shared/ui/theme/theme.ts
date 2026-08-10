@@ -12,6 +12,15 @@ const darkPalette = {
   backgroundElement: '#211910', // surface
   backgroundSelected: '#2C2118', // surface raised
   textSecondary: '#A8927E', // ink dim
+  // Unselected tab glyph — the one role that leaves the warm axis. The tab bar
+  // is the only place the app's ink sits directly beside the Android system
+  // navigation glyphs, which the OS draws neutral and will not let an app tint
+  // (Android 15+ offers a light/dark bit and nothing more). Against those, a
+  // warm `textSecondary` reads as a color mismatch rather than as a palette. So
+  // this drops the hue while keeping `textSecondary`'s exact relative luminance
+  // (Y=0.304): contrast against the ground is untouched, only the warmth is
+  // gone. The light scheme does not need the same move — see below.
+  tabInactive: '#969696',
   border: '#3A2C20', // line
   primary: '#EA5E38', // ember — main accent, capture
   onPrimary: '#1A0F0A', // ink on ember (dark, high contrast)
@@ -32,6 +41,12 @@ const lightPalette = {
   backgroundElement: '#FFFDF9', // surface — card over paper
   backgroundSelected: '#F0E6D9', // surface raised
   textSecondary: '#75604F', // ink dim
+  // Unselected tab glyph, deliberately the same warm ink as `textSecondary`
+  // here. The neutral swap the dark scheme makes buys nothing on paper: the OS
+  // draws its navigation glyphs dark over a light shell, so they never clashed
+  // with the warm ink to begin with, and going neutral only left the tab bar
+  // colder than the headings beside it. Compared on device before deciding.
+  tabInactive: '#75604F',
   border: '#E7DCCC', // line
   primary: '#EA5E38', // ember — main accent, capture
   onPrimary: '#1A0F0A', // ink on ember (dark, high contrast)

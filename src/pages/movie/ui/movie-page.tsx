@@ -5,7 +5,7 @@ import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
-import { useComposeMovie } from '@/features/compose-movie';
+import { useComposeMovie, useRenderSource } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { useShareMovie } from '@/features/share-movie';
 import { BackBar } from '@/shared/ui/back-bar';
@@ -77,7 +77,11 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const { saveStyle, setArranger, startGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
   const { movie, cuts, totalSec, canEdit, refusal, editedSinceRender, editCount } = list;
-  const sharing = useShareMovie(movie);
+  // Resolved once here and handed to both consumers: the watch stage plays
+  // this address and 공유 downloads it, and the two must never disagree about
+  // which file "the render" is.
+  const renderSource = useRenderSource(movie);
+  const sharing = useShareMovie(movie, renderSource);
   const deleteMovie = useDeleteMovie();
   const watchCuts = useWatchCuts(movie);
 
@@ -232,6 +236,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
         <MovieWatch
           movie={movie}
           cuts={watchCuts}
+          renderSource={renderSource}
           sharing={sharing}
           editedSinceRender={editedSinceRender}
           onReviewEdits={openStudio}
@@ -423,7 +428,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
         movie={movie}
         cutCount={watchCuts.length}
         totalSec={watchCuts.reduce((sum, cut) => sum + cut.usedSec, 0)}
-        shareBlocked={sharing.blocked !== undefined}
+        shareBlocked={sharing.blocked !== undefined || sharing.busy}
         onEdit={() => {
           setActionsOpen(false);
           openStudio();

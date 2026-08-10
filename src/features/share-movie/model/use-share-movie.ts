@@ -1,18 +1,47 @@
+import { useState } from 'react';
+
 import type { Movie } from '@/entities/movie';
 import { canShareFiles, shareFile } from '@/shared/lib/sharing';
+
+import { downloadRenderFile } from '../api/download-render-file';
 
 /**
  * Why a movie cannot be handed to the share sheet.
  *
- * `no-render` — there is no rendered file. This is every movie today: generation
- * is simulated and produces no video, so `Movie.render.uri` is never set. The
- * export below is complete and waiting for a real renderer to fill it in.
+ * `no-render` — there is no rendered file to share (the movie never produced
+ * one, or its address is still being resolved).
  */
 export type ShareBlock = 'no-render';
+
+/**
+ * The rendered file as the caller has resolved it — structurally the shape
+ * `useRenderSource` (`features/compose-movie`) returns, declared here rather
+ * than imported so the two features stay uncoupled. The page that offers 공유
+ * already resolves the render for playback; sharing must use the same fresh
+ * address, because the stored one is a signed link that expires.
+ */
+export type ShareSource = {
+  /** The file's address, fresh. `undefined` while resolving or when none exists. */
+  uri: string | undefined;
+  resolving: boolean;
+};
 
 export type MovieSharing = {
   /** Set when sharing is unavailable; `undefined` when the sheet can open. */
   blocked: ShareBlock | undefined;
+  /**
+   * True from the press until the sheet opens — the file downloads to cache
+   * first (`expo-sharing` takes local files only), and tens of MB are not
+   * instant. The control disables on it; a second press mid-download is
+   * ignored here too, so the guard does not live only in a `disabled` prop.
+   */
+  busy: boolean;
+  /**
+   * True when the last attempt could not produce a shareable local file —
+   * the download failed, which offline is the expected way for this to end.
+   * Cleared when a new attempt starts.
+   */
+  failed: boolean;
   /** Opens the system share sheet on the rendered movie. */
   share: () => void;
 };
@@ -28,28 +57,42 @@ export type MovieSharing = {
  * place — a share that hands over different material than the one the user asked
  * for is worse than a share that does not happen.
  *
+ * The file is downloaded to the cache before the sheet opens, because
+ * `expo-sharing` accepts local files only. The local copy is keyed on the
+ * render version (movie id + `renderedAt`), so sharing the same render twice
+ * downloads once, and a regenerated movie gets a fresh copy.
+ *
  * Whether the platform has a share sheet is asked at press time rather than kept
  * in state: it is a constant for the session, and reading it on mount would put
  * an async answer behind a control whose real gate is the missing file.
  */
-export function useShareMovie(movie: Movie | undefined): MovieSharing {
-  const uri = movie?.render?.uri;
+export function useShareMovie(movie: Movie | undefined, source: ShareSource): MovieSharing {
+  const uri = source.uri;
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const share = () => {
-    if (!uri || !movie) return;
+    if (!uri || !movie?.render || busy) return;
+    const render = movie.render;
+    setBusy(true);
+    setFailed(false);
     void (async () => {
       try {
         if (!(await canShareFiles())) return;
-        await shareFile(uri, {
+        const localUri = await downloadRenderFile(uri, `${movie.id}-${render.renderedAt}`);
+        await shareFile(localUri, {
           mimeType: 'video/mp4',
           uti: 'public.movie',
           dialogTitle: movie.title,
         });
       } catch (error) {
+        setFailed(true);
         if (__DEV__) console.warn('[movie] share failed:', String(error));
+      } finally {
+        setBusy(false);
       }
     })();
   };
 
-  return { blocked: uri ? undefined : 'no-render', share };
+  return { blocked: uri ? undefined : 'no-render', busy, failed, share };
 }

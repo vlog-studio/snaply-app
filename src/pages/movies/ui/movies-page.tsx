@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { useDeleteMovie, useMovieById } from '@/entities/movie';
+import { useRenderSource } from '@/features/compose-movie';
 import { useShareMovie } from '@/features/share-movie';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
@@ -67,7 +68,10 @@ export function MoviesPage() {
 
   // The one movie the single-selection act (share) is about.
   const soleSelected = picked.length === 1 ? movies.find((m) => m.id === picked[0]) : undefined;
-  const sharing = useShareMovie(useMovieById(soleSelected?.id));
+  const soleMovie = useMovieById(soleSelected?.id);
+  // Sharing needs the render resolved to a fresh address — the stored one is a
+  // signed link that expires (see `useRenderSource`).
+  const sharing = useShareMovie(soleMovie, useRenderSource(soleMovie));
 
   // Re-tapping the 무비 tab returns to the newest movies; switching tabs keeps
   // the grid where the user left it. Selection mode takes the tab bar away
@@ -214,7 +218,7 @@ export function MoviesPage() {
       {selecting ? (
         <MovieSelectionBar
           selectedCount={picked.length}
-          shareBlocked={sharing.blocked !== undefined}
+          shareBlocked={sharing.blocked !== undefined || sharing.busy}
           onShare={share}
           onDelete={openDelete}
           onClear={() => setPicked([])}

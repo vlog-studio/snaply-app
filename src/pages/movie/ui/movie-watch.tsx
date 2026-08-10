@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, type Movie } from '@/entities/movie';
-import { useRenderSource } from '@/features/compose-movie';
+import type { RenderSource } from '@/features/compose-movie';
 import type { MovieSharing } from '@/features/share-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -19,6 +19,12 @@ export type MovieWatchProps = {
   movie: Movie;
   /** The finished composition's cuts — the render snapshot when one exists. */
   cuts: Cut[];
+  /**
+   * The rendered file, resolved to a fresh address — the page resolves it once
+   * and 공유 uses the same source, so the stage and the share can never
+   * disagree about which file the render is.
+   */
+  renderSource: RenderSource;
   sharing: MovieSharing;
   /**
    * True when the stored cut list drifted from this render's composition —
@@ -60,6 +66,7 @@ export type MovieWatchProps = {
 export function MovieWatch({
   movie,
   cuts,
+  renderSource,
   sharing,
   editedSinceRender,
   onReviewEdits,
@@ -68,15 +75,6 @@ export function MovieWatch({
   const insets = useSafeAreaInsets();
   const playbackCuts = toPlaybackCuts(cuts);
   const totalSec = watchDurationSec(movie, cuts);
-  // The finished file, when the run produced one — resolved to a *fresh*
-  // address, because the backend's links are time-limited (`useRenderSource`).
-  // Watch mode plays it as one video — the backend's edit, not the raw cuts —
-  // while movies without a file (mock mode, pre-backend renders) keep playing
-  // their cut list below. A remote file also outlives the snaps it was made
-  // from, so it plays even when every original is deleted and the cut list has
-  // nothing to offer.
-  const renderSource = useRenderSource(movie);
-
   const facts = [
     movie.render ? `${formatDateTime(movie.render.renderedAt)} 완성` : undefined,
     formatSeconds(totalSec),
@@ -137,14 +135,20 @@ export function MovieWatch({
           </View>
         ) : null}
         <SnaplyButton
-          title="공유"
+          // The file downloads to the cache before the sheet can open, so the
+          // button says what the wait is instead of looking ignored.
+          title={sharing.busy ? '공유 준비 중…' : '공유'}
           variant="secondary"
-          disabled={sharing.blocked !== undefined}
+          disabled={sharing.blocked !== undefined || sharing.busy}
           onPress={sharing.share}
         />
         {sharing.blocked !== undefined ? (
           <ThemedText type="note" themeColor="textSecondary" style={styles.centerText}>
             아직 완성 파일이 만들어지지 않아 공유할 수 없어요.
+          </ThemedText>
+        ) : sharing.failed ? (
+          <ThemedText type="note" themeColor="textSecondary" style={styles.centerText}>
+            완성 파일을 내려받지 못했어요. 연결을 확인하고 다시 시도해주세요.
           </ThemedText>
         ) : null}
       </View>

@@ -123,9 +123,9 @@ export function GenerateFooter({
           <View style={styles.actions}>
             {isReady ? (
               <SnaplyButton
-                title="공유"
+                title={sharing.busy ? '공유 준비 중…' : '공유'}
                 variant="secondary"
-                disabled={sharing.blocked !== undefined}
+                disabled={sharing.blocked !== undefined || sharing.busy}
                 onPress={sharing.share}
                 style={styles.share}
               />

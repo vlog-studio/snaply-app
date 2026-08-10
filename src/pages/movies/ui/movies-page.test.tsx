@@ -28,7 +28,11 @@ jest.mock('@/entities/movie', () => ({
 }));
 
 jest.mock('@/features/share-movie', () => ({
-  useShareMovie: () => ({ blocked: 'no-render', share: mockShare }),
+  useShareMovie: () => ({ blocked: 'no-render', busy: false, failed: false, share: mockShare }),
+}));
+
+jest.mock('@/features/compose-movie', () => ({
+  useRenderSource: () => ({ uri: undefined, resolving: false }),
 }));
 
 jest.mock('@/shared/ui/tab-bar-chrome', () => ({

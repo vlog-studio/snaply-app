@@ -14,11 +14,11 @@ export type MovieRowProps = {
   onPress: (movieId: string) => void;
 };
 
-const ThumbWidth = 42;
+const ThumbWidth = 64;
 
 /**
- * One movie on the studio board: a short row of its first cuts, its title, and
- * where it stands. A wide row rather than a grid tile, because the board is a
+ * One movie on the studio board: its first cut's frame, its title, and where
+ * it stands. A wide row rather than a grid tile, because the board is a
  * to-do list — what it has to convey is state, not cover art.
  */
 export function MovieRow({ movie, onPress }: MovieRowProps) {
@@ -61,10 +61,10 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
         <ThemedText type="smallBold" numberOfLines={1}>
           {movie.title}
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          스냅 {movie.snapCount} · {formatSeconds(movie.totalSec)}
-        </ThemedText>
         <View style={styles.tags}>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            스냅 {movie.snapCount} · {formatSeconds(movie.totalSec)}
+          </ThemedText>
           <MovieStatusBadge status={movie.status} />
           <ThemedText type="note" themeColor="textSecondary">
             {movie.dateLabel}
@@ -86,10 +86,6 @@ export function MovieRow({ movie, onPress }: MovieRowProps) {
           <MovieFailureNotice movieId={movie.id} error={movie.error} snapCount={movie.snapCount} />
         ) : null}
       </View>
-
-      <ThemedText selectable={false} themeColor="textSecondary">
-        ›
-      </ThemedText>
     </Pressable>
   );
 }
@@ -104,12 +100,10 @@ const styles = StyleSheet.create({
     borderCurve: 'continuous',
     padding: Spacing.three,
   },
-  // A short row of frames, so a movie reads as a stack of material rather than
-  // one picture.
   stack: { flexDirection: 'row', gap: Spacing.half },
   thumb: {
     width: ThumbWidth,
-    height: Math.round((ThumbWidth * 16) / 9),
+    height: ThumbWidth,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
     borderWidth: 1,

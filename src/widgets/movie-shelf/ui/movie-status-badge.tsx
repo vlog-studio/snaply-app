@@ -27,7 +27,7 @@ export function MovieStatusBadge({ status }: MovieStatusBadgeProps) {
       : status === 'generating'
         ? theme.ai
         : status === 'ready'
-          ? theme.textSecondary
+          ? theme.lumen
           : theme.amber;
 
   return (

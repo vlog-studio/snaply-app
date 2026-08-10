@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   strip: { flexDirection: 'row', gap: Spacing.two },
   thumb: {
     width: ThumbWidth,
-    height: Math.round((ThumbWidth * 16) / 9),
+    height: ThumbWidth,
     borderRadius: Radius.small,
     borderCurve: 'continuous',
     borderWidth: 1,

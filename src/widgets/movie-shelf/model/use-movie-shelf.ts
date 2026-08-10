@@ -12,7 +12,7 @@ import { snapsByRefs, useSnapIndex, type SnapIndex } from '@/entities/snap';
 import { formatDayHeading } from '@/shared/lib/datetime';
 
 /** How many snap frames a movie card samples for its cover. */
-const CoverFrameCount = 3;
+const CoverFrameCount = 1;
 
 /**
  * A movie reduced to what a card draws: its identity, how much material it

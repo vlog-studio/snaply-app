@@ -85,9 +85,6 @@ export function StudioPage() {
     >
       <View style={styles.header}>
         <ThemedText type="title">스튜디오</ThemedText>
-        <ThemedText type="small" themeColor="textSecondary">
-          작업 중 {inProgress.length} · 담은 스냅 {traySnapIds.length}
-        </ThemedText>
       </View>
 
       <FadeInView duration={260} style={styles.blocks}>
@@ -104,9 +101,6 @@ export function StudioPage() {
         <View style={styles.section}>
           <View style={styles.sectionHead}>
             <ThemedText type="smallBold">작업 중</ThemedText>
-            <ThemedText type="edge" themeColor="textSecondary">
-              {inProgress.length}
-            </ThemedText>
           </View>
           {inProgress.length > 0 ? (
             inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)

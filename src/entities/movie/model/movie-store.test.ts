@@ -295,19 +295,21 @@ describe('editing a movie', () => {
 describe('generating a movie', () => {
   const startedAt = 1_754_000_000_000;
   const render = { renderedAt: startedAt + 40_000, durationSec: 12 };
+  // One of the pipeline's own milestone labels, as the backend publishes it.
+  const cutStep = '\uCEF7\uD3B8\uC9D1 \uC644\uB8CC'; // 컷편집 완료
 
   beforeEach(() => {
     useMovieStore.setState({ movies: [makeMovie('m1', ['s1', 's2'])] });
   });
 
-  it('starts a job on the first step and marks the movie generating', async () => {
+  it('starts a job under the id the backend gave it, and marks the movie generating', async () => {
     const { result } = await renderHook(() => useBeginMovieJob());
 
-    await act(async () => result.current('m1', startedAt));
+    await act(async () => result.current('m1', 'job-abc', startedAt));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
       status: 'generating',
-      job: { stepIndex: 0, startedAt },
+      job: { id: 'job-abc', progress: 0, startedAt },
       updatedAt: startedAt,
     });
   });
@@ -318,34 +320,49 @@ describe('generating a movie', () => {
     });
     const { result } = await renderHook(() => useBeginMovieJob());
 
-    await act(async () => result.current('m1', startedAt));
+    await act(async () => result.current('m1', 'job-abc', startedAt));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({ status: 'generating' });
     expect(useMovieStore.getState().movies[0].error).toBeUndefined();
     expect(useMovieStore.getState().movies[0].render).toBeUndefined();
   });
 
-  it('records the step a running job reached, without reshuffling the board', async () => {
+  it('records the progress and step a running job reported, without reshuffling the board', async () => {
     const { result } = await renderHook(() => ({
       begin: useBeginMovieJob(),
       advance: useAdvanceMovieJob(),
     }));
 
-    await act(async () => result.current.begin('m1', startedAt));
-    await act(async () => result.current.advance('m1', 3));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.advance('m1', 35, cutStep));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
-      job: { stepIndex: 3 },
+      job: { progress: 35, step: cutStep },
       updatedAt: startedAt,
     });
   });
 
-  it('leaves the movie identical when the job is already on that step', async () => {
+  // The socket sends a snapshot on connect, so a reconnect mid-run would rewind
+  // the ring if progress could move backwards.
+  it('never moves progress backwards', async () => {
     const { result } = await renderHook(() => ({
       begin: useBeginMovieJob(),
       advance: useAdvanceMovieJob(),
     }));
-    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.advance('m1', 60, cutStep));
+
+    await act(async () => result.current.advance('m1', 10));
+
+    expect(useMovieStore.getState().movies[0].job).toMatchObject({ progress: 60, step: cutStep });
+  });
+
+  it('leaves the movie identical when the report says nothing new', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      advance: useAdvanceMovieJob(),
+    }));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
     const before = useMovieStore.getState().movies[0];
 
     await act(async () => result.current.advance('m1', 0));
@@ -359,7 +376,7 @@ describe('generating a movie', () => {
       finish: useFinishMovieJob(),
     }));
 
-    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
     await act(async () => result.current.finish('m1', render, 999));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
@@ -387,7 +404,7 @@ describe('generating a movie', () => {
       finish: useFinishMovieJob(),
     }));
 
-    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
     await act(async () => result.current.finish('m1', render, 999));
 
     expect(useMovieStore.getState().movies[0].render?.snapRefs).toEqual([
@@ -402,7 +419,7 @@ describe('generating a movie', () => {
       fail: useFailMovieJob(),
     }));
 
-    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
     await act(async () => result.current.fail('m1', '원본이 사라졌어요', 999));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
@@ -419,7 +436,7 @@ describe('generating a movie', () => {
       fail: useFailMovieJob(),
     }));
 
-    await act(async () => result.current.begin('m1', startedAt));
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
     await act(async () => result.current.fail('m1', '터졌어요'));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({

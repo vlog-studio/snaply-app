@@ -2,13 +2,9 @@ import { act, renderHook } from '@testing-library/react-native';
 
 import type { Movie } from '@/entities/movie';
 
-import { useGenerationRunner } from './use-generation-runner';
+import type { EditProgressHandlers } from '../api/subscribe-edit-progress';
 
-// The step table and the progress rule are the entity's, and they are tested
-// there; the runner is mocked against a two-step job so this suite is about what
-// it writes and when it looks again, not about the timing table.
-const StepMs = 1_000;
-const TotalMs = 2 * StepMs;
+import { useGenerationRunner } from './use-generation-runner';
 
 const mockAdvance = jest.fn();
 const mockFinish = jest.fn();
@@ -17,6 +13,11 @@ const mockMovies = jest.fn<Movie[], []>();
 const mockSnapIndex = jest.fn<Map<string, { id: string; durationSec: number }>, []>();
 const mockSnapsHydrated = jest.fn<boolean, []>();
 const mockAnnounce = jest.fn();
+const mockGetEditJob = jest.fn();
+const mockGetEditedVideo = jest.fn();
+const mockCloseSocket = jest.fn();
+/** The live subscriptions, by job id, so a test can push a frame at one. */
+const mockSockets = new Map<string, EditProgressHandlers>();
 
 jest.mock('@/entities/movie', () => ({
   useMovies: () => mockMovies(),
@@ -25,17 +26,6 @@ jest.mock('@/entities/movie', () => ({
   useFailMovieJob: () => mockFail,
   cutsDurationSec: (refs: { snapId: string }[], lookup: (id: string) => number | undefined) =>
     refs.reduce((total, ref) => total + (lookup(ref.snapId) ?? 0), 0),
-  movieJobProgressAt: (startedAt: number, now: number) => {
-    const elapsed = Math.max(now - startedAt, 0);
-    if (elapsed >= TotalMs) return { stepIndex: 1, ratio: 1, isDone: true };
-    const stepIndex = Math.floor(elapsed / StepMs);
-    return {
-      stepIndex,
-      ratio: elapsed / TotalMs,
-      isDone: false,
-      nextStepAt: startedAt + (stepIndex + 1) * StepMs,
-    };
-  },
 }));
 
 jest.mock('@/entities/snap', () => ({
@@ -43,16 +33,44 @@ jest.mock('@/entities/snap', () => ({
   useSnapsHydrated: () => mockSnapsHydrated(),
 }));
 
+// A stand-in for the transport error type, so the runner's `instanceof` check —
+// which is how a 404 is told from a flaky network — behaves as it does in the app.
+jest.mock('@/shared/api', () => ({
+  ApiError: class ApiError extends Error {
+    status?: number;
+    constructor(message: string, status?: number) {
+      super(message);
+      this.status = status;
+    }
+  },
+}));
+
+jest.mock('../api/get-edit-job', () => ({ getEditJob: (...a: unknown[]) => mockGetEditJob(...a) }));
+jest.mock('../api/get-edited-video', () => ({
+  getEditedVideo: (...a: unknown[]) => mockGetEditedVideo(...a),
+}));
+jest.mock('../api/subscribe-edit-progress', () => ({
+  subscribeEditProgress: (jobId: string, handlers: EditProgressHandlers) => {
+    mockSockets.set(jobId, handlers);
+    return { close: () => mockCloseSocket(jobId) };
+  },
+}));
 jest.mock('../lib/announce-job-end', () => ({
   announceJobEnd: (...args: unknown[]) => mockAnnounce(...args),
 }));
 
+const { ApiError } = jest.requireMock('@/shared/api') as {
+  ApiError: new (message: string, status?: number) => Error & { status?: number };
+};
+
 const startedAt = 1_754_000_000_000;
+const cutStep = '\uCEF7\uD3B8\uC9D1 \uC644\uB8CC'; // 컷편집 완료
+const serverReason = '\uD3B8\uC9D1 \uC2E4\uD328'; // 편집 실패
 
 function generatingMovie(overrides: Partial<Movie> = {}): Movie {
   return {
     id: 'm1',
-    title: '무비',
+    title: '\uBB34\uBE44', // 무비
     status: 'generating',
     createdAt: startedAt,
     updatedAt: startedAt,
@@ -61,142 +79,197 @@ function generatingMovie(overrides: Partial<Movie> = {}): Movie {
     bgm: 'lofi-walk',
     captions: true,
     ratio: '9:16',
-    job: { id: 'job-1', stepIndex: 0, startedAt },
+    job: { id: 'job-1', progress: 0, startedAt },
     ...overrides,
   };
 }
 
+/** Pushes one socket frame at a running job and lets the writes settle. */
+async function emit(jobId: string, event: Parameters<EditProgressHandlers['onEvent']>[0]) {
+  await act(async () => {
+    mockSockets.get(jobId)?.onEvent(event);
+  });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.useFakeTimers();
-  jest.setSystemTime(startedAt);
+  mockSockets.clear();
   mockMovies.mockReturnValue([]);
   mockSnapIndex.mockReturnValue(new Map([['s1', { id: 's1', durationSec: 4 }]]));
   mockSnapsHydrated.mockReturnValue(true);
-});
-
-afterEach(() => {
-  jest.useRealTimers();
+  // The default answer to the catch-up pass: the run is still going.
+  mockGetEditJob.mockResolvedValue({ status: 'processing', progress: 35, videoId: 'result-1' });
+  mockGetEditedVideo.mockResolvedValue({});
 });
 
 describe('useGenerationRunner', () => {
-  it('writes the step a running job has reached', async () => {
-    mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
+  it('follows every job in flight, and nothing else', async () => {
+    mockMovies.mockReturnValue([
+      generatingMovie(),
+      generatingMovie({ id: 'm2', job: { id: 'job-2', progress: 0, startedAt } }),
+      generatingMovie({ id: 'm3', status: 'draft', job: undefined }),
+    ]);
 
     await act(async () => {
-      jest.advanceTimersByTime(0);
+      await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockAdvance).toHaveBeenCalledWith('m1', 0);
+    expect([...mockSockets.keys()]).toEqual(['job-1', 'job-2']);
+  });
+
+  it('writes the progress and step the backend reported', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    await emit('job-1', { kind: 'progress', progress: 35, step: cutStep });
+
+    expect(mockAdvance).toHaveBeenCalledWith('m1', 35, cutStep);
     expect(mockFinish).not.toHaveBeenCalled();
   });
 
-  it('looks again at the next step boundary and writes the new step', async () => {
+  // The socket says the run is over but cannot be trusted for what it produced:
+  // a reconnect to a finished job arrives without the URL at all.
+  it('confirms a completion against the backend and finishes with the rendered file', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
-
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-9' });
+    mockGetEditedVideo.mockResolvedValue({ editedUrl: 'https://x/e.mp4', durationSeconds: 11 });
     await act(async () => {
-      jest.advanceTimersByTime(StepMs);
+      await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockAdvance).toHaveBeenLastCalledWith('m1', 1);
+    await emit('job-1', { kind: 'done', outputUrl: 'https://x/e.mp4' });
+
+    expect(mockGetEditedVideo).toHaveBeenCalledWith('result-9');
+    expect(mockFinish).toHaveBeenCalledWith(
+      'm1',
+      expect.objectContaining({ uri: 'https://x/e.mp4', durationSec: 11 }),
+    );
   });
 
-  it('finishes the job with a render measured from the cuts', async () => {
+  // Mock mode, and any run whose file could not be found: the movie still
+  // finishes and plays its cuts, so its length is the cuts' length.
+  it('finishes without a file when the run produced none, measuring the cuts', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
-
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-1' });
     await act(async () => {
-      jest.advanceTimersByTime(TotalMs);
+      await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockFinish).toHaveBeenCalledWith('m1', {
-      renderedAt: startedAt + TotalMs,
-      durationSec: 4,
-    });
+    await emit('job-1', { kind: 'done' });
+
+    expect(mockFinish).toHaveBeenCalledWith('m1', { renderedAt: expect.any(Number), durationSec: 4 });
   });
 
-  it('finishes a job whose whole duration passed while the app was closed', async () => {
-    // Resume: the job started long ago and the app is only now mounting again.
-    jest.setSystemTime(startedAt + TotalMs * 50);
+  it('finishes a job that ended while the app was away, without any frame arriving', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-1' });
 
     await act(async () => {
-      jest.advanceTimersByTime(0);
+      await renderHook(() => useGenerationRunner());
     });
 
     expect(mockFinish).toHaveBeenCalledWith('m1', expect.objectContaining({ durationSec: 4 }));
-    expect(mockAdvance).not.toHaveBeenCalled();
   });
 
-  it('carries several jobs at once', async () => {
-    mockMovies.mockReturnValue([
-      generatingMovie(),
-      generatingMovie({
-        id: 'm2',
-        job: { id: 'job-2', stepIndex: 0, startedAt: startedAt - StepMs },
-      }),
-    ]);
-    await renderHook(() => useGenerationRunner());
-
-    await act(async () => {
-      jest.advanceTimersByTime(0);
-    });
-
-    expect(mockAdvance).toHaveBeenCalledWith('m1', 0);
-    expect(mockAdvance).toHaveBeenCalledWith('m2', 1);
-  });
-
-  it.each(['draft', 'ready', 'failed'] as const)('leaves a %s movie alone', async (status) => {
-    mockMovies.mockReturnValue([generatingMovie({ status, job: undefined })]);
-    await renderHook(() => useGenerationRunner());
-
-    await act(async () => {
-      jest.advanceTimersByTime(TotalMs * 2);
-    });
-
-    expect(mockAdvance).not.toHaveBeenCalled();
-    expect(mockFinish).not.toHaveBeenCalled();
-  });
-
-  it('fails a job whose originals were all deleted, without waiting it out', async () => {
-    mockSnapIndex.mockReturnValue(new Map());
+  it('fails a job with the reason the backend gave', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
-
     await act(async () => {
-      jest.advanceTimersByTime(0);
+      await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('스냅 원본'));
-    expect(mockFinish).not.toHaveBeenCalled();
-    expect(mockAdvance).not.toHaveBeenCalled();
+    await emit('job-1', { kind: 'failed', error: serverReason });
+
+    expect(mockFail).toHaveBeenCalledWith('m1', serverReason);
   });
 
-  it('waits for the snap library before judging whether a job lost its material', async () => {
-    // Pre-hydration every cut looks deleted; failing here would kill every job
-    // in flight on the first tick of an app start.
-    mockSnapsHydrated.mockReturnValue(false);
-    mockSnapIndex.mockReturnValue(new Map());
+  it('fails a job the backend reports as failed on the catch-up pass', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
+    mockGetEditJob.mockResolvedValue({
+      status: 'failed',
+      progress: 60,
+      videoId: 'result-1',
+      errorMessage: serverReason,
+    });
 
     await act(async () => {
-      jest.advanceTimersByTime(TotalMs * 2);
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockFail).toHaveBeenCalledWith('m1', serverReason);
+  });
+
+  // Also how a movie left generating by a build that predates the real backend
+  // gets out: its job id was local, so no run ever existed for it.
+  it('fails a job the backend has never heard of', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockRejectedValue(new ApiError('not found', 404));
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('\uC11C\uBC84')); // 서버
+  });
+
+  it('leaves a job running when this device cannot reach the backend', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockRejectedValue(new ApiError('network', undefined));
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
     });
 
     expect(mockFail).not.toHaveBeenCalled();
     expect(mockFinish).not.toHaveBeenCalled();
   });
 
-  it('says nothing when the completion notification is off', async () => {
+  it('fails a job whose originals were all deleted, without asking the backend', async () => {
+    mockSnapIndex.mockReturnValue(new Map());
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner());
 
     await act(async () => {
-      jest.advanceTimersByTime(TotalMs);
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('\uC2A4\uB0C5 \uC6D0\uBCF8')); // 스냅 원본
+    expect(mockGetEditJob).not.toHaveBeenCalled();
+  });
+
+  it('waits for the snap library before judging whether a job lost its material', async () => {
+    // Pre-hydration every cut looks deleted; failing here would kill every job
+    // in flight on the first pass of an app start.
+    mockSnapsHydrated.mockReturnValue(false);
+    mockSnapIndex.mockReturnValue(new Map());
+    mockMovies.mockReturnValue([generatingMovie()]);
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockFail).not.toHaveBeenCalled();
+    expect(mockSockets.size).toBe(0);
+  });
+
+  it.each(['draft', 'ready', 'failed'] as const)('leaves a %s movie alone', async (status) => {
+    mockMovies.mockReturnValue([generatingMovie({ status, job: undefined })]);
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockSockets.size).toBe(0);
+    expect(mockAdvance).not.toHaveBeenCalled();
+    expect(mockFinish).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when the completion notification is off', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-1' });
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
     });
 
     expect(mockAnnounce).not.toHaveBeenCalled();
@@ -204,10 +277,10 @@ describe('useGenerationRunner', () => {
 
   it('announces a job that finished while the user was elsewhere', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner({ announce: true }));
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-1' });
 
     await act(async () => {
-      jest.advanceTimersByTime(TotalMs);
+      await renderHook(() => useGenerationRunner({ announce: true }));
     });
 
     expect(mockAnnounce).toHaveBeenCalledWith('ready', expect.objectContaining({ id: 'm1' }));
@@ -216,10 +289,9 @@ describe('useGenerationRunner', () => {
   it('announces a failure too, so a broken job is not silent', async () => {
     mockSnapIndex.mockReturnValue(new Map());
     mockMovies.mockReturnValue([generatingMovie()]);
-    await renderHook(() => useGenerationRunner({ announce: true }));
 
     await act(async () => {
-      jest.advanceTimersByTime(0);
+      await renderHook(() => useGenerationRunner({ announce: true }));
     });
 
     expect(mockAnnounce).toHaveBeenCalledWith(
@@ -229,20 +301,22 @@ describe('useGenerationRunner', () => {
     );
   });
 
-  it('stops looking once it is unmounted', async () => {
+  it('closes its sockets and stops writing once it is unmounted', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    const { unmount } = await renderHook(() => useGenerationRunner());
+    let unmount = () => {};
     await act(async () => {
-      jest.advanceTimersByTime(0);
+      ({ unmount } = await renderHook(() => useGenerationRunner()));
     });
+
+    // The catch-up pass has already written the progress it found on mount.
     mockAdvance.mockClear();
 
-    await unmount();
     await act(async () => {
-      jest.advanceTimersByTime(TotalMs * 2);
+      unmount();
     });
+    await emit('job-1', { kind: 'progress', progress: 60, step: cutStep });
 
+    expect(mockCloseSocket).toHaveBeenCalledWith('job-1');
     expect(mockAdvance).not.toHaveBeenCalled();
-    expect(mockFinish).not.toHaveBeenCalled();
   });
 });

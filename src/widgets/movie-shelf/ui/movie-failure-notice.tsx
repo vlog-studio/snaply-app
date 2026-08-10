@@ -41,7 +41,11 @@ export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNo
           accessibilityRole="button"
           accessibilityLabel="생성 다시 시도"
           hitSlop={8}
-          onPress={() => startGeneration(movieId)}
+          // A refusal here has nowhere to be shown — this notice is one line on a
+          // card — so a retry that cannot start simply leaves the movie failed,
+          // with the reason it already carries. The movie screen is where a
+          // refusal is answered.
+          onPress={() => void startGeneration(movieId)}
           style={({ pressed }) => [
             styles.retry,
             { borderColor: theme.primary, opacity: pressed ? 0.7 : 1 },

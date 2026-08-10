@@ -5,7 +5,7 @@ import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
-import { useComposeMovie, type GenerationRefusal } from '@/features/compose-movie';
+import { useComposeMovie } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { useShareMovie } from '@/features/share-movie';
 import { BackBar } from '@/shared/ui/back-bar';
@@ -24,7 +24,7 @@ import { GenerateFooter } from './generate-footer';
 import { GenerationProgress } from './generation-progress';
 import { MovieActionsSheet } from './movie-actions-sheet';
 import { MovieWatch } from './movie-watch';
-import { CutsRefusalMessages, RefusalNotice } from './refusal-notice';
+import { CutsRefusalMessages, generationRefusalMessage, RefusalNotice } from './refusal-notice';
 import { StylePickerSheet } from './style-picker-sheet';
 import { TimelineStrip } from './timeline-strip';
 
@@ -91,7 +91,10 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const [editing, setEditing] = useState(false);
   // The back-out question for a finished movie's studio (`EditExitSheet`).
   const [exitAsking, setExitAsking] = useState(false);
-  const [generationRefusal, setGenerationRefusal] = useState<GenerationRefusal>();
+  // The refusal already in the user's words: one of them (`rejected`) is worded
+  // by the backend, so the message is resolved where the outcome arrives rather
+  // than by the footer that draws it.
+  const [refusalMessage, setRefusalMessage] = useState<string>();
 
   // Which cut the strip and the inspector point at; the stage follows a tap and
   // the highlight follows playback. Clamped rather than reset when the list
@@ -169,9 +172,14 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const addSnaps = () =>
     router.push({ pathname: '/movie/[id]/add-snaps', params: { id: movie.id } });
 
-  const runGeneration = () => {
-    const outcome = startGeneration(movie.id);
-    setGenerationRefusal(outcome.refused);
+  // Asynchronous now: the run is queued on the backend and the movie only enters
+  // `generating` once there is a job to follow, so a refusal can be reported
+  // instead of having to be undone.
+  const runGeneration = async () => {
+    const outcome = await startGeneration(movie.id);
+    setRefusalMessage(
+      outcome.refused ? generationRefusalMessage(outcome.refused, outcome.message) : undefined,
+    );
     // The result of this run should open as a result: back to watch mode when
     // the job lands on `ready`.
     if (!outcome.refused) setEditing(false);
@@ -378,7 +386,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
               <GenerateFooter
                 movie={movie}
                 cutCount={cuts.length}
-                refusal={generationRefusal}
+                refusalMessage={refusalMessage}
                 cutsRefusal={refusal}
                 editedSinceRender={list.editedSinceRender}
                 onRestoreCuts={list.restoreRenderCuts}
@@ -444,7 +452,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
           setExitAsking(false);
           // A refused start keeps the studio open with the refusal in the
           // footer — leaving would hide the answer to what was just asked.
-          runGeneration();
+          void runGeneration();
         }}
         onKeep={closeStudio}
         onDiscard={() => {

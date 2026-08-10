@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 
 import {
-  MovieGenerationStepCount,
   cutsDurationSec,
+  movieJobRatio,
   useMovies,
   type Movie,
   type MovieStatus,
@@ -38,14 +38,14 @@ export type MovieSummary = {
 };
 
 /**
- * How far a job has come, as a fraction. Derived from the step it has reached
- * rather than from the clock, so every surface drawing this movie agrees on one
- * number and none of them needs a ticker of its own — a card on a list is not
- * where a user watches progress climb.
+ * How far a job has come, as a fraction. The backend's own number, held on the
+ * movie, so every surface drawing this movie agrees on one value and none of them
+ * needs a ticker of its own — a card on a list is not where a user watches
+ * progress climb.
  */
 function jobProgress(movie: Movie): number | undefined {
   if (movie.status !== 'generating' || !movie.job) return undefined;
-  return movie.job.stepIndex / MovieGenerationStepCount;
+  return movieJobRatio(movie.job);
 }
 
 function summarize(movie: Movie, snapIndex: SnapIndex): MovieSummary {

@@ -96,11 +96,32 @@ export type MovieRender = {
  * component would be lost the moment they did.
  */
 export type MovieJob = {
-  /** Local identifier today; the server's `jobId` once one issues them. */
+  /**
+   * The backend's `jobId` (2026-08-07). It is the only handle on the run: the
+   * progress socket is opened on it and the status endpoint is asked about it, so
+   * losing it would leave a movie stuck in `generating` with no way to find out
+   * what happened.
+   */
   id: string;
-  /** Index into `MovieGenerationSteps` of the step running now. */
-  stepIndex: number;
-  /** Epoch milliseconds the job started — what its progress is measured from. */
+  /**
+   * How far the run has come, 0–100, as the backend reports it — at six
+   * milestones rather than continuously.
+   *
+   * Optional because a job stored by an older build has a local step index and
+   * no percentage; read it through `movieJobRatio` rather than directly.
+   */
+  progress?: number;
+  /**
+   * What the backend last said it was doing (`컷편집 완료`, `음악 매칭 중...`).
+   *
+   * The server's own words are shown rather than mapped onto a fixed checklist
+   * of the app's: the pipeline's stages are the backend's to change, and a label
+   * table here would go stale silently — the run would report a stage this build
+   * had never heard of and the screen would show the wrong one. Absent until the
+   * first frame arrives.
+   */
+  step?: string;
+  /** Epoch milliseconds the job was queued. */
   startedAt: number;
 };
 

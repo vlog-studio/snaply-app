@@ -9,14 +9,15 @@ const mockMovies = jest.fn<Movie[], []>();
 const mockSnaps = jest.fn<Snap[], []>();
 
 jest.mock('@/entities/movie', () => {
-  // The trim and step rules are the entity's own and tested there; the summary is
-  // about which of them it reaches for, so they come from the real modules.
+  // The trim and progress rules are the entity's own and tested there; the
+  // summary is about which of them it reaches for, so they come from the real
+  // modules.
   const trim = jest.requireActual('@/entities/movie/lib/movie-trim');
   const generation = jest.requireActual('@/entities/movie/lib/movie-generation');
   return {
     useMovies: () => mockMovies(),
     cutsDurationSec: trim.cutsDurationSec,
-    MovieGenerationStepCount: generation.MovieGenerationStepCount,
+    movieJobRatio: generation.movieJobRatio,
   };
 });
 jest.mock('@/entities/snap', () => {
@@ -121,14 +122,14 @@ describe('useMovieSummaries', () => {
         id: 'generating',
         status: 'generating',
         updatedAt: 2,
-        job: { id: 'job-1', stepIndex: 2, startedAt: 1 },
+        job: { id: 'job-1', progress: 40, startedAt: 1 },
       }),
       makeMovie({ id: 'draft', updatedAt: 1 }),
     ]);
 
     const { result } = await renderHook(() => useMovieSummaries());
 
-    // Step 2 of five steps.
+    // The percentage the backend last reported, as a fraction.
     expect(result.current[0].progress).toBeCloseTo(0.4);
     expect(result.current[1].progress).toBeUndefined();
   });

@@ -15,8 +15,11 @@ import {
   type MovieStylePatch,
   type SnapRef,
 } from '@/entities/movie';
-import { useSnapIndex } from '@/entities/snap';
+import { getSnapSyncEntries, useSnapIndex } from '@/entities/snap';
 import { useClearTray, useTraySnapIds } from '@/entities/tray';
+import { ApiError } from '@/shared/api';
+
+import { createEditJob } from '../api/create-edit-job';
 
 /**
  * Why a cut edit was refused, or `undefined` when it landed.
@@ -37,15 +40,30 @@ export type CutsOutcome = {
 /**
  * Why generation would not start.
  *
- * `frozen` — a job already owns the movie; there is nothing else to refuse for,
- * because a finished movie may always be made again.
+ * `frozen` — a job already owns the movie; a finished movie may always be made
+ * again, so this is the only state that refuses outright.
  * `empty` — there is nothing to generate from.
+ * `uploading` — some cuts have not reached the backend yet. The run is made from
+ * the *server's* copies of the snaps, and `POST /edit-jobs` refuses a batch whole
+ * when one of them is missing, so this is checked here rather than discovered as
+ * a `403` after the user has pressed the button.
+ * `rejected` — the backend refused the run: not the caller's video, a video that
+ * is not ready, or the free plan's monthly cap. It carries the server's own
+ * message, because a `403` does not say which of those it was.
+ * `unreachable` — the request itself failed. Nothing was queued and the movie is
+ * left exactly as it was, so pressing again is the whole recovery.
  */
-export type GenerationRefusal = 'frozen' | 'empty';
+export type GenerationRefusal = 'frozen' | 'empty' | 'uploading' | 'rejected' | 'unreachable';
 
 export type GenerationOutcome = {
   started: boolean;
   refused?: GenerationRefusal;
+  /**
+   * What the backend said, for the refusals only it can explain (`rejected`).
+   * Shown as-is: the server distinguishes an ownership problem from a plan limit
+   * in the message and nowhere else.
+   */
+  message?: string;
 };
 
 /**
@@ -105,6 +123,31 @@ function arrangeByCaptureTime(
 
   const unchanged = arranged.every((ref, index) => ref.snapId === stored[index].snapId);
   return unchanged ? undefined : arranged;
+}
+
+/**
+ * The cuts' ids on the server, in cut order — or `undefined` when one of them has
+ * not got there yet.
+ *
+ * The mapping lives on `entities/snap`'s sync store, which is where the upload
+ * worker writes the id each snap earned. Read at call time rather than
+ * subscribed to: this answers "can this run start *now*", and a stale answer
+ * would either refuse a movie that just finished uploading or send an id that
+ * does not exist yet.
+ *
+ * All-or-nothing on purpose. `POST /edit-jobs` refuses the whole batch when one
+ * source is missing, and half a movie is not a movie the user asked for.
+ */
+function remoteVideoIds(snapRefs: readonly SnapRef[]): string[] | undefined {
+  const entries = getSnapSyncEntries();
+  const ordered = [...snapRefs].sort((left, right) => left.order - right.order);
+  const videoIds: string[] = [];
+  for (const ref of ordered) {
+    const entry = entries[ref.snapId];
+    if (entry?.status !== 'uploaded') return undefined;
+    videoIds.push(entry.videoId);
+  }
+  return videoIds;
 }
 
 /**
@@ -260,14 +303,21 @@ export function useComposeMovie() {
   /**
    * Hands a movie to a generation job, whether that is its first run, a retry
    * after a failure, or a regeneration of a movie the user has already watched
-   * and changed. `MovieGenerationGate` carries it to a render from there.
+   * and changed. `MovieGenerationGate` follows it to a render from there.
+   *
+   * The run is queued on the backend first and the movie enters `generating` only
+   * once there is a `jobId` to follow (2026-08-07): the socket and the status
+   * endpoint are both addressed by that id, so a movie that went `generating`
+   * before the request landed would be a job nothing could report on — and a
+   * refusal would have to be undone rather than simply reported.
    *
    * A movie with nothing to generate is refused rather than started: a job over
    * an empty cut list can only produce an empty movie, and the screen would have
-   * no way to explain the result.
+   * no way to explain the result. So is a movie whose cuts are still uploading —
+   * the run is made from the server's copies.
    */
   const startGeneration = useCallback(
-    (movieId: string): GenerationOutcome => {
+    async (movieId: string): Promise<GenerationOutcome> => {
       const movie = getMovieById(movieId);
       if (!movie) return { started: false, refused: 'frozen' };
       if (!canGenerate(movie)) return { started: false, refused: 'frozen' };
@@ -275,13 +325,39 @@ export function useComposeMovie() {
 
       // A movie the AI still arranges gets arranged before it runs, so what the
       // user sees afterwards is what was made. A movie the user arranged is left
-      // exactly as they left it — that is the whole promise of the lock.
+      // exactly as they left it — that is the whole promise of the lock. Done
+      // before the ids are collected, because the arrangement *is* the order the
+      // request carries.
+      let snapRefs = movie.snapRefs;
       if (isAiArranged(movie)) {
-        const arranged = arrangeByCaptureTime(movie.snapRefs, snapIndex);
-        if (arranged) updateMovieCuts(movieId, arranged);
+        const arranged = arrangeByCaptureTime(snapRefs, snapIndex);
+        if (arranged) {
+          updateMovieCuts(movieId, arranged);
+          snapRefs = arranged;
+        }
       }
 
-      beginMovieJob(movieId);
+      const videoIds = remoteVideoIds(snapRefs);
+      if (!videoIds) return { started: false, refused: 'uploading' };
+
+      let jobId: string;
+      try {
+        jobId = await createEditJob({ videoIds, style: movie.style });
+      } catch (error) {
+        // A refusal the backend can explain is reported in its own words; a
+        // transport failure is not the user's to interpret.
+        if (error instanceof ApiError && error.status === 403) {
+          return { started: false, refused: 'rejected', message: error.message };
+        }
+        if (__DEV__) console.warn(`[compose-movie] could not queue ${movieId}:`, String(error));
+        return { started: false, refused: 'unreachable' };
+      }
+
+      // The movie may have been deleted, or taken by another run, while the
+      // request was in flight. `beginMovieJob` lands on nothing in that case,
+      // which leaves the queued run to finish unwatched on the server — better
+      // than resurrecting a movie the user has since removed.
+      beginMovieJob(movieId, jobId);
       return { started: true };
     },
     [beginMovieJob, updateMovieCuts, snapIndex],

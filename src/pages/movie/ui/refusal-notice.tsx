@@ -11,11 +11,25 @@ export const CutsRefusalMessages: Record<CutsRefusal, string> = {
   frozen: '만드는 동안에는 컷을 고칠 수 없어요.',
 };
 
-/** Why a run could not be started, in the user's words. */
-export const GenerationRefusalMessages: Record<GenerationRefusal, string> = {
+/**
+ * Why a run could not be started, in the user's words.
+ *
+ * `rejected` has no entry: that refusal carries the backend's own message, which
+ * is the only thing that distinguishes an ownership problem from the free plan's
+ * monthly cap — both arrive as one status with one code.
+ */
+export const GenerationRefusalMessages: Record<Exclude<GenerationRefusal, 'rejected'>, string> = {
   empty: '컷이 하나도 없어서 만들 수 없어요. 스냅을 먼저 넣어주세요.',
   frozen: '이미 만드는 중이에요.',
+  uploading: '스냅을 서버에 올리는 중이에요. 잠시 뒤에 다시 시도해주세요.',
+  unreachable: '서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해주세요.',
 };
+
+/** The line for a refusal, using the server's wording when it sent one. */
+export function generationRefusalMessage(refused: GenerationRefusal, message?: string): string {
+  if (refused === 'rejected') return message ?? '지금은 만들 수 없어요.';
+  return GenerationRefusalMessages[refused];
+}
 
 /**
  * The line that answers a refusal — one component, one message table, for both

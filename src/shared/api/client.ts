@@ -1,9 +1,9 @@
 import type { z } from 'zod';
 
 import { API_BASE_URL } from '@/shared/config/api';
-import { supabase } from '@/shared/lib/supabase';
 
 import { ApiError } from './api-error';
+import { authHeader } from './auth-header';
 import type { ApiPath, ResolvedApiPath } from './paths';
 import type { paths } from './schema';
 
@@ -97,13 +97,6 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
   }
   const queryString = search.toString();
   return queryString ? `${url}?${queryString}` : url;
-}
-
-/** Attach the current Supabase JWT so protected endpoints authorize the caller. */
-async function authHeader(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 /**

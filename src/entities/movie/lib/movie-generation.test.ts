@@ -1,52 +1,26 @@
-import {
-  MovieGenerationStepCount,
-  MovieGenerationTotalMs,
-  movieJobProgressAt,
-} from './movie-generation';
+import { movieJobRatio } from './movie-generation';
 
-const startedAt = 1_754_000_000_000;
+const job = (progress?: number) => ({ id: 'job-1', startedAt: 1_000, progress });
 
-describe('movieJobProgressAt', () => {
-  it('starts on the first step', () => {
-    expect(movieJobProgressAt(startedAt, startedAt)).toMatchObject({
-      stepIndex: 0,
-      ratio: 0,
-      isDone: false,
-    });
+describe('movieJobRatio', () => {
+  it.each([
+    [0, 0],
+    [35, 0.35],
+    [100, 1],
+  ])('reports %s%% as %s', (progress, expected) => {
+    expect(movieJobRatio(job(progress))).toBeCloseTo(expected);
   });
 
-  it('reports the next boundary so the runner knows when to look again', () => {
-    const { nextStepAt } = movieJobProgressAt(startedAt, startedAt);
-    expect(nextStepAt).toBeGreaterThan(startedAt);
-    expect(movieJobProgressAt(startedAt, nextStepAt!)).toMatchObject({ stepIndex: 1 });
-  });
-
-  it('walks every step in order as time passes', () => {
-    const seen: number[] = [];
-    for (let elapsed = 0; elapsed < MovieGenerationTotalMs; elapsed += 250) {
-      const { stepIndex } = movieJobProgressAt(startedAt, startedAt + elapsed);
-      if (seen.at(-1) !== stepIndex) seen.push(stepIndex);
-    }
-    expect(seen).toEqual([0, 1, 2, 3, 4]);
+  // A job stored before the backend reported progress has none. It reads as the
+  // start rather than as a fraction of a step table that no longer exists.
+  it('reads a job with no reported progress as at the start', () => {
+    expect(movieJobRatio(job(undefined))).toBe(0);
   });
 
   it.each([
-    ['at the total', MovieGenerationTotalMs],
-    // A job left running while the app was suspended comes back already over.
-    ['long past the total', MovieGenerationTotalMs * 20],
-  ])('is done %s', (_name, elapsed) => {
-    expect(movieJobProgressAt(startedAt, startedAt + elapsed)).toEqual({
-      stepIndex: MovieGenerationStepCount - 1,
-      ratio: 1,
-      isDone: true,
-    });
-  });
-
-  it('reads a backwards clock as no progress rather than negative progress', () => {
-    expect(movieJobProgressAt(startedAt, startedAt - 60_000)).toMatchObject({
-      stepIndex: 0,
-      ratio: 0,
-      isDone: false,
-    });
+    [-10, 0],
+    [140, 1],
+  ])('clamps an out-of-range %s to %s', (progress, expected) => {
+    expect(movieJobRatio(job(progress))).toBe(expected);
   });
 });

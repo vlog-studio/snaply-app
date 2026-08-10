@@ -62,8 +62,8 @@ type MovieState = {
   setMovieArranger: (movieId: string, arranger: MovieArranger, updatedAt?: number) => void;
   renameMovie: (movieId: string, title: string, updatedAt?: number) => void;
   deleteMovie: (movieId: string) => void;
-  beginMovieJob: (movieId: string, startedAt?: number) => void;
-  advanceMovieJob: (movieId: string, stepIndex: number) => void;
+  beginMovieJob: (movieId: string, jobId: string, startedAt?: number) => void;
+  advanceMovieJob: (movieId: string, progress: number, step?: string) => void;
   finishMovieJob: (movieId: string, render: MovieRender, updatedAt?: number) => void;
   failMovieJob: (movieId: string, error: string, updatedAt?: number) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
@@ -210,28 +210,32 @@ export const useMovieStore = create<MovieState>()(
         ),
       deleteMovie: (movieId) =>
         set((state) => ({ movies: state.movies.filter((movie) => movie.id !== movieId) })),
-      beginMovieJob: (movieId, startedAt = Date.now()) =>
+      beginMovieJob: (movieId, jobId, startedAt = Date.now()) =>
         set((state) =>
           patchMovie(state, movieId, (movie) => ({
             ...movie,
             status: 'generating',
             // A retry replaces the previous attempt outright: its render is stale
             // and its error is answered by running again.
-            job: { id: `job-${startedAt}`, stepIndex: 0, startedAt },
+            job: { id: jobId, progress: 0, startedAt },
             render: undefined,
             error: undefined,
             updatedAt: startedAt,
           })),
         ),
       // Deliberately does not stamp `updatedAt`: the studio board sorts by it,
-      // and a job would otherwise reshuffle the board at every step.
-      advanceMovieJob: (movieId, stepIndex) =>
+      // and a job would otherwise reshuffle the board at every milestone.
+      advanceMovieJob: (movieId, progress, step) =>
         set((state) =>
-          patchMovie(state, movieId, (movie) =>
-            movie.job && movie.status === 'generating' && movie.job.stepIndex !== stepIndex
-              ? { ...movie, job: { ...movie.job, stepIndex } }
-              : movie,
-          ),
+          patchMovie(state, movieId, (movie) => {
+            if (!movie.job || movie.status !== 'generating') return movie;
+            // Progress never goes backwards: the socket sends a snapshot on
+            // connect, so a reconnect mid-run would otherwise rewind the ring.
+            const next = Math.max(movie.job.progress ?? 0, progress);
+            const nextStep = step ?? movie.job.step;
+            if (next === movie.job.progress && nextStep === movie.job.step) return movie;
+            return { ...movie, job: { ...movie.job, progress: next, step: nextStep } };
+          }),
         ),
       finishMovieJob: (movieId, render, updatedAt = Date.now()) =>
         set((state) =>
@@ -360,17 +364,24 @@ export function useRenameMovie(): (movieId: string, title: string, updatedAt?: n
 }
 
 /**
- * Puts a movie into generation at its first step. The four job actions are the
- * movie's generation lifecycle, and each is a distinct transition — starting
- * discards a previous attempt, advancing is a progress report, and finishing or
- * failing are the two ways out of `generating`.
+ * Hands a movie to the run the backend has queued, named by its `jobId`. The four
+ * job actions are the movie's generation lifecycle, and each is a distinct
+ * transition — starting discards a previous attempt, advancing is a progress
+ * report, and finishing or failing are the two ways out of `generating`.
+ *
+ * The caller queues the run first and passes the id it was given: a movie may
+ * only enter `generating` once there is a real run to follow, or the screen would
+ * show a job nothing can report on.
  */
-export function useBeginMovieJob(): (movieId: string, startedAt?: number) => void {
+export function useBeginMovieJob(): (movieId: string, jobId: string, startedAt?: number) => void {
   return useMovieStore((state) => state.beginMovieJob);
 }
 
-/** Records which step a running job has reached. A no-op if it is already there. */
-export function useAdvanceMovieJob(): (movieId: string, stepIndex: number) => void {
+/**
+ * Records a progress report from the backend. Never moves backwards and never
+ * unsets a step, so a socket's on-connect snapshot cannot rewind a running job.
+ */
+export function useAdvanceMovieJob(): (movieId: string, progress: number, step?: string) => void {
   return useMovieStore((state) => state.advanceMovieJob);
 }
 

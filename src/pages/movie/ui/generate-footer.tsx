@@ -2,20 +2,24 @@ import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Movie } from '@/entities/movie';
-import type { CutsRefusal, GenerationRefusal } from '@/features/compose-movie';
+import type { CutsRefusal } from '@/features/compose-movie';
 import type { MovieSharing } from '@/features/share-movie';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-import { CutsRefusalMessages, GenerationRefusalMessages, RefusalNotice } from './refusal-notice';
+import { CutsRefusalMessages, RefusalNotice } from './refusal-notice';
 
 export type GenerateFooterProps = {
   movie: Movie;
   /** Cuts the movie holds; nothing to generate is a refusal, not a run. */
   cutCount: number;
-  /** Why the last attempt to start was refused, if it was. */
-  refusal: GenerationRefusal | undefined;
+  /**
+   * Why the last attempt to start was refused, already in the user's words — the
+   * page resolves it, because one of the refusals is worded by the backend and
+   * this footer cannot tell that one from the rest.
+   */
+  refusalMessage: string | undefined;
   /** Why the last cut edit was refused, if it was. */
   cutsRefusal: CutsRefusal | undefined;
   /**
@@ -57,7 +61,7 @@ export type GenerateFooterProps = {
 export function GenerateFooter({
   movie,
   cutCount,
-  refusal,
+  refusalMessage,
   cutsRefusal,
   editedSinceRender,
   onRestoreCuts,
@@ -112,7 +116,7 @@ export function GenerateFooter({
 
       {cutsRefusal ? <RefusalNotice message={CutsRefusalMessages[cutsRefusal]} /> : null}
 
-      {refusal ? <RefusalNotice message={GenerationRefusalMessages[refusal]} /> : null}
+      {refusalMessage ? <RefusalNotice message={refusalMessage} /> : null}
 
       <View style={styles.actionSlot}>
         {inspector ?? (

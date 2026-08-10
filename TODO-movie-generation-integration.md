@@ -84,7 +84,9 @@ presigned URL은 만료되므로 앱은 저장된 `render.uri`를 영구 신뢰�
 
 ### 5-3. 썸네일 (선택) — 아직 화면에 반영되지 않음
 
-**2026-08-10 확인된 것**: 백엔드가 `thumbnailUrl`을 만들어 주고(영상과 같이 presign됨), `get-edited-video.ts`가 그 값을 `EditedVideo.thumbnailUrl`로 매핑합니다.
+**2026-08-10 확인된 것**: 백엔드가 썸네일 파일을 실제로 만들어 MinIO에 올리고(사용자가 버킷에서 확인), `GET /videos/{id}` 응답에 `thumbnailUrl`이 required 필드로 들어 있고(명세·`schema.d.ts` 모두), `get-edited-video.ts`의 zod 스키마가 그 값을 요구해 `EditedVideo.thumbnailUrl`로 매핑합니다. 이 필드가 빠지면 재생이 파싱 에러로 깨지므로, 서버가 값을 보내는 것도 확정입니다.
+
+⚠️ **확인 안 된 것**: 그 URL이 **영상처럼 presign되는지**. presign 수정이 `editedUrl`만 손봤다면 썸네일 URL은 여전히 비서명이고, 커버 이미지로 쓰는 순간 AccessDenied로 깨집니다. 5-3을 구현하기 전에 응답의 `thumbnailUrl`에 서명 쿼리(`X-Amz-Signature`)가 붙어 있는지 먼저 확인하세요.
 
 **아직 안 된 것**: 그 값을 **아무도 소비하지 않습니다.** `use-generation-runner.ts`는 `editedUrl`과 `durationSeconds`만 읽고, `MovieRender`에는 썸네일 필드가 없으며, 무비 타일·행의 커버는 여전히 로컬 스냅 프레임입니다(`widgets/movie-shelf`의 `coverUris` = `snaps.slice(0, 3).map(s => s.uri)`). 즉 API 경계까지만 도착해 있고 버려집니다.
 

@@ -12,6 +12,7 @@ export {
   useRemoveSnapsEverywhere,
   useRenameMovie,
   useSetMovieArranger,
+  useSetRenderThumbnail,
   useUpdateMovieCuts,
   useUpdateMovieStyle,
   type CreateMovieInput,

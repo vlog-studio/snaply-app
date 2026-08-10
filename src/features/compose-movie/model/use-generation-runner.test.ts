@@ -9,6 +9,8 @@ import { useGenerationRunner } from './use-generation-runner';
 const mockAdvance = jest.fn();
 const mockFinish = jest.fn();
 const mockFail = jest.fn();
+const mockSetThumbnail = jest.fn();
+const mockDownloadThumbnail = jest.fn<Promise<string | undefined>, [string, string]>();
 const mockMovies = jest.fn<Movie[], []>();
 const mockSnapIndex = jest.fn<Map<string, { id: string; durationSec: number }>, []>();
 const mockSnapsHydrated = jest.fn<boolean, []>();
@@ -24,8 +26,13 @@ jest.mock('@/entities/movie', () => ({
   useAdvanceMovieJob: () => mockAdvance,
   useFinishMovieJob: () => mockFinish,
   useFailMovieJob: () => mockFail,
+  useSetRenderThumbnail: () => mockSetThumbnail,
   cutsDurationSec: (refs: { snapId: string }[], lookup: (id: string) => number | undefined) =>
     refs.reduce((total, ref) => total + (lookup(ref.snapId) ?? 0), 0),
+}));
+
+jest.mock('../api/download-render-thumbnail', () => ({
+  downloadRenderThumbnail: (url: string, key: string) => mockDownloadThumbnail(url, key),
 }));
 
 jest.mock('@/entities/snap', () => ({
@@ -100,6 +107,7 @@ beforeEach(() => {
   // The default answer to the catch-up pass: the run is still going.
   mockGetEditJob.mockResolvedValue({ status: 'processing', progress: 35, videoId: 'result-1' });
   mockGetEditedVideo.mockResolvedValue({});
+  mockDownloadThumbnail.mockResolvedValue(undefined);
 });
 
 describe('useGenerationRunner', () => {
@@ -167,6 +175,65 @@ describe('useGenerationRunner', () => {
       videoId: 'result-1',
     });
     expect(mockFinish.mock.calls[0][1].uri).toBeUndefined();
+  });
+
+  // The cover is decoration: it is fetched after the movie is already `ready`,
+  // and it is written by its own action rather than being part of the render the
+  // job finished with — a download nobody waits for must never hold a finished
+  // movie in `generating`.
+  it('brings the render cover local after finishing, keyed on the render', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-9' });
+    mockGetEditedVideo.mockResolvedValue({
+      editedUrl: 'https://x/e.mp4',
+      thumbnailUrl: 'https://x/t.jpg?sig=abc',
+      durationSeconds: 11,
+    });
+    mockDownloadThumbnail.mockResolvedValue('file:///cache/movie-covers/m1-1.jpg');
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    const renderedAt = mockFinish.mock.calls[0][1].renderedAt;
+    expect(mockFinish.mock.calls[0][1].thumbnailUri).toBeUndefined();
+    expect(mockDownloadThumbnail).toHaveBeenCalledWith(
+      'https://x/t.jpg?sig=abc',
+      `m1-${renderedAt}`,
+    );
+    expect(mockSetThumbnail).toHaveBeenCalledWith(
+      'm1',
+      renderedAt,
+      'file:///cache/movie-covers/m1-1.jpg',
+    );
+  });
+
+  it('writes no cover when the download could not produce one', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-9' });
+    mockGetEditedVideo.mockResolvedValue({
+      editedUrl: 'https://x/e.mp4',
+      thumbnailUrl: 'https://x/t.jpg',
+    });
+    mockDownloadThumbnail.mockResolvedValue(undefined);
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockSetThumbnail).not.toHaveBeenCalled();
+  });
+
+  it('asks for no cover when the run produced no thumbnail', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockResolvedValue({ status: 'done', progress: 100, videoId: 'result-9' });
+    mockGetEditedVideo.mockResolvedValue({ editedUrl: 'https://x/e.mp4' });
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockDownloadThumbnail).not.toHaveBeenCalled();
   });
 
   it('finishes a job that ended while the app was away, without any frame arriving', async () => {

@@ -83,6 +83,38 @@ describe('useMovieSummaries', () => {
     ]);
   });
 
+  // The grid prefers the render's own cover; the frames stay as the fallback the
+  // tile drops to when the local file is gone.
+  it('carries the render cover when the movie has one', async () => {
+    mockMovies.mockReturnValue([
+      makeMovie({
+        id: 'm1',
+        status: 'ready',
+        snapRefs: [{ snapId: 's1', order: 0 }],
+        render: {
+          renderedAt: 1,
+          durationSec: 3,
+          thumbnailUri: 'file:///cache/movie-covers/m1-1.jpg',
+        },
+      }),
+    ]);
+
+    const { result } = await renderHook(() => useMovieSummaries());
+
+    expect(result.current[0].coverImageUri).toBe('file:///cache/movie-covers/m1-1.jpg');
+    expect(result.current[0].coverUris).toEqual(['file:///doc/recordings/s1.mp4']);
+  });
+
+  it('carries no render cover for a movie whose render never got one', async () => {
+    mockMovies.mockReturnValue([
+      makeMovie({ id: 'm1', status: 'ready', render: { renderedAt: 1, durationSec: 3 } }),
+    ]);
+
+    const { result } = await renderHook(() => useMovieSummaries());
+
+    expect(result.current[0].coverImageUri).toBeUndefined();
+  });
+
   it('counts a cut whose original was deleted, but cannot draw or time it', async () => {
     mockMovies.mockReturnValue([
       makeMovie({

@@ -9,6 +9,7 @@ import {
   useDeleteMovie,
   useFailMovieJob,
   useFinishMovieJob,
+  useSetRenderThumbnail,
   useMovieById,
   useMovies,
   useMovieStore,
@@ -411,6 +412,43 @@ describe('generating a movie', () => {
       { snapId: 's1', order: 0, trim: { startSec: 1, endSec: 3 } },
       { snapId: 's2', order: 1 },
     ]);
+  });
+
+  // The cover arrives after the movie is already `ready` (the download does not
+  // gate the result), so it is written by its own action — and only onto the
+  // render it was made for.
+  it('writes the render cover onto the render it belongs to', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      finish: useFinishMovieJob(),
+      setThumbnail: useSetRenderThumbnail(),
+    }));
+
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.finish('m1', render, 999));
+    await act(async () =>
+      result.current.setThumbnail('m1', render.renderedAt, 'file:///cover.jpg'),
+    );
+
+    expect(useMovieStore.getState().movies[0].render?.thumbnailUri).toBe('file:///cover.jpg');
+    // A cover is not an edit, and the board sorts on `updatedAt`.
+    expect(useMovieStore.getState().movies[0].updatedAt).toBe(999);
+  });
+
+  it('drops a cover that describes a render the movie has since replaced', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      finish: useFinishMovieJob(),
+      setThumbnail: useSetRenderThumbnail(),
+    }));
+
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.finish('m1', render, 999));
+    const before = useMovieStore.getState().movies[0];
+
+    await act(async () => result.current.setThumbnail('m1', render.renderedAt - 1, 'file:///old.jpg'));
+
+    expect(useMovieStore.getState().movies[0]).toBe(before);
   });
 
   it('fails a job into a failed movie holding the reason', async () => {

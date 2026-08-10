@@ -31,6 +31,14 @@ export type MovieSummary = {
   dateLabel: string;
   /** Up to three snap URIs, in cut order, for the cover. */
   coverUris: string[];
+  /**
+   * The finished render's own cover image (a local file), when the movie has
+   * one. The grid prefers it over {@link coverUris} — a movie's cover art
+   * should be the movie, not the raw material — and falls back to the frames
+   * when it is missing or will not load. The board keeps the frames either way:
+   * a row is a work list, and a strip of cuts says more there than one picture.
+   */
+  coverImageUri?: string;
   /** How far generation has come, 0–1. Present only while `generating`. */
   progress?: number;
   /** Why the last generation broke. Present only while `failed`. */
@@ -63,6 +71,7 @@ function summarize(movie: Movie, snapIndex: SnapIndex): MovieSummary {
     totalSec: cutsDurationSec(movie.snapRefs, (snapId) => snapIndex.get(snapId)?.durationSec),
     dateLabel: formatDayHeading(movie.updatedAt),
     coverUris: snaps.slice(0, CoverFrameCount).map((snap) => snap.uri),
+    ...(movie.render?.thumbnailUri ? { coverImageUri: movie.render.thumbnailUri } : null),
     progress: jobProgress(movie),
     // Only while failed: a movie keeps its last error through a retry so the
     // store can tell one attempt from the next, but a card showing it after the

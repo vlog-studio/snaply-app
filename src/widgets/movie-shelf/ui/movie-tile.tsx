@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatSeconds } from '@/shared/lib/datetime';
+import { ImageFrame } from '@/shared/ui/image-frame';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
@@ -23,8 +25,16 @@ export type MovieTileProps = {
 };
 
 /**
- * One movie in the movie tab's grid: a square cover of its first cut with the
- * length and status over it, and the title beneath.
+ * One movie in the movie tab's grid: a square cover with the length and status
+ * over it, and the title beneath.
+ *
+ * The cover is the render's own thumbnail once a run has produced one — the
+ * grid is cover art, and a finished movie's cover should be the movie rather
+ * than the first thing that went into it. Everything else (a draft, a failed
+ * run, a render made before covers were kept, a cover the OS has reclaimed)
+ * draws the first cut's frame, which is why the fallback is a state rather than
+ * a condition: a local file can vanish under the app, and only the load
+ * failing says so.
  *
  * In selection mode a check circle joins the cover — opposite corner from the
  * status badge, so the two never collide — and the border thickens on the
@@ -39,6 +49,8 @@ export function MovieTile({
   selected = false,
 }: MovieTileProps) {
   const theme = useTheme();
+  const [coverImageFailed, setCoverImageFailed] = useState(false);
+  const coverImage = coverImageFailed ? undefined : movie.coverImageUri;
   const cover = movie.coverUris[0];
 
   return (
@@ -64,7 +76,11 @@ export function MovieTile({
           selected && styles.selectedCover,
         ]}
       >
-        {cover ? <VideoFrame uri={cover} /> : null}
+        {coverImage ? (
+          <ImageFrame uri={coverImage} onError={() => setCoverImageFailed(true)} />
+        ) : cover ? (
+          <VideoFrame uri={cover} />
+        ) : null}
         <View style={styles.badge}>
           <MovieStatusBadge status={movie.status} />
         </View>

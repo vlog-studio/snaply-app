@@ -7,11 +7,13 @@ import {
   useFailMovieJob,
   useFinishMovieJob,
   useMovies,
+  useSetRenderThumbnail,
   type Movie,
 } from '@/entities/movie';
 import { useSnapIndex, useSnapsHydrated } from '@/entities/snap';
 import { ApiError } from '@/shared/api';
 
+import { downloadRenderThumbnail } from '../api/download-render-thumbnail';
 import { getEditedVideo } from '../api/get-edited-video';
 import { getEditJob } from '../api/get-edit-job';
 import { subscribeEditProgress } from '../api/subscribe-edit-progress';
@@ -78,6 +80,7 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
   const advanceMovieJob = useAdvanceMovieJob();
   const finishMovieJob = useFinishMovieJob();
   const failMovieJob = useFailMovieJob();
+  const setRenderThumbnail = useSetRenderThumbnail();
 
   // Only jobs in flight matter, and the identity of this list is what re-opens
   // the sockets below — so it must not change when an unrelated movie is edited,
@@ -130,10 +133,11 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
 
     const finish = (
       movie: Movie,
-      result: { uri?: string; videoId?: string },
+      result: { uri?: string; videoId?: string; thumbnailUrl?: string },
       durationSec: number,
     ) => {
       settled.add(movie.id);
+      const renderedAt = Date.now();
       finishMovieJob(movie.id, {
         // The id is the durable handle — the URL the lookup got is time-limited
         // (a signed link to a private bucket), so watch mode re-asks by id and
@@ -141,13 +145,25 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
         // the file exists, and the id is how a later visit still finds it.
         ...(result.uri ? { uri: result.uri } : null),
         ...(result.videoId ? { videoId: result.videoId } : null),
-        renderedAt: Date.now(),
+        renderedAt,
         durationSec,
       });
       // Announced from here rather than from a store subscription because this is
       // the moment the job ended, and the user is expected to be elsewhere by
       // now — that is the whole reason to tell them.
       if (latest.current.announce) announceJobEnd('ready', movie);
+      // The cover follows the result rather than gating it: the movie is already
+      // `ready`, and a download nobody is waiting for cannot hold a finished
+      // movie in `generating`. A cover that never arrives leaves the movie
+      // drawing its snaps' frames, exactly as before. `renderedAt` goes along so
+      // a slow download cannot land on a render that has since been replaced.
+      if (result.thumbnailUrl) {
+        void downloadRenderThumbnail(result.thumbnailUrl, `${movie.id}-${renderedAt}`).then(
+          (coverUri) => {
+            if (!cancelled && coverUri) setRenderThumbnail(movie.id, renderedAt, coverUri);
+          },
+        );
+      }
     };
 
     /**
@@ -202,10 +218,12 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
       }
 
       let uri: string | undefined;
+      let thumbnailUrl: string | undefined;
       let serverDurationSec: number | undefined;
       try {
         const video = await getEditedVideo(state.videoId);
         uri = video.editedUrl;
+        thumbnailUrl = video.thumbnailUrl;
         serverDurationSec = video.durationSeconds;
       } catch (error) {
         // The run is done; only the file's whereabouts are unknown. Finishing
@@ -222,7 +240,11 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
       // file when there is one, the cuts when there is not.
       finish(
         ready,
-        { ...(uri ? { uri } : null), videoId: state.videoId },
+        {
+          ...(uri ? { uri } : null),
+          ...(thumbnailUrl ? { thumbnailUrl } : null),
+          videoId: state.videoId,
+        },
         uri && serverDurationSec ? serverDurationSec : cutsSec(ready),
       );
     };
@@ -272,5 +294,12 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
     // movie changes, and re-opening every socket on an unrelated edit would
     // restart the subscriptions several times a run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runningKey, snapsHydrated, advanceMovieJob, finishMovieJob, failMovieJob]);
+  }, [
+    runningKey,
+    snapsHydrated,
+    advanceMovieJob,
+    finishMovieJob,
+    failMovieJob,
+    setRenderThumbnail,
+  ]);
 }

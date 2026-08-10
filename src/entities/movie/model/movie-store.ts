@@ -65,6 +65,7 @@ type MovieState = {
   beginMovieJob: (movieId: string, jobId: string, startedAt?: number) => void;
   advanceMovieJob: (movieId: string, progress: number, step?: string) => void;
   finishMovieJob: (movieId: string, render: MovieRender, updatedAt?: number) => void;
+  setRenderThumbnail: (movieId: string, renderedAt: number, thumbnailUri: string) => void;
   failMovieJob: (movieId: string, error: string, updatedAt?: number) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
   setHasHydrated: (value: boolean) => void;
@@ -258,6 +259,20 @@ export const useMovieStore = create<MovieState>()(
               : movie,
           ),
         ),
+      // The render's cover, arriving after the fact — the download runs once the
+      // movie is already `ready`, because nothing about a result may wait on
+      // decoration. Guarded by `renderedAt`: a download that lands after the
+      // movie was regenerated describes the render it replaced, and writing it
+      // would put the old cover on the new movie. `updatedAt` is deliberately
+      // left alone — a cover is not an edit, and the board sorts on it.
+      setRenderThumbnail: (movieId, renderedAt, thumbnailUri) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.render && movie.render.renderedAt === renderedAt
+              ? { ...movie, render: { ...movie.render, thumbnailUri } }
+              : movie,
+          ),
+        ),
       // The other way out of `generating`. The job is dropped but the cut list and
       // settings are left exactly as they were: recovery is running the same movie
       // again, so everything the retry needs has to survive the failure.
@@ -398,6 +413,14 @@ export function useFinishMovieJob(): (
  * Ends a running job without a render, recording why. The message is what the
  * recovery UI shows, so it is written for the user rather than for a log.
  */
+export function useSetRenderThumbnail(): (
+  movieId: string,
+  renderedAt: number,
+  thumbnailUri: string,
+) => void {
+  return useMovieStore((state) => state.setRenderThumbnail);
+}
+
 export function useFailMovieJob(): (movieId: string, error: string, updatedAt?: number) => void {
   return useMovieStore((state) => state.failMovieJob);
 }

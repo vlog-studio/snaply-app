@@ -90,6 +90,20 @@ export type SnapRef = {
 export type MovieRender = {
   uri?: string;
   videoId?: string;
+  /**
+   * The render's own cover image, as a **local** file — the backend's
+   * thumbnail brought onto the device.
+   *
+   * A local copy rather than the server's URL for two reasons: the URL is a
+   * signed link that expires (a stored one would become a broken cover within
+   * the day), and a grid draws many movies at once, so re-resolving one address
+   * per tile would put a request behind every cell. Written after the job
+   * finishes, never as part of finishing it — a cover is decoration, and no
+   * result waits on one. Absent when the download has not happened or failed,
+   * and on every render made before this field existed; the cover then falls
+   * back to the snaps' own frames.
+   */
+  thumbnailUri?: string;
   renderedAt: number;
   durationSec: number;
   snapRefs?: SnapRef[];

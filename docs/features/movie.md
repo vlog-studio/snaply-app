@@ -106,7 +106,7 @@ Where each part is read now:
 | Refusal | When | What the user is told |
 | --- | --- | --- |
 | `uploading` | A cut has not reached the backend yet — still uploading, a failed upload, or never started. The run is made from the *server's* copies of the snaps. | 스냅을 서버에 올리는 중이에요. 잠시 뒤에 다시 시도해주세요. |
-| `rejected` | The backend refused the run (`403`): not the caller's video, a video that is not `ready`, or the free plan's monthly cap of three. | **The backend's own message.** One status, one code (`FORBIDDEN`), and only the message says which of those it was — so it is carried through rather than reworded. |
+| `rejected` | The backend refused the run (`403`): not the caller's video, a video that is not `ready`, or the free plan's monthly cap of three. | **The backend's own message.** One status, one code (`FORBIDDEN`), and only the message says which of those it was — so it is carried through rather than reworded. Verified on a device (2026-08-10): a fourth run in the month surfaces the server's plan-limit sentence in the footer, unedited. |
 | `unreachable` | The request itself failed. Nothing was queued and the movie is untouched. | 서버에 연결하지 못했어요. 연결을 확인하고 다시 시도해주세요. |
 
 `uploading` is answered here rather than discovered as a `403`, because `POST /edit-jobs` refuses a batch whole when one source is missing — the user would otherwise press the button and be told something opaque. Refusals surface in the footer, under the button that refused; the movie tab's retry has nowhere to show one, so a retry that cannot start there simply leaves the movie failed with the reason it already carries.

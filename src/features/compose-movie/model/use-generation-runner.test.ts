@@ -144,7 +144,7 @@ describe('useGenerationRunner', () => {
     expect(mockGetEditedVideo).toHaveBeenCalledWith('result-9');
     expect(mockFinish).toHaveBeenCalledWith(
       'm1',
-      expect.objectContaining({ uri: 'https://x/e.mp4', durationSec: 11 }),
+      expect.objectContaining({ uri: 'https://x/e.mp4', videoId: 'result-9', durationSec: 11 }),
     );
   });
 
@@ -159,7 +159,14 @@ describe('useGenerationRunner', () => {
 
     await emit('job-1', { kind: 'done' });
 
-    expect(mockFinish).toHaveBeenCalledWith('m1', { renderedAt: expect.any(Number), durationSec: 4 });
+    // The result id is still stored: the file may exist even though the lookup
+    // failed, and the id is how a later visit asks for it again.
+    expect(mockFinish).toHaveBeenCalledWith('m1', {
+      renderedAt: expect.any(Number),
+      durationSec: 4,
+      videoId: 'result-1',
+    });
+    expect(mockFinish.mock.calls[0][1].uri).toBeUndefined();
   });
 
   it('finishes a job that ended while the app was away, without any frame arriving', async () => {

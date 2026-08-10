@@ -66,6 +66,13 @@ export type SnapRef = {
  * compositing backend exists; until then a ready movie is played by running its
  * cuts in order, so the field is optional.
  *
+ * `videoId` is the **result** video's id on the server — what `GET /videos/{id}`
+ * is asked for. Kept because a stored URL is not durable: the backend hands out
+ * time-limited links to a private bucket, so whoever wants to play or export
+ * the file asks for a fresh URL by this id at that moment, and `uri` is only
+ * the answer the finish-time lookup got (a fallback, not the source of truth).
+ * Optional because renders stored before the field existed have none.
+ *
  * `snapRefs` is the cut list the render was made from, frozen by
  * `finishMovieJob` as the job ends. The composition the user edits and the
  * result a run produced are different objects, and the movie's live `snapRefs`
@@ -82,6 +89,7 @@ export type SnapRef = {
  */
 export type MovieRender = {
   uri?: string;
+  videoId?: string;
   renderedAt: number;
   durationSec: number;
   snapRefs?: SnapRef[];

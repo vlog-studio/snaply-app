@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { movieBgmLabel, movieStyleLabel, type Movie } from '@/entities/movie';
+import { useRenderSource } from '@/features/compose-movie';
 import type { MovieSharing } from '@/features/share-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
@@ -12,6 +13,7 @@ import { toPlaybackCuts } from '../model/playback-cuts';
 import type { Cut } from '../model/use-movie-cuts';
 import { watchDurationSec } from '../model/watch-cuts';
 import { CutPlayer } from './cut-player';
+import { RenderPlayer } from './render-player';
 
 export type MovieWatchProps = {
   movie: Movie;
@@ -43,10 +45,17 @@ export type MovieWatchProps = {
  * file, the same idiom as the studio footer — with the reason written under
  * it, because a lone disabled primary action explains nothing by itself.
  *
- * A drifted cut list says so here too: the stage plays the render's own
- * composition, so edits kept for later (`editedSinceRender`) are invisible on
- * this face — without the notice, the only place that admits they exist is
- * the studio the user just chose to leave.
+ * The stage plays the finished movie, in whichever form the run left it:
+ * the rendered file as one video when the render has one (`render.uri`), and
+ * the render's own cut composition back to back when it does not (mock mode,
+ * renders from before the backend composited anything). Fixing the movie is
+ * the studio's job either way — its stage keeps playing the *editable* cuts,
+ * which is what a change is judged against before paying for a run.
+ *
+ * A drifted cut list says so here too: the stage plays what was made, so
+ * edits kept for later (`editedSinceRender`) are invisible on this face —
+ * without the notice, the only place that admits they exist is the studio
+ * the user just chose to leave.
  */
 export function MovieWatch({
   movie,
@@ -59,6 +68,14 @@ export function MovieWatch({
   const insets = useSafeAreaInsets();
   const playbackCuts = toPlaybackCuts(cuts);
   const totalSec = watchDurationSec(movie, cuts);
+  // The finished file, when the run produced one — resolved to a *fresh*
+  // address, because the backend's links are time-limited (`useRenderSource`).
+  // Watch mode plays it as one video — the backend's edit, not the raw cuts —
+  // while movies without a file (mock mode, pre-backend renders) keep playing
+  // their cut list below. A remote file also outlives the snaps it was made
+  // from, so it plays even when every original is deleted and the cut list has
+  // nothing to offer.
+  const renderSource = useRenderSource(movie);
 
   const facts = [
     movie.render ? `${formatDateTime(movie.render.renderedAt)} 완성` : undefined,
@@ -70,7 +87,19 @@ export function MovieWatch({
   return (
     <View style={styles.body}>
       <View style={styles.stage}>
-        {playbackCuts.length > 0 ? (
+        {renderSource.resolving ? (
+          // A fresh address is on its way; opening the cut player meanwhile
+          // would flash the raw material before the finished movie.
+          <View style={[styles.playerBox, styles.resolving, { backgroundColor: theme.media }]}>
+            <ThemedText selectable={false} style={styles.resolvingText}>
+              불러오는 중…
+            </ThemedText>
+          </View>
+        ) : renderSource.uri !== undefined ? (
+          <View style={styles.playerBox}>
+            <RenderPlayer uri={renderSource.uri} style={styles.player} />
+          </View>
+        ) : playbackCuts.length > 0 ? (
           <View style={styles.playerBox}>
             <CutPlayer cuts={playbackCuts} style={styles.player} />
           </View>
@@ -139,6 +168,14 @@ const styles = StyleSheet.create({
   // Height-bound like the studio stage: the leftover height and the 9:16 ratio
   // decide the width, so the rows below never leave the screen.
   playerBox: { flex: 1, aspectRatio: 9 / 16, maxWidth: '100%' },
+  resolving: {
+    borderRadius: Radius.large,
+    borderCurve: 'continuous',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Over the stage's media backdrop, same as RenderPlayer's own state text.
+  resolvingText: { color: '#FFFFFF' },
   player: { width: '100%', height: '100%' },
   facts: {
     width: '100%',

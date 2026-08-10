@@ -60,6 +60,14 @@ describe('watchDurationSec', () => {
     expect(watchDurationSec(movie, [cut('rendered', 2.5)])).toBe(18);
   });
 
+  it('quotes the render length whenever a file plays, even with nothing else left', () => {
+    // The file outlives the snaps it was made from: with every original (and
+    // so the snapshot) gone, the stage still plays `render.uri`, and the cut
+    // sum would put 0초 beside a movie that runs.
+    const movie = makeMovie([], { uri: 'https://cdn.example/m.mp4', durationSec: 18, snapRefs: [] });
+    expect(watchDurationSec(movie, [])).toBe(18);
+  });
+
   it('sums the cuts that actually play when the render kept no snapshot', () => {
     // The stored length describes a composition the fallback is not playing.
     const movie = makeMovie([ref('live', 0)], { durationSec: 18, snapRefs: undefined });

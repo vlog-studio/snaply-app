@@ -28,17 +28,21 @@ export function watchRefs(movie: Pick<Movie, 'snapRefs' | 'render'>): SnapRef[] 
 /**
  * How long the watched movie runs, for the facts line.
  *
- * `render.durationSec` is the finished movie's own length — but only while the
- * render also remembers *what* it was made of. A render without a snapshot
- * plays the live list instead (`watchRefs`), and quoting the stored length
- * over cuts it does not describe printed "18초" beside a 0.9초 playlist. The
- * rule mirrors `watchRefs`' fallback exactly, so the length always describes
+ * A render with a file (`uri`) is what watch mode plays, so its stored length
+ * is the answer outright — the file keeps playing even after every snap it was
+ * made from is deleted, and the cut sum would then claim 0초 beside a movie
+ * that runs. Without a file, `render.durationSec` counts only while the render
+ * also remembers *what* it was made of. A render without a snapshot plays the
+ * live list instead (`watchRefs`), and quoting the stored length over cuts it
+ * does not describe printed "18초" beside a 0.9초 playlist. The rule mirrors
+ * the stage's own choice of player exactly, so the length always describes
  * what actually plays.
  */
 export function watchDurationSec(
   movie: Pick<Movie, 'snapRefs' | 'render'>,
   cuts: readonly Cut[],
 ): number {
+  if (movie.render?.uri) return movie.render.durationSec;
   const source = movie.render?.snapRefs;
   if (movie.render && source && source.length > 0) return movie.render.durationSec;
   return cuts.reduce((total, cut) => total + cut.usedSec, 0);

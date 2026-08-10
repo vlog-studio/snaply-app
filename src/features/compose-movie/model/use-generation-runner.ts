@@ -128,10 +128,19 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
       if (latest.current.announce) announceJobEnd('failed', movie, error);
     };
 
-    const finish = (movie: Movie, uri: string | undefined, durationSec: number) => {
+    const finish = (
+      movie: Movie,
+      result: { uri?: string; videoId?: string },
+      durationSec: number,
+    ) => {
       settled.add(movie.id);
       finishMovieJob(movie.id, {
-        ...(uri ? { uri } : null),
+        // The id is the durable handle — the URL the lookup got is time-limited
+        // (a signed link to a private bucket), so watch mode re-asks by id and
+        // this uri is only its fallback. Stored even when the lookup failed:
+        // the file exists, and the id is how a later visit still finds it.
+        ...(result.uri ? { uri: result.uri } : null),
+        ...(result.videoId ? { videoId: result.videoId } : null),
         renderedAt: Date.now(),
         durationSec,
       });
@@ -211,7 +220,11 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
       if (!ready || ready.status !== 'generating') return;
       // The stored length has to describe what will actually play: the rendered
       // file when there is one, the cuts when there is not.
-      finish(ready, uri, uri && serverDurationSec ? serverDurationSec : cutsSec(ready));
+      finish(
+        ready,
+        { ...(uri ? { uri } : null), videoId: state.videoId },
+        uri && serverDurationSec ? serverDurationSec : cutsSec(ready),
+      );
     };
 
     const sockets = running.map(({ movieId, jobId }) =>

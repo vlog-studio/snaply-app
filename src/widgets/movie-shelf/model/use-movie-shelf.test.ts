@@ -62,7 +62,7 @@ beforeEach(() => {
 });
 
 describe('useMovieSummaries', () => {
-  it('sums the length of the resolved snaps and samples the first cuts as a cover', async () => {
+  it('sums the length of the resolved snaps and samples the first cut as the cover', async () => {
     mockMovies.mockReturnValue([
       makeMovie({
         id: 'm1',
@@ -76,11 +76,8 @@ describe('useMovieSummaries', () => {
     const { result } = await renderHook(() => useMovieSummaries());
 
     expect(result.current[0]).toMatchObject({ id: 'm1', snapCount: 2, totalSec: 8 });
-    // Cover frames follow cut order, not reference order.
-    expect(result.current[0].coverUris).toEqual([
-      'file:///doc/recordings/s1.mp4',
-      'file:///doc/recordings/s2.mp4',
-    ]);
+    // The cover frame follows cut order, not reference order.
+    expect(result.current[0].coverUris).toEqual(['file:///doc/recordings/s1.mp4']);
   });
 
   // The grid prefers the render's own cover; the frames stay as the fallback the

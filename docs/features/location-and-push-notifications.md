@@ -55,11 +55,11 @@ The `GET /locations` response carries `id`, `name`, `lat`, `lng`, `radiusMeters`
 
 ## Known limitations and implementation requirements
 
-- No backend exists: arrival reports and token registrations go to mocks (`USE_MOCK_API`), and no arrival push is delivered end-to-end. Presenting a foreground push has been wired but end-to-end FCM display is unverified pending the backend notification API.
+- Arrival reports and token registrations call real endpoints (`POST /notifications/geofence-enter`, `POST /auth/fcm-token`) when a backend origin is configured, and in-code mocks under `USE_MOCK_API`. No arrival push is delivered end-to-end yet: the backend has no notification-send pipeline, so foreground presentation is wired but end-to-end FCM display remains unverified.
 - Geofence monitoring needs foreground **and** background ("항상 허용") location permission. If the user declines, toggling the switch on cannot start monitoring. Resolving the position and nearby points also needs a location/network fix, so there is a short delay before monitoring begins.
 - On Android 13+, presenting a delivered notification also requires the `POST_NOTIFICATIONS` runtime permission (separate from location permission).
 - At most `MAX_MONITORED_REGIONS` (20) points are monitored at once, the nearest to the resolved position; the set is recomputed each time monitoring (re)starts.
 - The 5-minute client cooldown is in-memory only and resets on a cold background relaunch; the authoritative 30-minute per-(user, location) dedup is the backend's responsibility.
-- Quiet hours and interests are collected locally but not synced to the backend (`PATCH /auth/me` does not exist); they are enforced server-side when the arrival push is decided (see [Me tab](me.md)).
+- Quiet hours and interests are collected locally but not synced to the backend (`GET|PATCH /auth/me` are in the API spec, not yet called by the client); they are enforced server-side when the arrival push is decided (see [Me tab](me.md)).
 
-When the backend arrives, replace the mock routes, verify end-to-end FCM display, move `notification_enabled`/`quiet_start`/`quiet_end`/`interests` to server-backed queries/mutations, and update the status of the rows above with the verified success and failure paths.
+When the backend's notification-send pipeline arrives, verify end-to-end FCM display, move `notification_enabled`/`quiet_start`/`quiet_end`/`interests` to server-backed queries/mutations on `/auth/me`, and update the status of the rows above with the verified success and failure paths.

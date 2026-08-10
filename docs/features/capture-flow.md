@@ -69,9 +69,9 @@ The camera-permission-denied screen still exposes the recording library, so user
 
 ## Persistence and privacy
 
-Original recordings are stored only in the Snaply app's document directory. They are not exported to the system media library, uploaded, shared, or synchronized. Removing the app also removes its recordings. See [Snap library](snaps.md) for file behavior and management surfaces.
+Original recordings are stored in the Snaply app's document directory and are never exported to the system media library. Since 2026-08-07 every saved snap is also uploaded to the backend in the background, because a generation run is made from the server's copies — the upload pipeline, its retries, and its delete tombstones are documented in [Snap library](snaps.md#backend-upload-sync-2026-08-07). Removing the app removes the local recordings. See [Snap library](snaps.md) for file behavior and management surfaces.
 
-A snap's coordinates are held to the same boundary: they are stored in the local snap metadata, never uploaded, and never turned into a place name. The iOS purpose string in `app.json` states both uses of the permission (tagging snaps and the existing arrival alerts); a `prebuild` is required for a change to it to reach the native projects.
+A snap's coordinates stay on the device: they are stored in the local snap metadata, never uploaded — the upload carries the file and its rounded length only — and never turned into a place name. The iOS purpose string in `app.json` states both uses of the permission (tagging snaps and the existing arrival alerts); a `prebuild` is required for a change to it to reach the native projects.
 
 ## Known limitations
 

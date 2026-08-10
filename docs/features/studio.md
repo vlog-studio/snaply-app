@@ -99,8 +99,8 @@ Two of these are deliberately identity-preserving: a write that changes nothing 
 
 ## Known limitations
 
-- Generation is a local simulation and nothing is composited (see [The movie screen](movie.md)). A `ready` movie is real state, but its "render" is a length and a timestamp.
+- In mock mode (`USE_MOCK_API`) generation is simulated and nothing is composited: a `ready` movie is real state, but its "render" is a length and a timestamp with no file. Against the real backend the render holds the composited file and its cover (see [The movie screen](movie.md)).
 - Selection mode is reachable from the movie tab alone: a board row answers a long press with nothing, so a movie made by mistake still has to be found in the grid to be removed. (Renaming is not offered here at all — it lives on the movie screen.)
 - The tray is single. Collecting for two movies at once is not possible (concept §11 leaves this open).
 - `MovieSummary.dateLabel` reads the clock through `formatDayHeading`, so a movie edited just before midnight keeps reading "오늘" until the screen re-renders.
-- Movies are local-only. There is no upload, no server-side composition, and no sync between devices.
+- Movies are local-only state: the cut list, settings, and render pointer live in the on-device store, so nothing syncs between devices and a reinstall loses every movie while its rendered files sit on the server unreferenced (see [The movie screen](movie.md#known-limitations)).

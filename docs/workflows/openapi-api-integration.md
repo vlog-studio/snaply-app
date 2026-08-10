@@ -107,8 +107,8 @@ The original six-step introduction plan, with current status:
 2. ✅ Spec committed at `docs/api/openapi.json`; `npm run api:gen` produces `src/shared/api/schema.d.ts`.
 3. ✅ `src/shared/api`: `apiRequest` transport, `ApiError`, `apiPath`, Public API `index.ts`.
 4. ✅ `QueryClient` and `QueryClientProvider` in `src/_app/providers`.
-5. 🔄 Entity `api` segments: `entities/location/api` exists (DTO schema + mapper + mock routing via `USE_MOCK_API`); the remaining entities (video, edit-job, profile, subscription, SNS connection) are added as their features land.
-6. 🔄 Mutations in the owning `features/<action>` or `pages/<page>/api`: `features/geofence-monitor` and `features/register-push-token` exist; the rest follow their features.
+5. 🔄 Entity `api` segments: `entities/location/api` exists (DTO schema + mapper + mock routing via `USE_MOCK_API`). Video and edit-job landed as feature-owned `api` segments instead (`features/upload-snap/api`, `features/compose-movie/api`), because the app consumes them only through those actions; the remaining entities (profile, subscription, SNS connection) are added as their features land.
+6. 🔄 Mutations in the owning `features/<action>` or `pages/<page>/api`: `features/geofence-monitor`, `features/register-push-token`, `features/upload-snap`, `features/compose-movie`, and `features/share-movie` exist; the rest follow their features.
 
 ## Open decisions to confirm before implementing
 

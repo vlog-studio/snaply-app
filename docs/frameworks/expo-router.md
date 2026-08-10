@@ -2,7 +2,7 @@
 
 ## Project decision
 
-This project uses Expo SDK 57 and Expo Router `~57.0.4`. Expo Router's `src/app` is a framework route adapter, not the FSD App layer. Application-wide composition belongs in `src/_app`, and screen implementations belong in `src/pages`.
+This project uses Expo SDK 57 and its Expo Router (the exact version is pinned in `package.json`). Expo Router's `src/app` is a framework route adapter, not the FSD App layer. Application-wide composition belongs in `src/_app`, and screen implementations belong in `src/pages`.
 
 ```text
 src/app/        # Route files scanned by Expo

@@ -104,8 +104,10 @@ function createMock(input: CreateEditJobInput): Promise<string> {
  * Queue a generation run (`POST /edit-jobs`) and return the server's job id.
  *
  * The endpoint takes the cuts with their trim windows, a style preset, and the
- * output shape; a movie's BGM choice, captions flag, and title do not travel with
- * it — see the movie feature document for what that means on screen. Everything
+ * output shape; a movie's BGM choice and title do not travel with it — see the
+ * movie feature document for what that means on screen. The spec has since
+ * gained a `subtitles` flag (default false) that this call does not send yet,
+ * so `Movie.captions` still decides nothing. Everything
  * it *can* refuse it refuses with a `403`: a video that is not the caller's, is not
  * `ready`, or is itself a generated result, and the free plan's monthly cap.
  * Both cases share the code `FORBIDDEN` and differ only in the message, so the

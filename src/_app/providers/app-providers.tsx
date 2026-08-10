@@ -43,8 +43,12 @@ export function AppProviders({ children }: PropsWithChildren) {
       <ThemeProvider value={buildNavigationTheme(scheme)}>
         <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
         {/* Android 3-button navigation: light buttons over the dark shell,
-            dark buttons over the light shell. No-op on iOS/web. */}
-        <NavigationBar style={scheme === 'dark' ? 'dark' : 'light'} />
+            dark buttons over the light shell. No-op on iOS/web.
+            `style` names the button color, exactly like StatusBar above — the
+            `NavigationBarStyle` doc comment claims the opposite, but the native
+            module reads it as content color (`hasLightBackground = style ==
+            "dark"` -> dark glyphs), so it must track StatusBar, not invert it. */}
+        <NavigationBar style={scheme === 'dark' ? 'light' : 'dark'} />
         <PushTokenRegistrar />
         <GeofenceGate />
         {/* Movie generation runs here rather than on the movie screen: a job is meant

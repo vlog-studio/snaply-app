@@ -94,9 +94,6 @@ export function RecordingLibrary({
               <ThemedText type="heading">
                 {isLoading ? '영상을 불러오는 중' : '아직 저장된 영상이 없어요'}
               </ThemedText>
-              <ThemedText style={styles.emptyDescription} themeColor="textSecondary">
-                촬영을 마치면 영상이 여기에 자동으로 저장돼요.
-              </ThemedText>
             </View>
           }
           renderItem={({ item }) => {
@@ -145,9 +142,6 @@ export function RecordingLibrary({
           }}
         />
 
-        <ThemedText type="small" style={styles.storageNote} themeColor="textSecondary">
-          영상은 이 기기의 Snaply 앱 안에만 저장되며, 앱을 삭제하면 함께 삭제돼요.
-        </ThemedText>
       </View>
     </Modal>
   );
@@ -183,7 +177,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyIconText: { fontSize: 26 },
-  emptyDescription: { textAlign: 'center' },
   recordingRow: {
     minHeight: 84,
     flexDirection: 'row',
@@ -210,5 +203,4 @@ const styles = StyleSheet.create({
   playIconText: { color: '#FFFFFF', fontSize: 20 },
   recordingCopy: { flex: 1, gap: Spacing.one },
   deleteButton: { minWidth: 64, minHeight: 64, alignItems: 'center', justifyContent: 'center' },
-  storageNote: { textAlign: 'center', paddingHorizontal: Spacing.five, paddingTop: Spacing.three },
 });

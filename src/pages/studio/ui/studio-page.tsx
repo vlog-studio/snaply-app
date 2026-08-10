@@ -142,7 +142,7 @@ export function StudioPage() {
           ) : (
             <View style={[styles.empty, { borderColor: theme.border }]}>
               <ThemedText type="small" themeColor="textSecondary">
-                아직 완성한 무비가 없어요. 트레이나 템플릿으로 한 편 만들어 보세요.
+                아직 완성한 무비가 없어요.
               </ThemedText>
             </View>
           )}

@@ -106,10 +106,6 @@ export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
           { paddingBottom: Spacing.seven + SelectionBarRoom },
         ]}
       >
-        <ThemedText type="small" themeColor="textSecondary">
-          {movie.title}에 넣을 스냅을 고르세요.
-        </ThemedText>
-
         {notice ? (
           <View
             style={[
@@ -132,9 +128,6 @@ export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
         {isHydrated && totalCount === 0 ? (
           <View style={[styles.empty, { borderColor: theme.border }]}>
             <ThemedText type="heading">넣을 스냅이 없어요</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              먼저 3–5초짜리 장면을 찍어두면 이 무비에 이어 붙일 수 있어요.
-            </ThemedText>
           </View>
         ) : null}
       </ScrollView>

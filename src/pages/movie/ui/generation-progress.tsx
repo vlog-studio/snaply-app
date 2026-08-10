@@ -51,10 +51,6 @@ export function GenerationProgress({ movie }: GenerationProgressProps) {
       <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
         {movie.job.step ?? QueuedStep}
       </ThemedText>
-
-      <ThemedText type="small" themeColor="textSecondary" style={styles.centerText}>
-        앱을 나가도 계속돼요. 다 되면 스튜디오와 무비 탭에서 완성본을 볼 수 있어요.
-      </ThemedText>
     </View>
   );
 }

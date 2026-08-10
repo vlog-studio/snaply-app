@@ -22,9 +22,11 @@ const ThumbWidth = 52;
 /**
  * The 담기 트레이 — the material picked out for the next movie.
  *
- * It is the studio's first block and never disappears: an empty tray shows what
- * to do about it rather than nothing at all, because a studio whose workbench is
- * blank gives the user nowhere to start (concept §7).
+ * It is the studio's first block and never disappears: an empty tray still
+ * offers the way out of being empty — the 스냅 고르러 가기 button, in place of
+ * the strip — because a studio whose workbench is blank gives the user nowhere
+ * to start (concept §7). The button is the whole answer; the sentence that used
+ * to sit above it only narrated what the button already says.
  */
 export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }: TrayPanelProps) {
   const theme = useTheme();
@@ -49,11 +51,7 @@ export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }
         </ThemedText>
       </View>
 
-      {isEmpty ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          스냅 탭에서 쓸 만한 장면을 골라 담기를 누르면 여기 모여요. 여러 날짜에 걸쳐 모아도 돼요.
-        </ThemedText>
-      ) : (
+      {isEmpty ? null : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.strip}>
             {snaps.map((snap) => (

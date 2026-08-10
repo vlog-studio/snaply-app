@@ -96,10 +96,11 @@ export function DetailSheet({
           <View style={styles.row}>
             <View style={styles.rowCopy}>
               <ThemedText type="small">순서 고정</ThemedText>
+              {/* A read-out of which order wins, not an explanation of the
+                  switch: the two states differ in outcome, and the outcome is
+                  the only part the user cannot see from the toggle itself. */}
               <ThemedText type="xsmall" themeColor="textSecondary">
-                {isLocked
-                  ? '지금 순서 그대로 만들어져요.'
-                  : 'AI가 정한 순서예요. 만들 때 찍은 시각 순서로 다시 배치돼요.'}
+                {isLocked ? '지금 순서' : '찍은 시각 순'}
               </ThemedText>
             </View>
             <Switch

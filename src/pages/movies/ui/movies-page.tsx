@@ -208,9 +208,6 @@ export function MoviesPage() {
         ) : (
           <View style={[styles.empty, { borderColor: theme.border }]}>
             <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              스냅 탭에서 쓸 장면을 골라 트레이에 담아두면, 스튜디오에서 한 편으로 엮을 수 있어요.
-            </ThemedText>
           </View>
         )}
       </ScrollView>
@@ -267,5 +264,4 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
   },
-  centerText: { textAlign: 'center' },
 });

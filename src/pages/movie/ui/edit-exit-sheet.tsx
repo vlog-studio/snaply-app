@@ -55,28 +55,11 @@ export function EditExitSheet({
         </ThemedText>
 
         <View style={[styles.group, { borderColor: theme.border }]}>
-          <ActionRow
-            icon="sparkles"
-            label="이 구성으로 다시 만들기"
-            note="편집한 구성으로 무비를 새로 만들어요"
-            onPress={onRemake}
-          />
-          <ActionRow
-            icon="time"
-            label="나중에 만들기"
-            note="편집은 남겨 두고 지금은 완성본을 볼게요"
-            divider
-            onPress={onKeep}
-          />
+          <ActionRow icon="sparkles" label="이 구성으로 다시 만들기" onPress={onRemake} />
+          <ActionRow icon="time" label="나중에 만들기" divider onPress={onKeep} />
         </View>
         <View style={[styles.group, { borderColor: theme.border }]}>
-          <ActionRow
-            icon="arrow-undo"
-            label="편집 취소"
-            note="완성 당시 구성으로 되돌아가요"
-            danger
-            onPress={onDiscard}
-          />
+          <ActionRow icon="arrow-undo" label="편집 취소" danger onPress={onDiscard} />
         </View>
       </View>
     </BottomSheet>

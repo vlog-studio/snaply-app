@@ -86,10 +86,6 @@ export function StylePickerSheet({
             );
           })}
         </View>
-
-        <ThemedText type="small" themeColor="textSecondary">
-          스타일은 전환·색보정·음악에만 적용돼요. 컷 순서와 길이는 타임라인에서 정한 그대로예요.
-        </ThemedText>
       </View>
     </BottomSheet>
   );

@@ -23,9 +23,6 @@ export function SignUpPage() {
           showsVerticalScrollIndicator={false}
         >
           <ThemedText type="title">계정 만들기</ThemedText>
-          <ThemedText themeColor="textSecondary">
-            이메일과 비밀번호로 스냅리를 시작해 보세요.
-          </ThemedText>
           <SignUpFlow />
         </ScrollView>
       </KeyboardAvoidingView>

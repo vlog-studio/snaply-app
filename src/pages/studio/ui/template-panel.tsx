@@ -72,7 +72,7 @@ export function TemplatePanel({ offers, onOpen }: TemplatePanelProps) {
                 themeColor={isComplete ? 'lumen' : 'textSecondary'}
               >
                 {isComplete
-                  ? `바로 만들 수 있어요 · ${slotCount}컷`
+                  ? `${slotCount}/${slotCount}컷 있음`
                   : `${filled}/${slotCount}컷 있음 · ${slotCount - filled}컷 더`}
               </ThemedText>
             </Pressable>

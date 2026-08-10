@@ -427,19 +427,14 @@ function CaptureRecordScreen() {
               </Pressable>
             </View>
           )}
-          <ThemedText type="small" style={styles.helperText}>
-            {!isRecordingSupported
-              ? '촬영은 iOS 또는 Android 기기에서 사용할 수 있어요'
-              : stage === 'recording'
-                ? '손을 떼면 바로 촬영이 끝나요'
-                : stage === 'saving'
-                  ? '앱을 닫지 말고 잠시 기다려 주세요'
-                  : stage === 'review'
-                    ? '찍어둔 스냅을 다시 골라볼 수 있어요'
-                    : collectedCount > 0
-                      ? '이어서 찍거나, ✕를 눌러 스튜디오로 돌아가요'
-                      : `가운데 버튼을 꾹 누르는 동안 찍혀요 · 최대 ${session.duration}초`}
-          </ThemedText>
+          {/* The viewfinder narrates itself: the frame says how to shoot, the
+              badges say what stage it is in. The only line left is the one the
+              UI cannot show — a platform that has no recorder at all. */}
+          {!isRecordingSupported ? (
+            <ThemedText type="small" style={styles.helperText}>
+              촬영은 iOS 또는 Android 기기에서 사용할 수 있어요
+            </ThemedText>
+          ) : null}
           {stage === 'review' ? (
             <Pressable accessibilityRole="button" onPress={openLibrary} style={styles.libraryLink}>
               <ThemedText selectable={false} type="smallBold" style={styles.whiteText}>

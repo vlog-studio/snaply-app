@@ -106,11 +106,6 @@ export function GenerateFooter({
           <ThemedText type="small" themeColor="danger">
             {movie.error ?? '알 수 없는 이유로 생성이 멈췄어요.'}
           </ThemedText>
-          {cutCount === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              타임라인의 +로 스냅을 다시 넣으면 그대로 다시 시도할 수 있어요.
-            </ThemedText>
-          ) : null}
         </View>
       ) : null}
 

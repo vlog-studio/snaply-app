@@ -71,7 +71,7 @@ Where each part is read now:
 | --- | --- |
 | 컷 N개, 길이 | The strip draws every cut as long as it plays on a seconds ruler; the inspector reads out the selected cut's length; 세부 holds 목표 길이 (컷 합계) |
 | 스타일, 음악 | The 스타일 and 세부 chips carry their current values as their second line |
-| 만드는 중이에요, 보통 40초쯤 걸리고 · 앱을 나가도 계속돼요 | The progress panel filling the stage — the ring, the stage the backend named, and its own `앱을 나가도 계속돼요` line |
+| 만드는 중이에요, 보통 40초쯤 걸리고 · 앱을 나가도 계속돼요 | The progress panel filling the stage — the ring and the stage the backend named. The panel's own `앱을 나가도 계속돼요` line went with the 2026-08-10 copy pass ([Application shell](app-shell-and-navigation.md)): leaving is safe, and the app says so by surviving it rather than by promising it |
 | 만들지 못했어요 | The stored reason in the footer notice, above `다시 시도` |
 | 아직 만들지 않았어요 | The `AI로 생성 시작` button itself |
 | 지금 완성본은 새로 만든 것으로 바뀌어요 | The `이 구성으로 다시 만들기` label; **there are no versions** is a standing rule of this document, not a per-visit reminder |

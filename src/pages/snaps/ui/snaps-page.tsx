@@ -255,9 +255,6 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
         {isHydrated && totalCount === 0 ? (
           <View style={[styles.empty, { borderColor: theme.border }]}>
             <ThemedText type="heading">아직 찍은 스냅이 없어요</ThemedText>
-            <ThemedText themeColor="textSecondary" style={styles.centerText}>
-              아래 가운데 버튼을 눌러 3–5초짜리 장면을 찍어보세요. 모아둔 스냅이 무비의 재료가 돼요.
-            </ThemedText>
           </View>
         ) : null}
       </ScrollView>
@@ -338,5 +335,4 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
   },
-  centerText: { textAlign: 'center' },
 });

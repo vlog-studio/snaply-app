@@ -82,6 +82,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 플랫폼 URL 소유권 검증 파일 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    filename: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/legal/{filename}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 플랫폼 URL 소유권 검증 파일 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    filename: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 서비스 소개 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/legal/terms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 이용약관 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/legal/privacy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 개인정보처리방침 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/me": {
         parameters: {
             query?: never;
@@ -424,11 +598,43 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** presigned 업로드 URL 발급 */
+        /**
+         * presigned 업로드 URL 발급
+         * @description 영상 업로드 **1단계**. 파일은 서버를 거치지 않고 클라이언트가 S3(개발: MinIO)로 직접 올린다.
+         *
+         *     이 호출은 두 가지를 한다:
+         *     1. S3에 PUT할 수 있는 presigned URL 발급 (유효 15분)
+         *     2. `status: "pending"` 영상 레코드 선생성 → 반환된 `videoId`를 2단계에서 사용
+         *
+         *     **다음 단계**: 받은 `uploadUrl`에 파일을 PUT한다. 이때 `Content-Type` 헤더는 여기서 보낸 `contentType`과 **정확히 같아야** 서명이 유효하다.
+         *     ```bash
+         *     curl -X PUT -T clip1.mp4 -H "Content-Type: video/mp4" "<uploadUrl>"
+         *     ```
+         *     → 업로드가 끝나면 `POST /videos`로 등록을 완료한다.
+         *
+         *     _Swagger UI에서는 이 PUT을 실행할 수 없다(우리 API가 아닌 S3 직접 호출). 터미널이나 Postman을 사용._
+         *
+         *     **응답 예시**
+         *     ```json
+         *     { "success": true, "data": {
+         *       "videoId": "8f14e45f-ceea-467a-9e1b-1c3a2b4d5e6f",
+         *       "uploadUrl": "http://localhost:9100/snaply-dev/uploads/...?X-Amz-Signature=...",
+         *       "s3Key": "uploads/{userId}/{videoId}.mp4"
+         *     }}
+         *     ```
+         */
         get: {
             parameters: {
                 query: {
+                    /**
+                     * @description 원본 파일명. 확장자로 S3 키를 만드는 데만 쓰이고, 저장 이름은 `{videoId}.{ext}`로 대체된다.
+                     * @example clip1.mp4
+                     */
                     filename: string;
+                    /**
+                     * @description MIME 타입. presigned 서명에 포함되므로 **실제 PUT의 `Content-Type` 헤더와 반드시 일치**해야 한다(다르면 S3가 403).
+                     * @example video/mp4
+                     */
                     contentType: string;
                 };
                 header?: never;
@@ -536,12 +742,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 내 영상 목록 (커서 페이지네이션) */
+        /**
+         * 내 영상 목록 (커서 페이지네이션)
+         * @description 내가 올린 영상을 **최신순**으로 조회한다. 삭제한 영상은 제외. 편집 결과물 영상도 같은 목록에 포함된다(`stylePreset`이 채워져 있고 `editedUrl`이 있는 항목).
+         *
+         *     커서 방식이라 `nextCursor`가 `null`이 아니면 다음 페이지가 있다. 그 값을 `cursor`로 다시 넣어 호출한다.
+         *
+         *     ```json
+         *     { "success": true, "data": { "items": [ /* Video[] *\/ ], "nextCursor": "uuid|null" } }
+         *     ```
+         */
         get: {
             parameters: {
                 query?: {
+                    /** @description 영상 종류 필터. `source`=직접 업로드한 원본, `result`=편집 결과물. 생략하면 전체. */
                     kind?: "source" | "result";
+                    /** @description 이전 응답의 `nextCursor`(마지막 항목 id). 첫 페이지는 생략. 해당 항목 **다음**부터 반환한다. */
                     cursor?: string;
+                    /**
+                     * @description 한 페이지 개수. 기본 20, 최대 50.
+                     * @example 20
+                     */
                     limit?: number;
                 };
                 header?: never;
@@ -648,7 +869,26 @@ export interface paths {
             };
         };
         put?: never;
-        /** 업로드 완료 등록 (status → ready) */
+        /**
+         * 업로드 완료 등록 (status → ready)
+         * @description 영상 업로드 **2단계**(마지막). S3 PUT이 끝난 뒤 호출해 영상을 사용 가능 상태로 만든다.
+         *
+         *     서버가 하는 일:
+         *     - S3에 실제로 객체가 있는지 확인 (없으면 400 — PUT을 빠뜨린 경우)
+         *     - 용량이 500MB 이하인지 확인 (초과하면 S3 객체·DB 레코드를 삭제하고 400)
+         *     - `status`를 `pending` → **`ready`** 로 전이하고 `originalUrls`를 채운다
+         *
+         *     `ready` 상태가 되어야 `POST /edit-jobs`의 편집 대상으로 쓸 수 있다.
+         *
+         *     성공 시 **201**과 Video 객체 반환:
+         *     ```json
+         *     { "success": true, "data": {
+         *       "id": "uuid", "originalUrls": ["http://..."], "editedUrl": null,
+         *       "thumbnailUrl": null, "durationSeconds": 12, "stylePreset": null,
+         *       "status": "ready", "createdAt": "2026-08-03T08:00:00.000Z"
+         *     }}
+         *     ```
+         */
         post: {
             parameters: {
                 query?: never;
@@ -659,8 +899,15 @@ export interface paths {
             requestBody: {
                 content: {
                     "application/json": {
-                        /** Format: uuid */
+                        /**
+                         * Format: uuid
+                         * @description `GET /videos/upload-url` 응답으로 받은 `videoId`. 본인 소유가 아니면 404.
+                         */
                         videoId: string;
+                        /**
+                         * @description 영상 길이(초). 선택값 — 클라이언트가 아는 값을 그대로 저장할 뿐 서버가 검증하지 않는다. 생략하면 `null`.
+                         * @example 12
+                         */
                         durationSeconds?: number;
                     };
                 };
@@ -789,12 +1036,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 영상 상세 */
+        /**
+         * 영상 상세
+         * @description 영상 1건의 현재 상태를 조회한다. 편집 결과물의 `editedUrl`·`thumbnailUrl`이 채워졌는지 확인할 때 사용.
+         *
+         *     `originalUrls`/`editedUrl`/`thumbnailUrl`은 **presigned GET URL**(기본 1시간 유효) — 만료되면 이 API를 다시 호출해 갱신한다.
+         *
+         *     `status` 값의 의미:
+         *     - `pending` — presigned URL만 발급된 상태 (아직 `POST /videos` 안 함)
+         *     - `ready` — 업로드 완료, 편집에 사용 가능
+         *     - `processing` — 편집 결과물 영상이 워커에서 처리 중
+         *     - `done` — 편집 완료, `editedUrl` 사용 가능
+         *     - `failed` — 편집 실패
+         *
+         *     **남의 영상을 요청하면 403이 아니라 404**를 반환한다(리소스 존재 여부를 노출하지 않기 위함).
+         */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
+                    /** @description 영상 id(uuid) */
                     id: string;
                 };
                 cookie?: never;
@@ -897,12 +1159,18 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        /** 영상 삭제 */
+        /**
+         * 영상 삭제
+         * @description S3 원본 객체를 **실제로 삭제**하고 DB 레코드는 소프트 삭제(`deletedAt` 기록)한다. 되돌릴 수 없다.
+         *
+         *     삭제 후 목록·상세에서 사라지고, 남의 영상은 404. 응답: `{ "success": true, "data": { "deleted": true } }`
+         */
         delete: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
+                    /** @description 삭제할 영상 id(uuid) */
                     id: string;
                 };
                 cookie?: never;
@@ -1005,7 +1273,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 편집 요청 (큐 적재) */
+        /**
+         * 편집 요청 (큐 적재)
+         * @description 여러 클립을 하나의 숏폼으로 합치는 AI 편집을 요청한다. **비동기** — 즉시 `202`와 `jobId`만 돌려주고, 실제 편집은 Python 워커가 큐에서 꺼내 처리한다.
+         *
+         *     `npm run worker`가 떠 있지 않으면 job이 `queued`에 머문 채 진행되지 않는다.
+         *
+         *     요청은 `clips`(시간 구간 지정, 권장) 또는 `videoIds`(전체 영상, 구버전 호환) 중 하나로 보낸다. `clips`는 최종 합성 순서이며, 같은 영상을 다른 구간으로 반복 사용할 수 있다.
+         *
+         *     서버가 순서대로 하는 일:
+         *     1. 참조된 영상 전부가 **내 소유 + `source` + `ready` 상태**인지 검증 (하나라도 아니면 403)
+         *     2. 결과물이 담길 새 영상 레코드를 `kind: result`, `processing`으로 생성
+         *     3. `edit_jobs` 레코드를 `queued`로 생성하고 (editSpec/renderSpec 스냅샷 포함) BullMQ 큐에 적재
+         *
+         *     _플랜별 편집 횟수/해상도/워터마크 제한은 기획 확정 시까지 미적용 (docs/plan-limits.md)._
+         *
+         *     **진행 상황 확인** — 둘 중 하나:
+         *     - `GET /edit-jobs/{id}` 폴링 (Swagger에서 가능)
+         *     - WebSocket `ws://localhost:3000/edit-jobs/{id}/progress?token={jwt}` (실시간, Swagger 미지원)
+         *
+         *     워커가 끝내면 3번에서 만든 결과물 영상의 `status`가 `done`, `editedUrl`이 채워진다. `GET /videos/{id}`로 확인.
+         *
+         *     응답: `{ "success": true, "data": { "jobId": "uuid" } }`
+         *
+         *     ⚠️ **Rate limit: 토큰당 분당 5회.** 6번째 호출은 `429 RATE_LIMITED`.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -1023,15 +1315,26 @@ export interface paths {
                             startMs?: number;
                             endMs?: number;
                         }[];
+                        /** @description 이어붙일 원본 클립 id 목록. **배열 순서대로** 연결된다. 1~10개. 모두 `status: "ready"`이고 내 소유여야 한다. */
                         videoIds?: string[];
-                        /** @enum {string} */
+                        /**
+                         * @description 편집 스타일. 워커가 이 값으로 BGM 선곡·컷 호흡·색보정을 결정한다. 세 값 중 하나만 허용(다른 값은 400).
+                         * @enum {string}
+                         */
                         stylePreset: "감성" | "여행" | "일상";
                         /**
+                         * @description 소프트 자막(mov_text 트랙) 생성 여부. 기본 false — 쇼츠용이라 자막이 필요 없고, 음성 인식(whisper)을 건너뛰어 편집이 더 빠르다. true면 한국어 음성을 인식해 별도 자막 트랙으로 삽입한다(영상에 굽지 않으므로 플레이어에서 자막을 켜야 보이고, SNS 업로드 시에는 유지되지 않음).
+                         * @default false
+                         */
+                        subtitles?: boolean;
+                        /**
+                         * @description 출력 규격. 기본 short_vertical(1080x1920, 쇼츠용).
                          * @default short_vertical
                          * @enum {string}
                          */
                         outputProfile?: "short_vertical" | "youtube_landscape" | "instagram_portrait" | "square";
                         /**
+                         * @description 원본 비율이 출력 규격과 다를 때 채우는 방식. 기본 blur_background(흐린 배경 위에 원본).
                          * @default blur_background
                          * @enum {string}
                          */
@@ -1151,12 +1454,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 편집 작업 상태 조회 */
+        /**
+         * 편집 작업 상태 조회
+         * @description `POST /edit-jobs`로 만든 작업의 진행 상태. WebSocket 대신 **폴링으로 확인할 때 쓰는 엔드포인트**라 Swagger에서 편집 전 과정을 추적할 수 있다.
+         *
+         *     - `status`: `queued`(워커 대기) → `processing` → `done` | `failed`
+         *     - `progress`: 0~100. 워커가 단계별로 갱신한다
+         *     - `videoId`: **결과물** 영상 id (원본 클립이 아니다). 완료 후 `GET /videos/{videoId}`로 `editedUrl`을 얻는다
+         *     - `errorMessage`: `failed`일 때만 채워진다
+         *     - `pipelineVersion`/`editSpec`/`renderSpec`: 재현 가능한 작업 스냅샷
+         *
+         *     남의 작업은 404.
+         */
         get: {
             parameters: {
                 query?: never;
                 header?: never;
                 path: {
+                    /** @description `POST /edit-jobs`가 반환한 jobId(uuid) */
                     id: string;
                 };
                 cookie?: never;
@@ -2366,6 +2681,58 @@ export interface paths {
                             };
                         };
                     };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sns/instagram/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 인스타그램 웹훅 검증 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        /** 인스타그램 웹훅 수신 */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };

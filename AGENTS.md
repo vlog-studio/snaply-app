@@ -18,6 +18,7 @@ This file is an index of task-specific documentation, not the full body of the p
 | Any user-visible feature addition, behavior change, removal, or implementation-status change | [`docs/features/README.md`](docs/features/README.md) and the affected feature document(s) | Current product behavior, routes, ownership, platform support, limitations, and documentation maintenance rules |
 | Designing or reviewing components, hooks, modules, services, and dependency boundaries | [`docs/conventions/solid-react-native.md`](docs/conventions/solid-react-native.md) | Practical SOLID principles for React Native, evidence-based abstractions, and implementation safeguards |
 | Implementing a route, data fetch/mutation, store, hook, native adapter, or test — before writing a new slice | [`docs/conventions/cookbook.md`](docs/conventions/cookbook.md) | Cookbook of the canonical, copy-followable implementation patterns already in the codebase, each pointing to the reference file to imitate; the single home for copyable skeletons |
+| Reviewing, critiquing, or improving a screen's UX; any change to screen structure, information hierarchy, CTAs, or user-facing copy | [`docs/ux/README.md`](docs/ux/README.md) and the documents it indexes | The UX decision system: philosophy, principles with detection rules, UX smell catalog, screen-analysis framework, interaction patterns, UX writing, agent review protocol, guardrails, and the review checklist |
 | Cleanup of existing `components`, `hooks`, and `constants` | [`docs/migration/fsd-adoption.md`](docs/migration/fsd-adoption.md) | Incremental migration order and transitional-state rules |
 
 ## Planned documentation
@@ -32,7 +33,8 @@ Documents that a task category needs but that do not exist yet. Do not link them
 
 Classify a document by its primary audience before creating or editing it:
 
-- Agent documentation must be written in English. This includes `AGENTS.md` and the documents under `docs/architecture`, `docs/conventions`, `docs/frameworks`, `docs/workflows`, `docs/features`, and `docs/migration` that this index routes agents to.
+- Agent documentation must be written in English. This includes `AGENTS.md` and the documents under `docs/architecture`, `docs/conventions`, `docs/frameworks`, `docs/workflows`, `docs/features`, `docs/ux`, and `docs/migration` that this index routes agents to. Korean
+  user-facing product strings quoted inside those documents stay in Korean, since they are the product's own copy.
 - Human-developer documentation must be written in Korean. This includes the root `README.md` and every guide under `docs/guides/`.
 - Link human-developer guides from `README.md`, not from the agent task index above. Do not add `docs/guides/` documents to that index.
 - When a change invalidates either kind of documentation, update it in the language assigned to its audience.

@@ -1,2 +1,6 @@
-export { deleteVideoThumbnail } from './video-thumbnails';
+export {
+  deleteVideoThumbnail,
+  getVideoThumbnail,
+  type VideoThumbnailOptions,
+} from './video-thumbnails';
 export { useVideoThumbnail } from './use-video-thumbnail';

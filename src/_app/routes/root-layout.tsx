@@ -79,6 +79,13 @@ function RootStack() {
           name="capture/index"
           options={{ headerShown: false, presentation: 'fullScreenModal' }}
         />
+        {/* Extracting snaps out of a gallery video is capture's import-side
+            sibling — the same full-screen, task-shaped visit over a dark video
+            ground, so it presents the same way. */}
+        <Stack.Screen
+          name="extract"
+          options={{ headerShown: false, presentation: 'fullScreenModal' }}
+        />
         {/* One screen per movie, whatever point of its life it is at: watching a
             finished movie and fixing it are the same visit, so a second route
             would only have meant two places that can edit one cut list. It is a

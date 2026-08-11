@@ -2,10 +2,11 @@
 
 ## User goal
 
-Users can see every 3–5 second original they have shot, play any of them, pick the ones worth using into the studio's tray, and delete originals they no longer want.
+Users can see every original in their library — shot in the app (up to the 3s/5s capture ceiling) or extracted out of a gallery video (0.5–5s, see [Snap extraction](snap-extract.md)) — play any of them, pick the ones worth using into the studio's tray, and delete originals they no longer want.
 
 ```text
 /snaps  (스냅)
+├── header actions        가져오기 (→ system picker → /extract) · 선택
 ├── 오늘 / 어제 / 2026년 7월 20일     day sections, newest first
 │   └── 3-column grid, square cells with a length badge, a 담김 badge for tray members,
 │       and an upload badge while a snap is transferring or failed
@@ -27,7 +28,8 @@ Picking *into a movie* is a screen of its own — `/movie/[id]/add-snaps`, on th
 | Day-grouped grid | `Functional` | Reads `entities/snap`, not the files on disk — the snap store is what carries duration and what movies reference. Grouped by a local `YYYY-MM-DD` key so a day break matches the user's own midnight; sections and snaps are newest-first. Each section prints its count and total length. |
 | Cell rendering | `Functional` | Each cell draws the video's first frame through the shared, disk-cached thumbnail util (`shared/ui/video-frame`), not a live player: mounting one `expo-video` player per cell would exhaust the platform's small pool of hardware decoders and leave every cell but the last black. Cells are square: a thumbnail only has to be recognizable, and cropping the 9:16 frame to 9/16 of its height fits nearly twice as many rows on one screen. They are sized in points from the content width rather than shaped with a percentage width plus `aspectRatio`, which collapses a wrapped flex cell whose only children are absolutely positioned. |
 | Playback | `Functional` | Tapping a cell opens `shared/ui/video-player-modal` full screen over black, with the snap's length as the edge label. |
-| Empty state | `Functional` | With no snaps at all (after the store hydrates), a dashed card points at the center capture button. |
+| Empty state | `Functional` | With no snaps at all (after the store hydrates), a dashed card points at the center capture button and offers `동영상에서 가져오기` — the other way material enters the library. |
+| 가져오기 | `Functional` | The header action (and the empty-state button) opens the system video picker and hands the choice to `/extract`; the flow itself is [Snap extraction](snap-extract.md). Hidden while selecting. A picker failure shows a dismissible notice. The header subtitle reads `N개 · 최대 5초 원본` — with extraction, a snap's length is anything up to five seconds, not the capture toggle's 3–5. |
 
 ## Selection and 담기
 
@@ -87,7 +89,7 @@ Recordings are app-private local files. They are not entries in the device media
 
 A snap's id **is** its file name (`create-snap` reuses the recording's id), which is what lets a movie's `snapRefs` and a file on disk address the same thing without a join table. `localRecordingExists(uri)` answers whether the file behind a snap is still there — a synchronous stat, so a caller can decide in the event that opens a sheet.
 
-Thumbnails are derived cover art, held by no model. Extraction and caching live in `shared/lib/video-thumbnails`, which pulls the first frame on first request and caches it under the cache directory keyed by the source file's base name (`<base>.jpg`), exposing `useVideoThumbnail(uri)` for one frame. Because the cache key is the base name, the same file resolves to one thumbnail shared across every surface that previews it (the snap grid, the tray strip, movie covers) whether the caller holds a `Snap` or a `LocalRecording`. Losing the cache only forces re-extraction; it never loses a snap. The web variant returns no thumbnail.
+Thumbnails are derived cover art, held by no model. Extraction and caching live in `shared/lib/video-thumbnails`, which pulls the first frame on first request and caches it under the cache directory keyed by the source file's base name (`<base>.jpg`; a frame requested at an explicit offset — the extraction screen's filmstrip — is keyed `<base>@<ms>.jpg`), exposing `useVideoThumbnail(uri)` for one frame. Because the cache key is the base name, the same file resolves to one thumbnail shared across every surface that previews it (the snap grid, the tray strip, movie covers) whether the caller holds a `Snap` or a `LocalRecording`. Losing the cache only forces re-extraction; it never loses a snap. The web variant returns no thumbnail.
 
 ## Backend upload sync (2026-08-07)
 
@@ -140,11 +142,13 @@ field is whether two snaps are near each other. The value never leaves the devic
 
 Snaps written before that are corrected in place: `_app/providers/snap-duration-backfill.tsx` walks the library once per app start, **one file at a time** (measuring opens a real video player, and the platform's decoder pool is small), and writes each real length back through `setMeasuredDuration` — the one store action that changes a stored snap, because it records what the snap always was rather than editing it. A file that cannot be read keeps its assumed length and is tried again on a later start.
 
+`width`/`height`/`orientation` are real on **extracted** snaps (read back from the trimmed file, rotation applied — a gallery video is as often landscape or square as portrait) and a portrait stand-in (1080×1920) on **captured** snaps, whose real detection remains a TODO in `features/capture-moment/model/create-snap.ts`. Extracted snaps carry no `place` — where a gallery video was shot is unknown, and where the user stands now is not it.
+
 Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on the movie's `snapRefs`, never here, so the same snap can be cut differently into two movies. `mood` was removed with the redesign — the look belongs to the finished movie, chosen on the movie screen, not to each fragment as it is shot.
 
 ## Ownership
 
-- `src/pages/snaps` owns the tab screen: playback, selection mode and its bottom-chrome takeover, the tray commit, the delete-impact read model (`model/use-movie-delete-impact.ts`), and the delete dialog.
+- `src/pages/snaps` owns the tab screen: playback, selection mode and its bottom-chrome takeover, the tray commit, the delete-impact read model (`model/use-movie-delete-impact.ts`), the delete dialog, and the 가져오기 entry into [Snap extraction](snap-extract.md).
 - `src/widgets/snap-grid` owns what both picking screens are built from: the day grouping (`model/use-snap-days.ts`), the pick-order and cap rules (`model/use-snap-picking.ts`), the day-sectioned grid and its derived cell width (`ui/snap-day-grid.tsx`), the cell (`ui/snap-cell.tsx`), and the selection bar (`ui/snap-selection-bar.tsx`, whose 삭제 action is optional because a movie's picker does not own deletion). Promoted out of `pages/snaps` on 2026-08-06, when the movie's picker became a screen of its own and a second surface needed the block.
 - `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), the sync-state store (`snaply.snap-sync` — upload status, `videoId` mapping, delete tombstones), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
 - `src/features/upload-snap` owns the upload worker (`SnapUploadGate`, mounted in `_app/providers`), the three transfer steps against `/videos`, the tombstone drain against `DELETE /videos/{id}`, and the retry/backoff policy.

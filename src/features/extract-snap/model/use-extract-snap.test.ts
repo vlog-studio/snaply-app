@@ -70,6 +70,36 @@ describe('useExtractSnap', () => {
     });
   });
 
+  it('refuses a second extraction while the first trim is still in flight', async () => {
+    let resolveTrim!: (value: typeof trimmed) => void;
+    mockTrimVideo.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveTrim = resolve;
+      }),
+    );
+    const { result } = await renderHook(() => useExtractSnap());
+
+    let first!: Promise<unknown>;
+    let second!: Promise<unknown>;
+    await act(async () => {
+      first = result.current.extractSnap('file:///cache/picked.mp4', 0, 3);
+      second = result.current.extractSnap('file:///cache/picked.mp4', 1, 4);
+      await Promise.resolve();
+    });
+
+    await expect(second).resolves.toBeNull();
+    expect(mockTrimVideo).toHaveBeenCalledTimes(1);
+    expect(result.current.isExtracting).toBe(true);
+
+    await act(async () => {
+      resolveTrim(trimmed);
+      await first;
+    });
+    expect(mockPersistLocalRecording).toHaveBeenCalledTimes(1);
+    expect(mockAddSnap).toHaveBeenCalledTimes(1);
+    expect(result.current.isExtracting).toBe(false);
+  });
+
   // A source shorter than the floor yields a whole-file window; stretching it
   // back out would ask the trimmer for footage past the file's end.
   it('does not stretch a window below the floor', async () => {
@@ -110,6 +140,22 @@ describe('useExtractSnap', () => {
     expect(snap).toBeNull();
     expect(mockAddSnap).not.toHaveBeenCalled();
     expect(result.current.error).toBe('컷을 담지 못했어요. 다시 시도해 주세요.');
+    expect(result.current.isExtracting).toBe(false);
+  });
+
+  it('surfaces an error when persisting the trimmed file fails, and adds nothing', async () => {
+    mockPersistLocalRecording.mockRejectedValue(new Error('move failed'));
+    const { result } = await renderHook(() => useExtractSnap());
+
+    let snap: unknown;
+    await act(async () => {
+      snap = await result.current.extractSnap('file:///cache/picked.mp4', 0, 3);
+    });
+
+    expect(snap).toBeNull();
+    expect(mockTrimVideo).toHaveBeenCalledTimes(1);
+    expect(mockAddSnap).not.toHaveBeenCalled();
+    expect(result.current.error).not.toBeNull();
     expect(result.current.isExtracting).toBe(false);
   });
 

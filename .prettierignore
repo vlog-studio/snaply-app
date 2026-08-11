@@ -6,6 +6,10 @@
 /.claude
 package-lock.json
 
+# Local Expo modules: their gradle build output is generated, not authored.
+modules/*/android/build
+modules/*/android/.gradle
+
 # Docs are maintained by hand (bilingual, table-aligned) — don't reflow.
 **/*.md
 

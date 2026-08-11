@@ -13,10 +13,6 @@ import Svg, { Path } from 'react-native-svg';
 
 import { CutTrimStepSec, MinCutSec } from '@/entities/movie';
 import { formatSeconds } from '@/shared/lib/datetime';
-import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
-import { ThemedText } from '@/shared/ui/themed-text';
-import { VideoFrame } from '@/shared/ui/video-frame';
-
 import {
   clampPx,
   minGapPx,
@@ -24,7 +20,11 @@ import {
   windowSignature,
   xToSec,
   type TrimTrack,
-} from '../model/trim-geometry';
+} from '@/shared/lib/trim-geometry';
+import { Radius, Spacing, useReducedMotion, useTheme } from '@/shared/ui/theme';
+import { ThemedText } from '@/shared/ui/themed-text';
+import { VideoFrame } from '@/shared/ui/video-frame';
+
 import type { Cut } from '../model/use-movie-cuts';
 
 /** The strip's clip height; the thumbnail tiles are squares of the same size. */

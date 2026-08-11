@@ -4,8 +4,9 @@
  * The strip draws every cut at a width proportional to how long it plays, with
  * a ruler of second marks above, so the arithmetic that places things is one
  * pure module: the strip and the ruler cannot disagree about where a second
- * is. The trim gesture's own math stays in `trim-geometry` — this module only
- * decides how wide each cut is drawn and where the ruler's ticks fall.
+ * is. The trim gesture's own math stays in `@/shared/lib/trim-geometry` — this
+ * module only decides how wide each cut is drawn and where the ruler's ticks
+ * fall.
  */
 
 /**

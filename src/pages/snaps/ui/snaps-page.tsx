@@ -6,6 +6,8 @@ import { useFailedUploadCount, useRetryFailedUploads, type Snap } from '@/entiti
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatSeconds } from '@/shared/lib/datetime';
+import { pickVideoFromLibrary } from '@/shared/lib/video-picker';
+import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
@@ -66,6 +68,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const [selecting, setSelecting] = useState(startSelecting);
   const [playing, setPlaying] = useState<Snap>();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [importError, setImportError] = useState<string>();
 
   const heldIds = useMemo(() => new Set(traySnapIds), [traySnapIds]);
   const { picked, notice, toggle, drop, clear, reset, announce } = useSnapPicking({
@@ -138,6 +141,26 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
     toggle(snap.id);
   };
 
+  // Extraction — cutting snaps out of a longer gallery video — is its own
+  // full-screen visit (`/extract`); this only chooses the source. The system
+  // photo picker needs no permission, and backing out of it goes nowhere.
+  const openExtract = async () => {
+    try {
+      const picked = await pickVideoFromLibrary();
+      if (!picked) return;
+      setImportError(undefined);
+      router.push({
+        pathname: '/extract',
+        params: {
+          source: picked.uri,
+          ...(picked.durationSec !== undefined ? { duration: String(picked.durationSec) } : {}),
+        },
+      });
+    } catch {
+      setImportError('영상을 불러오지 못했어요. 다시 시도해 주세요.');
+    }
+  };
+
   const confirmPicks = () => {
     const outcome = addSnapsToTray(picked);
     exitSelection();
@@ -189,24 +212,52 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
             <View style={styles.titleText}>
               <ThemedText type="title">스냅</ThemedText>
               <ThemedText type="small" themeColor="textSecondary">
-                {totalCount}개 · 3–5초 원본
+                {totalCount}개 · 최대 5초 원본
               </ThemedText>
             </View>
-            {totalCount > 0 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={selecting ? '선택 취소' : '스냅 선택'}
-                hitSlop={12}
-                onPress={() => (selecting ? exitSelection() : setSelecting(true))}
-                style={styles.headerAction}
-              >
-                <ThemedText selectable={false} type="smallBold" themeColor="primary">
-                  {selecting ? '취소' : '선택'}
-                </ThemedText>
-              </Pressable>
-            ) : null}
+            <View style={styles.headerActions}>
+              {!selecting ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="동영상에서 스냅 가져오기"
+                  hitSlop={12}
+                  onPress={() => void openExtract()}
+                  style={styles.headerAction}
+                >
+                  <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                    가져오기
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+              {totalCount > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={selecting ? '선택 취소' : '스냅 선택'}
+                  hitSlop={12}
+                  onPress={() => (selecting ? exitSelection() : setSelecting(true))}
+                  style={styles.headerAction}
+                >
+                  <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                    {selecting ? '취소' : '선택'}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         </View>
+
+        {importError ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setImportError(undefined)}
+            style={[
+              styles.notice,
+              { borderColor: theme.danger, backgroundColor: theme.warmSurface },
+            ]}
+          >
+            <ThemedText type="small">{importError}</ThemedText>
+          </Pressable>
+        ) : null}
 
         {notice ? (
           <View
@@ -255,6 +306,12 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
         {isHydrated && totalCount === 0 ? (
           <View style={[styles.empty, { borderColor: theme.border }]}>
             <ThemedText type="heading">아직 찍은 스냅이 없어요</ThemedText>
+            <SnaplyButton
+              title="동영상에서 가져오기"
+              variant="secondary"
+              onPress={() => void openExtract()}
+              style={styles.emptyAction}
+            />
           </View>
         ) : null}
       </ScrollView>
@@ -312,6 +369,7 @@ const styles = StyleSheet.create({
   header: { gap: Spacing.two },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   titleText: { gap: Spacing.half },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
   headerAction: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
   notice: {
     borderWidth: 1,
@@ -332,7 +390,8 @@ const styles = StyleSheet.create({
     borderRadius: Radius.large,
     borderCurve: 'continuous',
     padding: Spacing.five,
-    gap: Spacing.two,
+    gap: Spacing.four,
     alignItems: 'center',
   },
+  emptyAction: { alignSelf: 'stretch' },
 });

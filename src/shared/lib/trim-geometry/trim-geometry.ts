@@ -3,9 +3,10 @@
  *
  * Extracted from the component and `'worklet'`-marked so the drag can run
  * entirely on the UI thread while the rules stay plain functions with table-driven
- * tests (the directive is inert under Jest). Nothing here knows about a movie: it
- * converts between a track's width and a snap's length, and the domain rules about
- * what a trim may be live in `entities/movie`.
+ * tests (the directive is inert under Jest). Nothing here knows about a movie or a
+ * snap: it converts between a track's width and a video's length. The domain rules
+ * about what a trim may be stay with each consumer — `entities/movie` for a cut's
+ * trim, `features/extract-snap` for an extraction window.
  */
 
 /** The track a trim is dragged along. */

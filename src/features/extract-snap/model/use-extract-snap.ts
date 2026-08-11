@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAddSnap, type Snap } from '@/entities/snap';
 import { persistLocalRecording } from '@/shared/lib/recording-files';
@@ -22,6 +22,10 @@ const EXTRACT_SNAP_FAILED = '컷을 담지 못했어요. 다시 시도해 주세
 export function useExtractSnap() {
   const addSnap = useAddSnap();
   const [isExtracting, setIsExtracting] = useState(false);
+  // State updates are visible on the next render. A ref closes the smaller
+  // same-render window where two presses/callers could both observe
+  // `isExtracting === false` and create duplicate files before React commits.
+  const extractingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   async function extractSnap(
@@ -29,7 +33,7 @@ export function useExtractSnap() {
     startSec: number,
     endSec: number,
   ): Promise<Snap | null> {
-    if (isExtracting) return null;
+    if (extractingRef.current) return null;
     // The screen's window already obeys the limits; this guard is for drift —
     // a settled gesture value a rounding step past the ceiling is clamped, an
     // inverted or empty window is refused. The floor is *not* re-imposed here:
@@ -40,6 +44,7 @@ export function useExtractSnap() {
     if (lengthSec <= 0) return null;
     const clampedEndSec = startSec + Math.min(lengthSec, MaxExtractSec);
 
+    extractingRef.current = true;
     setIsExtracting(true);
     setError(null);
     try {
@@ -58,6 +63,7 @@ export function useExtractSnap() {
       setError(EXTRACT_SNAP_FAILED);
       return null;
     } finally {
+      extractingRef.current = false;
       setIsExtracting(false);
     }
   }

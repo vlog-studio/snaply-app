@@ -1,12 +1,9 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import type { Movie } from '@/entities/movie';
+import { ApiError } from '@/shared/api';
 
 import { useComposeMovie } from './use-compose-movie';
-
-const { ApiError } = jest.requireMock('@/shared/api') as {
-  ApiError: new (message: string, status?: number) => Error & { status?: number };
-};
 
 const mockCreateMovie = jest.fn();
 const mockUpdateMovieCuts = jest.fn();
@@ -41,14 +38,8 @@ jest.mock('@/entities/snap', () => ({
   useSnapIndex: () => new Map(mockSnapIndex()),
   getSnapSyncEntries: () => mockSyncEntries(),
 }));
-jest.mock('@/shared/api', () => ({
-  ApiError: class ApiError extends Error {
-    status?: number;
-    constructor(message: string, status?: number) {
-      super(message);
-      this.status = status;
-    }
-  },
+jest.mock('@/shared/lib/supabase', () => ({
+  supabase: { auth: { getSession: jest.fn() } },
 }));
 jest.mock('../api/create-edit-job', () => ({
   createEditJob: (...args: unknown[]) => mockCreateEditJob(...args),
@@ -624,7 +615,9 @@ describe('startGeneration', () => {
     const reason =
       '\uBB34\uB8CC \uD50C\uB79C\uC740 \uC6D4 3\uD3B8\uAE4C\uC9C0 \uD3B8\uC9D1\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.';
     // 무료 플랜은 월 3편까지 편집할 수 있습니다.
-    mockCreateEditJob.mockRejectedValue(new ApiError(reason, 403));
+    mockCreateEditJob.mockRejectedValue(
+      new ApiError('generation_rejected', reason, { status: 403 }),
+    );
     const { result } = await renderHook(() => useComposeMovie());
 
     let outcome;
@@ -637,7 +630,8 @@ describe('startGeneration', () => {
   });
 
   it('leaves the movie untouched when the request itself fails', async () => {
-    mockCreateEditJob.mockRejectedValue(new ApiError('network', undefined));
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    mockCreateEditJob.mockRejectedValue(new ApiError('network_error', 'network'));
     const { result } = await renderHook(() => useComposeMovie());
 
     let outcome;
@@ -647,5 +641,7 @@ describe('startGeneration', () => {
 
     expect(outcome).toEqual({ started: false, refused: 'unreachable' });
     expect(mockBeginMovieJob).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('network_error'));
+    warnSpy.mockRestore();
   });
 });

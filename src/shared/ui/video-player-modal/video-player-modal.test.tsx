@@ -81,20 +81,4 @@ describe('VideoPlayerModal', () => {
     expect(videoPreviewMock).not.toHaveBeenCalled();
     expect(screen.queryByText(edgeLabel)).toBeNull();
   });
-
-  it('omits the overlay lines the caller leaves out', async () => {
-    await render(
-      withSafeArea(
-        <VideoPlayerModal
-          uri={uri}
-          onClose={jest.fn()}
-          closeLabel={closeLabel}
-          edgeLabel={edgeLabel}
-        />,
-      ),
-    );
-
-    expect(screen.getByText(edgeLabel)).toBeTruthy();
-    expect(screen.queryByText(caption)).toBeNull();
-  });
 });

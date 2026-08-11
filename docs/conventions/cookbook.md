@@ -704,8 +704,9 @@ where a test file lives, and the naming/assertion conventions.
 
 Shared rules across all of §15:
 - Co-locate the test next to the unit (`*.test.ts` / `*.test.tsx`).
-- Mock a dependency at its **slice Public API** (`jest.mock('@/entities/session')`), not
-  at deep internal paths.
+- When an isolated test must mock another slice, mock its **Public API**
+  (`jest.mock('@/entities/session')`), never a deep internal path. Do not treat this as a
+  requirement to mock every slice dependency.
 - `render` and `renderHook` are asynchronous in RNTL v14 — always `await` them.
 
 ### 15a. Pure function (table-driven)
@@ -743,14 +744,18 @@ expect(onPress).toHaveBeenCalledTimes(1);
 - Query by accessibility role and name (`screen.getByRole('button', { name })`).
 - Assert behavior, not styling — style values are verified on-device.
 
-### 15c. Hook with mocked slice boundaries
+### 15c. Hook test with an explicit boundary
 
-**When:** any `use-*` hook. Mock its slice dependencies at their Public API so the test
-stays inside one slice.
+**When:** any `use-*` hook. Choose the boundary based on the risk being protected. A
+small action hook can isolate another slice at its Public API. A hook whose value is its
+composition of React Query, stores, query factories, and internal utilities should run those
+real implementations and mock only HTTP/native/third-party boundaries.
 
 **Canonical:** [`use-sign-in.test.ts`](../../src/features/sign-in/model/use-sign-in.test.ts)
 (action hook), [`use-local-recordings.test.ts`](../../src/features/manage-recordings/model/use-local-recordings.test.ts)
-(async resource hook with loading state).
+(async resource hook with loading state),
+[`use-geofence-monitoring.test.ts`](../../src/features/geofence-monitor/model/use-geofence-monitoring.test.ts)
+(real `QueryClient`, query factory, permission flow, and region selection with native calls mocked).
 
 ```ts
 import { act, renderHook, waitFor } from '@testing-library/react-native';
@@ -784,6 +789,13 @@ await waitFor(() => expect(result.current.isLoading).toBe(false));
 - Wrap state updates in `await act(async …)`; wait for async transitions with `waitFor`.
 - Test the observable contract across branches — for an action hook: success, cancel
   (silent), failure (error surfaced).
+- Prefer a real `QueryClient` and provider to mocking `useQueryClient`, `useQuery`, or
+  `useMutation`. Set `gcTime: Infinity`, disable retries, and seed cache data when the test
+  must not perform HTTP.
+- Use real internal utilities and error classes. In particular, never create a simplified
+  stand-in for `ApiError`; constructor and `instanceof` behavior are part of the contract.
+- Add an integration-style case when several isolated mocks could agree with one another while
+  the actual modules are disconnected.
 
 ### 15d. Zustand store
 

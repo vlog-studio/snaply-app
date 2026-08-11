@@ -6,8 +6,10 @@ Users can see every original in their library — shot in the app (up to the 3s/
 
 ```text
 /snaps  (스냅)
-├── header actions        가져오기 (→ system picker → /extract) · 선택
+├── header                스냅 · 선택          (the mode switch, alone on the right)
+│   └── N개 · m:ss · 트레이 n/10               what the library holds; the chip only once the tray does
 ├── 오늘 / 어제 / 2026년 7월 20일     day sections, newest first
+│   ├── leading 가져오기 cell          heads the newest day (→ system picker → /extract)
 │   └── 3-column grid, square cells with a length badge, a 담김 badge for tray members,
 │       and an upload badge while a snap is transferring or failed
 ├── tap a cell            → full-screen playback
@@ -28,8 +30,9 @@ Picking *into a movie* is a screen of its own — `/movie/[id]/add-snaps`, on th
 | Day-grouped grid | `Functional` | Reads `entities/snap`, not the files on disk — the snap store is what carries duration and what movies reference. Grouped by a local `YYYY-MM-DD` key so a day break matches the user's own midnight; sections and snaps are newest-first. Each section prints its count and total length. |
 | Cell rendering | `Functional` | Each cell draws the video's first frame through the shared, disk-cached thumbnail util (`shared/ui/video-frame`), not a live player: mounting one `expo-video` player per cell would exhaust the platform's small pool of hardware decoders and leave every cell but the last black. Cells are square: a thumbnail only has to be recognizable, and cropping the 9:16 frame to 9/16 of its height fits nearly twice as many rows on one screen. They are sized in points from the content width rather than shaped with a percentage width plus `aspectRatio`, which collapses a wrapped flex cell whose only children are absolutely positioned. |
 | Playback | `Functional` | Tapping a cell opens `shared/ui/video-player-modal` full screen over black, with the snap's length as the edge label. |
-| Empty state | `Functional` | With no snaps at all (after the store hydrates), a dashed card points at the center capture button and offers `동영상에서 가져오기` — the other way material enters the library. |
-| 가져오기 | `Functional` | The header action (and the empty-state button) opens the system video picker and hands the choice to `/extract`; the flow itself is [Snap extraction](snap-extract.md). Hidden while selecting. A picker failure shows a dismissible notice. The header subtitle reads `N개 · 최대 5초 원본` — with extraction, a snap's length is anything up to five seconds, not the capture toggle's 3–5. |
+| Header | `Functional` | The right side carries one control — `선택` / `취소` — so entering selection no longer slides that control sideways under the finger, which it did while `가져오기` shared the row. Below the title sits state, not spec: `N개 · m:ss` (the library's count and total length, `useSnapDays`) and, once the tray holds anything, a `트레이 n/10` chip. The chip answers before the user starts picking the question the selection bar used to answer only after. The old subtitle `N개 · 최대 5초 원본` was dropped: the length ceiling is enforced by the extraction trimmer, not by a line of copy. |
+| Empty state | `Functional` | No card and no separate button: after the store hydrates, an empty library is the `가져오기` cell standing alone in the grid, with the header reading `0개 · 0:00`. The other way in is the shell's capture button. |
+| 가져오기 | `Functional` | A dashed cell at the head of the newest day's row (`widgets/snap-grid/ui/snap-import-cell.tsx`) rather than a header action — it sits where the snaps it produces will land, and it is the same control whether the library is empty or full. It opens the system video picker and hands the choice to `/extract`; the flow itself is [Snap extraction](snap-extract.md). Absent while selecting (a tap means picking then) and until the store hydrates. A picker failure shows a dismissible notice. |
 
 ## Selection and 담기
 
@@ -149,7 +152,7 @@ Snaps are otherwise immutable originals. Per-movie edits (order, trim) live on t
 ## Ownership
 
 - `src/pages/snaps` owns the tab screen: playback, selection mode and its bottom-chrome takeover, the tray commit, the delete-impact read model (`model/use-movie-delete-impact.ts`), the delete dialog, and the 가져오기 entry into [Snap extraction](snap-extract.md).
-- `src/widgets/snap-grid` owns what both picking screens are built from: the day grouping (`model/use-snap-days.ts`), the pick-order and cap rules (`model/use-snap-picking.ts`), the day-sectioned grid and its derived cell width (`ui/snap-day-grid.tsx`), the cell (`ui/snap-cell.tsx`), and the selection bar (`ui/snap-selection-bar.tsx`, whose 삭제 action is optional because a movie's picker does not own deletion). Promoted out of `pages/snaps` on 2026-08-06, when the movie's picker became a screen of its own and a second surface needed the block.
+- `src/widgets/snap-grid` owns what both picking screens are built from: the day grouping and the library totals (`model/use-snap-days.ts`), the pick-order and cap rules (`model/use-snap-picking.ts`), the day-sectioned grid and its derived cell width (`ui/snap-day-grid.tsx`), the cell (`ui/snap-cell.tsx`), the leading import cell (`ui/snap-import-cell.tsx`, drawn only for a screen that passes `onImport` — a movie's picker does not), and the selection bar (`ui/snap-selection-bar.tsx`, whose 삭제 action is optional because a movie's picker does not own deletion). Promoted out of `pages/snaps` on 2026-08-06, when the movie's picker became a screen of its own and a second surface needed the block.
 - `src/entities/snap` owns snap metadata, its persisted store (`snaply.snaps`), the sync-state store (`snaply.snap-sync` — upload status, `videoId` mapping, delete tombstones), and the rule for resolving a movie's snap references against it (`snapsByRefs` / `useSnapsByRefs` / `useSnapIndex`, structurally typed so neither snap nor movie imports the other).
 - `src/features/upload-snap` owns the upload worker (`SnapUploadGate`, mounted in `_app/providers`), the three transfer steps against `/videos`, the tombstone drain against `DELETE /videos/{id}`, and the retry/backoff policy.
 - `src/features/delete-snap` owns the cascading deletion across files, thumbnails, movies, the tray, snap metadata, and sync state.

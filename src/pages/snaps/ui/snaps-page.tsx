@@ -5,9 +5,8 @@ import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-nati
 import { useFailedUploadCount, useRetryFailedUploads, type Snap } from '@/entities/snap';
 import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
 import { useDeleteSnaps } from '@/features/delete-snap';
-import { formatSeconds } from '@/shared/lib/datetime';
+import { formatDuration, formatSeconds } from '@/shared/lib/datetime';
 import { pickVideoFromLibrary } from '@/shared/lib/video-picker';
-import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
@@ -38,6 +37,13 @@ export type SnapsPageProps = {
  * straight into a movie, so material can be gathered across several days
  * (concept §5).
  *
+ * The header carries one control — the mode switch — and one read-out: what the
+ * library holds, and the tray's fill once it holds anything. 가져오기 is not up
+ * there; it leads the grid as a cell of its own (`SnapImportCell`), where the
+ * snaps it produces will land. Two same-weight header actions gave the mode
+ * switch no more standing than an import, and taking one of them away on
+ * entering selection slid the other sideways under the user's finger.
+ *
  * Picking *into a movie* is a different screen — `/movie/[id]/add-snaps`, on the
  * root stack — even though it draws the same grid. It used to be this one under
  * `?for=<movieId>`, which meant a movie screen had to push a tab route: that
@@ -50,7 +56,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const router = useRouter();
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
-  const { days, totalCount, isHydrated } = useSnapDays();
+  const { days, totalCount, totalDurationSec, isHydrated } = useSnapDays();
   const traySnapIds = useTraySnapIds();
   const addSnapsToTray = useAddSnapsToTray();
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
@@ -209,40 +215,32 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
       >
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <View style={styles.titleText}>
-              <ThemedText type="title">스냅</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {totalCount}개 · 최대 5초 원본
-              </ThemedText>
-            </View>
-            <View style={styles.headerActions}>
-              {!selecting ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="동영상에서 스냅 가져오기"
-                  hitSlop={12}
-                  onPress={() => void openExtract()}
-                  style={styles.headerAction}
-                >
-                  <ThemedText selectable={false} type="smallBold" themeColor="primary">
-                    가져오기
-                  </ThemedText>
-                </Pressable>
-              ) : null}
-              {totalCount > 0 ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={selecting ? '선택 취소' : '스냅 선택'}
-                  hitSlop={12}
-                  onPress={() => (selecting ? exitSelection() : setSelecting(true))}
-                  style={styles.headerAction}
-                >
-                  <ThemedText selectable={false} type="smallBold" themeColor="primary">
-                    {selecting ? '취소' : '선택'}
-                  </ThemedText>
-                </Pressable>
-              ) : null}
-            </View>
+            <ThemedText type="title">스냅</ThemedText>
+            {totalCount > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={selecting ? '선택 취소' : '스냅 선택'}
+                hitSlop={12}
+                onPress={() => (selecting ? exitSelection() : setSelecting(true))}
+                style={styles.headerAction}
+              >
+                <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                  {selecting ? '취소' : '선택'}
+                </ThemedText>
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={styles.stateRow}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {totalCount}개 · {formatDuration(totalDurationSec)}
+            </ThemedText>
+            {traySnapIds.length > 0 ? (
+              <View style={[styles.trayChip, { borderColor: theme.border }]}>
+                <ThemedText selectable={false} type="note" themeColor="ai">
+                  트레이 {traySnapIds.length}/{TrayCapacity}
+                </ThemedText>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -301,19 +299,11 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
           heldIds={heldIds}
           onPress={handlePress}
           onLongPress={handleLongPress}
+          // Held back until the store has read itself back from disk, so the
+          // tile does not stand alone for a frame in a library that is only
+          // hydrating, and while selecting, when a tap means picking.
+          onImport={!selecting && isHydrated ? () => void openExtract() : undefined}
         />
-
-        {isHydrated && totalCount === 0 ? (
-          <View style={[styles.empty, { borderColor: theme.border }]}>
-            <ThemedText type="heading">아직 찍은 스냅이 없어요</ThemedText>
-            <SnaplyButton
-              title="동영상에서 가져오기"
-              variant="secondary"
-              onPress={() => void openExtract()}
-              style={styles.emptyAction}
-            />
-          </View>
-        ) : null}
       </ScrollView>
 
       {selecting ? (
@@ -366,11 +356,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     gap: Spacing.five,
   },
-  header: { gap: Spacing.two },
+  header: { gap: Spacing.half },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  titleText: { gap: Spacing.half },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four },
+  stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   headerAction: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  trayChip: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    borderCurve: 'continuous',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 1,
+  },
   notice: {
     borderWidth: 1,
     borderRadius: Radius.medium,
@@ -384,14 +380,4 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   uploadNoticeText: { flexShrink: 1 },
-  empty: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderRadius: Radius.large,
-    borderCurve: 'continuous',
-    padding: Spacing.five,
-    gap: Spacing.four,
-    alignItems: 'center',
-  },
-  emptyAction: { alignSelf: 'stretch' },
 });

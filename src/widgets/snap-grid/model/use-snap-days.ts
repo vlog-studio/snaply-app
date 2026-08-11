@@ -16,6 +16,8 @@ export type SnapLibrary = {
   days: SnapDay[];
   /** Every snap, whatever day it falls on. */
   totalCount: number;
+  /** Those snaps' lengths added up — what the library holds, in seconds. */
+  totalDurationSec: number;
   /** False until the snap store has read itself back from disk. */
   isHydrated: boolean;
 };
@@ -59,6 +61,8 @@ export function useSnapDays(): SnapLibrary {
       day.snaps.push(snap);
     }
 
-    return { days, totalCount: newestFirst.length, isHydrated };
+    const totalDurationSec = newestFirst.reduce((sum, snap) => sum + snap.durationSec, 0);
+
+    return { days, totalCount: newestFirst.length, totalDurationSec, isHydrated };
   }, [snaps, isHydrated]);
 }

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import type { Movie } from '@/entities/movie';
+import { ApiError } from '@/shared/api';
 
 import type { EditProgressHandlers } from '../api/subscribe-edit-progress';
 
@@ -40,18 +41,12 @@ jest.mock('@/entities/snap', () => ({
   useSnapsHydrated: () => mockSnapsHydrated(),
 }));
 
-// A stand-in for the transport error type, so the runner's `instanceof` check —
-// which is how a 404 is told from a flaky network — behaves as it does in the app.
-jest.mock('@/shared/api', () => ({
-  ApiError: class ApiError extends Error {
-    status?: number;
-    constructor(message: string, status?: number) {
-      super(message);
-      this.status = status;
-    }
-  },
+jest.mock('@/shared/lib/supabase', () => ({
+  supabase: { auth: { getSession: jest.fn() } },
 }));
 
+// A stand-in for the transport error type, so the runner's `instanceof` check —
+// which is how a 404 is told from a flaky network — behaves as it does in the app.
 jest.mock('../api/get-edit-job', () => ({ getEditJob: (...a: unknown[]) => mockGetEditJob(...a) }));
 jest.mock('../api/get-edited-video', () => ({
   getEditedVideo: (...a: unknown[]) => mockGetEditedVideo(...a),
@@ -65,10 +60,6 @@ jest.mock('../api/subscribe-edit-progress', () => ({
 jest.mock('../lib/announce-job-end', () => ({
   announceJobEnd: (...args: unknown[]) => mockAnnounce(...args),
 }));
-
-const { ApiError } = jest.requireMock('@/shared/api') as {
-  ApiError: new (message: string, status?: number) => Error & { status?: number };
-};
 
 const startedAt = 1_754_000_000_000;
 const cutStep = '\uCEF7\uD3B8\uC9D1 \uC644\uB8CC'; // 컷편집 완료
@@ -278,7 +269,7 @@ describe('useGenerationRunner', () => {
   // gets out: its job id was local, so no run ever existed for it.
   it('fails a job the backend has never heard of', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
-    mockGetEditJob.mockRejectedValue(new ApiError('not found', 404));
+    mockGetEditJob.mockRejectedValue(new ApiError('not_found', 'not found', { status: 404 }));
 
     await act(async () => {
       await renderHook(() => useGenerationRunner());
@@ -288,8 +279,9 @@ describe('useGenerationRunner', () => {
   });
 
   it('leaves a job running when this device cannot reach the backend', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
     mockMovies.mockReturnValue([generatingMovie()]);
-    mockGetEditJob.mockRejectedValue(new ApiError('network', undefined));
+    mockGetEditJob.mockRejectedValue(new ApiError('network_error', 'network'));
 
     await act(async () => {
       await renderHook(() => useGenerationRunner());
@@ -297,6 +289,11 @@ describe('useGenerationRunner', () => {
 
     expect(mockFail).not.toHaveBeenCalled();
     expect(mockFinish).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('could not read job-1'),
+      expect.stringContaining('network'),
+    );
+    warnSpy.mockRestore();
   });
 
   it('fails a job whose originals were all deleted, without asking the backend', async () => {

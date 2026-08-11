@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { socialProviders } from '../model/social-provider';
 import { SocialLoginList } from './social-login-list';
@@ -7,6 +7,10 @@ const mockSetSession = jest.fn();
 
 jest.mock('@/entities/session', () => ({
   useSetSession: () => mockSetSession,
+}));
+
+jest.mock('@/shared/lib/supabase', () => ({
+  isSupabaseConfigured: true,
 }));
 
 jest.mock('../model/supabase-auth-provider', () => ({
@@ -37,7 +41,9 @@ describe('SocialLoginList', () => {
     const google = socialProviders.find((provider) => provider.id === 'google')!;
     await render(<SocialLoginList />);
 
-    fireEvent.press(screen.getByRole('button', { name: google.label }));
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: google.label }));
+    });
 
     await waitFor(() =>
       expect(mockSetSession).toHaveBeenCalledWith(expect.objectContaining({ provider: 'google' })),

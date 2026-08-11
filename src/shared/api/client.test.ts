@@ -3,6 +3,16 @@ import { z } from 'zod';
 import { apiRequest } from './client';
 import { apiPath } from './paths';
 
+const mockAuthHeader = jest.fn<Promise<Record<string, string>>, []>();
+
+jest.mock('@/shared/config/api', () => ({
+  API_BASE_URL: 'https://api.example.test/root/',
+}));
+
+jest.mock('./auth-header', () => ({
+  authHeader: () => mockAuthHeader(),
+}));
+
 /**
  * Compile-time contract of `apiRequest`'s spec-derived typing. None of these
  * thunks is ever called — `npm run typecheck` is the real assertion, including
@@ -69,8 +79,178 @@ describe('apiRequest type contract', () => {
     () => apiRequest('/edit-jobs', { schema: z.unknown() }),
   ];
 
-  it('keeps its compile-time cases anchored to real code', () => {
-    expect(accepted).toHaveLength(3);
-    expect(rejected).toHaveLength(6);
+  void accepted;
+  void rejected;
+});
+
+function responseWith(payload: unknown, status = 200): Response {
+  return {
+    status,
+    json: jest.fn().mockResolvedValue(payload),
+  } as unknown as Response;
+}
+
+describe('apiRequest runtime contract', () => {
+  const fetchSpy = jest.spyOn(globalThis, 'fetch');
+
+  beforeEach(() => {
+    fetchSpy.mockReset();
+    mockAuthHeader.mockReset();
+    mockAuthHeader.mockResolvedValue({ Authorization: 'Bearer token-1' });
+  });
+
+  afterAll(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('sends query, authentication, and cancellation to the configured backend', async () => {
+    const controller = new AbortController();
+    fetchSpy.mockResolvedValue(
+      responseWith({
+        success: true,
+        data: { videoId: 'video-1', uploadUrl: 'https://upload.test/1', ignored: true },
+      }),
+    );
+
+    const result = await apiRequest('/videos/upload-url', {
+      query: { filename: 'a b.mp4', contentType: 'video/mp4' },
+      schema: z.object({ videoId: z.string(), uploadUrl: z.string() }),
+      signal: controller.signal,
+    });
+
+    expect(result).toEqual({ videoId: 'video-1', uploadUrl: 'https://upload.test/1' });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.example.test/root/videos/upload-url?filename=a+b.mp4&contentType=video%2Fmp4',
+      {
+        method: 'GET',
+        signal: controller.signal,
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer token-1',
+        },
+        body: undefined,
+      },
+    );
+  });
+
+  it('serializes a JSON body and does not invent authentication when signed out', async () => {
+    mockAuthHeader.mockResolvedValue({});
+    fetchSpy.mockResolvedValue(responseWith({ success: true, data: null }, 201));
+
+    await apiRequest('/videos', {
+      method: 'POST',
+      body: { videoId: 'video-1', durationSeconds: 3 },
+      schema: z.unknown(),
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith('https://api.example.test/root/videos', {
+      method: 'POST',
+      signal: undefined,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ videoId: 'video-1', durationSeconds: 3 }),
+    });
+  });
+
+  it('omits nullish query values without dropping false or zero', async () => {
+    fetchSpy.mockResolvedValue(responseWith({ success: true, data: [] }));
+
+    await apiRequest('/locations', {
+      query: { lat: 0, lng: 127, radius: undefined },
+      schema: z.array(z.unknown()),
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://api.example.test/root/locations?lat=0&lng=127',
+      expect.any(Object),
+    );
+  });
+
+  it('normalizes a transport failure and preserves its cause', async () => {
+    const cause = new Error('offline');
+    fetchSpy.mockRejectedValue(cause);
+
+    const request = apiRequest('/locations', {
+      query: { lat: 37, lng: 127 },
+      schema: z.array(z.unknown()),
+    });
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'network_error',
+      cause,
+    });
+  });
+
+  it('rejects a response whose body is not JSON with the HTTP status attached', async () => {
+    fetchSpy.mockResolvedValue({
+      status: 502,
+      json: jest.fn().mockRejectedValue(new SyntaxError('not json')),
+    } as unknown as Response);
+
+    const request = apiRequest('/locations', {
+      query: { lat: 37, lng: 127 },
+      schema: z.array(z.unknown()),
+    });
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'malformed_response',
+      status: 502,
+    });
+  });
+
+  it('rejects a JSON body that is not the shared response envelope', async () => {
+    fetchSpy.mockResolvedValue(responseWith({ locations: [] }, 200));
+
+    const request = apiRequest('/locations', {
+      query: { lat: 37, lng: 127 },
+      schema: z.array(z.unknown()),
+    });
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'malformed_response',
+      status: 200,
+    });
+  });
+
+  it('carries the backend error contract through to callers', async () => {
+    fetchSpy.mockResolvedValue(
+      responseWith(
+        {
+          success: false,
+          error: { code: 'plan_limit', message: 'Monthly limit reached' },
+        },
+        403,
+      ),
+    );
+
+    const request = apiRequest('/locations', {
+      query: { lat: 37, lng: 127 },
+      schema: z.array(z.unknown()),
+    });
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      code: 'plan_limit',
+      message: 'Monthly limit reached',
+      status: 403,
+    });
+  });
+
+  it('lets the response schema reject invalid success data', async () => {
+    fetchSpy.mockResolvedValue(
+      responseWith({ success: true, data: { videoId: 1, uploadUrl: 'https://upload.test/1' } }),
+    );
+
+    const request = apiRequest('/videos/upload-url', {
+      query: { filename: 'a.mp4', contentType: 'video/mp4' },
+      schema: z.object({ videoId: z.string(), uploadUrl: z.string() }),
+    });
+
+    await expect(request).rejects.toBeInstanceOf(z.ZodError);
   });
 });

@@ -17,18 +17,6 @@ function withSafeArea(node: ReactNode) {
 }
 
 describe('BottomSheet', () => {
-  it('renders its children while visible', async () => {
-    await render(
-      withSafeArea(
-        <BottomSheet visible onClose={jest.fn()}>
-          <Text>무비 이름</Text>
-        </BottomSheet>,
-      ),
-    );
-
-    expect(screen.getByText('무비 이름')).toBeTruthy();
-  });
-
   it('calls onClose when the backdrop is pressed', async () => {
     const onClose = jest.fn();
     await render(

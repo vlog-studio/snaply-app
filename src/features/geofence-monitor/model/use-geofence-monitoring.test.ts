@@ -1,104 +1,193 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react-native';
+import { createElement, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 
-import { locationQueries } from '@/entities/location';
+import { locationQueries, type Location } from '@/entities/location';
 import { useIsAuthenticated } from '@/entities/session';
-import { getCurrentCoordinates } from '@/shared/lib/location';
-
 import {
-  ensureGeofencePermissions,
-  startGeofenceMonitoring,
-  stopGeofenceMonitoring,
-} from './geofence-monitor';
+  getCurrentCoordinates,
+  hasStartedGeofencing,
+  requestBackgroundLocationPermission,
+  requestForegroundLocationPermission,
+  startGeofencing,
+  stopGeofencing,
+} from '@/shared/lib/location';
+
+import { GEOFENCE_TASK_NAME } from './geofence-task';
 import { useGeofenceMonitoring } from './use-geofence-monitoring';
 
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 
-jest.mock('@tanstack/react-query', () => ({ useQueryClient: jest.fn() }));
-
 jest.mock('@/entities/session', () => ({ useIsAuthenticated: jest.fn() }));
 
-jest.mock('@/entities/location', () => ({
-  locationQueries: {
-    nearby: jest.fn((params) => ({ queryKey: ['nearby', params], queryFn: jest.fn() })),
+jest.mock('@/shared/api', () => ({ apiRequest: jest.fn() }));
+
+jest.mock('@/shared/lib/location', () => ({
+  getCurrentCoordinates: jest.fn(),
+  hasStartedGeofencing: jest.fn(),
+  requestBackgroundLocationPermission: jest.fn(),
+  requestForegroundLocationPermission: jest.fn(),
+  startGeofencing: jest.fn(),
+  stopGeofencing: jest.fn(),
+}));
+
+jest.mock('./geofence-task', () => ({
+  GEOFENCE_TASK_NAME: 'snaply-geofence-monitor',
+}));
+
+const mockIsAuthenticated = useIsAuthenticated as jest.MockedFunction<typeof useIsAuthenticated>;
+const mockGetCurrentCoordinates = getCurrentCoordinates as jest.MockedFunction<
+  typeof getCurrentCoordinates
+>;
+const mockForegroundPermission = requestForegroundLocationPermission as jest.MockedFunction<
+  typeof requestForegroundLocationPermission
+>;
+const mockBackgroundPermission = requestBackgroundLocationPermission as jest.MockedFunction<
+  typeof requestBackgroundLocationPermission
+>;
+const mockHasStarted = hasStartedGeofencing as jest.MockedFunction<typeof hasStartedGeofencing>;
+const mockStart = startGeofencing as jest.MockedFunction<typeof startGeofencing>;
+const mockStop = stopGeofencing as jest.MockedFunction<typeof stopGeofencing>;
+
+const origin = { latitude: 37.5, longitude: 127 };
+const nearbyLocations: Location[] = [
+  {
+    id: 'loc-1',
+    name: 'Nearby',
+    latitude: 37.501,
+    longitude: 127,
+    radiusMeters: 200,
+    category: 'test',
   },
-}));
+];
 
-jest.mock('@/shared/lib/location', () => ({ getCurrentCoordinates: jest.fn() }));
+function createQueryWrapper(locations: Location[] = nearbyLocations) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false, staleTime: Infinity } },
+  });
+  queryClient.setQueryData(locationQueries.nearby(origin).queryKey, locations);
 
-jest.mock('./geofence-monitor', () => ({
-  ensureGeofencePermissions: jest.fn(),
-  startGeofenceMonitoring: jest.fn(),
-  stopGeofenceMonitoring: jest.fn(),
-}));
-
-const origin = { latitude: 37.5, longitude: 127.0 };
-const nearbyLocations = [{ id: 'loc-1' }];
-const fetchQuery = jest.fn();
+  return {
+    queryClient,
+    wrapper: ({ children }: PropsWithChildren) =>
+      createElement(QueryClientProvider, { client: queryClient }, children),
+  };
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
   (Platform as { OS: string }).OS = 'ios';
-  (useQueryClient as jest.Mock).mockReturnValue({ fetchQuery });
-  (useIsAuthenticated as jest.Mock).mockReturnValue(true);
-  (ensureGeofencePermissions as jest.Mock).mockResolvedValue({ granted: true });
-  (getCurrentCoordinates as jest.Mock).mockResolvedValue(origin);
-  fetchQuery.mockResolvedValue(nearbyLocations);
-  (startGeofenceMonitoring as jest.Mock).mockResolvedValue(undefined);
-  (stopGeofenceMonitoring as jest.Mock).mockResolvedValue(undefined);
+  mockIsAuthenticated.mockReturnValue(true);
+  mockForegroundPermission.mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+    status: 'granted' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+    expires: 'never',
+  });
+  mockBackgroundPermission.mockResolvedValue({
+    granted: true,
+    canAskAgain: true,
+    status: 'granted' as Awaited<ReturnType<typeof requestBackgroundLocationPermission>>['status'],
+    expires: 'never',
+  });
+  mockGetCurrentCoordinates.mockResolvedValue(origin);
+  mockHasStarted.mockResolvedValue(false);
+  mockStart.mockResolvedValue(undefined);
+  mockStop.mockResolvedValue(undefined);
 });
 
 describe('useGeofenceMonitoring', () => {
-  it('starts monitoring nearby points when authenticated and enabled', async () => {
-    await renderHook(() => useGeofenceMonitoring({ enabled: true }));
+  it('uses real query and monitoring composition to start the nearest cached regions', async () => {
+    const { wrapper } = createQueryWrapper();
+
+    await renderHook(() => useGeofenceMonitoring({ enabled: true }), { wrapper });
 
     await waitFor(() =>
-      expect(startGeofenceMonitoring).toHaveBeenCalledWith(nearbyLocations, origin),
+      expect(mockStart).toHaveBeenCalledWith(GEOFENCE_TASK_NAME, [
+        {
+          identifier: 'loc-1',
+          latitude: 37.501,
+          longitude: 127,
+          radius: 200,
+          notifyOnEnter: true,
+          notifyOnExit: false,
+        },
+      ]),
     );
-    expect(locationQueries.nearby).toHaveBeenCalledWith(origin);
-    expect(stopGeofenceMonitoring).not.toHaveBeenCalled();
+    expect(mockForegroundPermission).toHaveBeenCalledTimes(1);
+    expect(mockBackgroundPermission).toHaveBeenCalledTimes(1);
   });
 
-  it('stops monitoring when the location-alert setting is disabled', async () => {
-    await renderHook(() => useGeofenceMonitoring({ enabled: false }));
+  it('stops active monitoring when the location-alert setting is disabled', async () => {
+    mockHasStarted.mockResolvedValue(true);
+    const { wrapper } = createQueryWrapper();
 
-    await waitFor(() => expect(stopGeofenceMonitoring).toHaveBeenCalled());
-    expect(ensureGeofencePermissions).not.toHaveBeenCalled();
-    expect(startGeofenceMonitoring).not.toHaveBeenCalled();
+    await renderHook(() => useGeofenceMonitoring({ enabled: false }), { wrapper });
+
+    await waitFor(() => expect(mockStop).toHaveBeenCalledWith(GEOFENCE_TASK_NAME));
+    expect(mockForegroundPermission).not.toHaveBeenCalled();
+    expect(mockStart).not.toHaveBeenCalled();
   });
 
-  it('stops monitoring when not authenticated even if enabled', async () => {
-    (useIsAuthenticated as jest.Mock).mockReturnValue(false);
+  it('stops active monitoring when the session is signed out', async () => {
+    mockIsAuthenticated.mockReturnValue(false);
+    mockHasStarted.mockResolvedValue(true);
+    const { wrapper } = createQueryWrapper();
 
-    await renderHook(() => useGeofenceMonitoring({ enabled: true }));
+    await renderHook(() => useGeofenceMonitoring({ enabled: true }), { wrapper });
 
-    await waitFor(() => expect(stopGeofenceMonitoring).toHaveBeenCalled());
-    expect(startGeofenceMonitoring).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockStop).toHaveBeenCalledWith(GEOFENCE_TASK_NAME));
+    expect(mockStart).not.toHaveBeenCalled();
   });
 
-  it('does not start monitoring when location permission is denied', async () => {
-    (ensureGeofencePermissions as jest.Mock).mockResolvedValue({
+  it('does not resolve locations after foreground permission is denied', async () => {
+    mockForegroundPermission.mockResolvedValue({
       granted: false,
-      reason: 'background-denied',
       canAskAgain: false,
-      message: 'denied',
+      status: 'denied' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+      expires: 'never',
     });
+    const { wrapper } = createQueryWrapper();
 
-    await renderHook(() => useGeofenceMonitoring({ enabled: true }));
+    await renderHook(() => useGeofenceMonitoring({ enabled: true }), { wrapper });
 
-    await waitFor(() => expect(ensureGeofencePermissions).toHaveBeenCalled());
-    expect(startGeofenceMonitoring).not.toHaveBeenCalled();
+    await waitFor(() => expect(mockForegroundPermission).toHaveBeenCalled());
+    expect(mockBackgroundPermission).not.toHaveBeenCalled();
+    expect(mockGetCurrentCoordinates).not.toHaveBeenCalled();
+    expect(mockStart).not.toHaveBeenCalled();
+  });
+
+  it('does not start a late monitor after the owner unmounts', async () => {
+    let resolveCoordinates!: (value: typeof origin) => void;
+    mockGetCurrentCoordinates.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCoordinates = resolve;
+      }),
+    );
+    const { wrapper } = createQueryWrapper();
+    const { unmount } = await renderHook(() => useGeofenceMonitoring({ enabled: true }), {
+      wrapper,
+    });
+    await waitFor(() => expect(mockGetCurrentCoordinates).toHaveBeenCalled());
+
+    unmount();
+    resolveCoordinates(origin);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mockStart).not.toHaveBeenCalled();
   });
 
   it('is a no-op on web', async () => {
     (Platform as { OS: string }).OS = 'web';
+    const { wrapper } = createQueryWrapper();
 
-    await renderHook(() => useGeofenceMonitoring({ enabled: true }));
+    await renderHook(() => useGeofenceMonitoring({ enabled: true }), { wrapper });
+    await Promise.resolve();
 
-    await waitFor(() => expect(useQueryClient).toHaveBeenCalled());
-    expect(ensureGeofencePermissions).not.toHaveBeenCalled();
-    expect(startGeofenceMonitoring).not.toHaveBeenCalled();
-    expect(stopGeofenceMonitoring).not.toHaveBeenCalled();
+    expect(mockForegroundPermission).not.toHaveBeenCalled();
+    expect(mockStart).not.toHaveBeenCalled();
+    expect(mockStop).not.toHaveBeenCalled();
   });
 });

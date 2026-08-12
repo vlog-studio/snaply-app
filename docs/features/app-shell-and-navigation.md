@@ -38,6 +38,10 @@ Snaply opens into a four-tab application — 스튜디오 (`/`), 스냅 (`/snaps
 | `/movie/[id]` | Headerless root-stack screen with its own `BackBar`, titled with the movie and carrying its rename action; one movie at any point of its life | `pages/movie` |
 | `/movie/[id]/add-snaps` | Headerless root-stack screen with its own `BackBar`; the movie's 스냅 더 넣기 picker | `pages/add-snaps` |
 | `/template/[id]` | Headerless root-stack screen with its own `BackBar`; a template matched against the library | `pages/movie-template` |
+| `/settings/notifications` | Root-stack screen with the stack's titled header (알림); every notification preference | `pages/me` |
+| `/settings/theme` | Root-stack screen with the stack's titled header (화면 테마); the theme-mode radio | `pages/me` |
+| `/settings/interests` | Root-stack screen with the stack's titled header (관심사); the interest tags | `pages/me` |
+| `/settings/social` | Root-stack screen with the stack's titled header (소셜 연결); the placeholder connection rows | `pages/me` |
 
 `src/app` parses string search parameters where needed and passes them to page components as explicit props (`snaps.tsx` turns `?select=1` into `startSelecting`). The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
 

@@ -1,1 +1,5 @@
 export { MePage } from './ui/me-page';
+export { MeInterestsPage } from './ui/me-interests-page';
+export { MeNotificationsPage } from './ui/me-notifications-page';
+export { MeSocialPage } from './ui/me-social-page';
+export { MeThemePage } from './ui/me-theme-page';

@@ -7,7 +7,8 @@ The Studio (`/`) is the workbench the app opens on: the snaps picked out for the
 ```text
 /  (스튜디오)
 ├── 담아둔 스냅       the tray: picked snaps in pick order, n / 10, 약 N초
-│                    · 스냅 고르러 가기 / +  → /snaps?select=1
+│                    · empty, the whole panel is one row: 0 / 10 · 고르기
+│                    · 고르기 / +           → /snaps?select=1
 │                    · ✕ per snap, 비우기
 │                    · 이 스냅으로 새 무비   → /movie/[id]
 ├── 템플릿으로 시작    a card per template, closest to filled first, each with how
@@ -46,7 +47,7 @@ The tray is the concept's one invention (concept §5): choosing a snap does not 
 | Collect snaps into the tray | `Functional` | Selection mode on the Snap tab adds snaps in pick order (see [Snap library](snaps.md)). The tray persists to a document-directory JSON file (`snaply.tray`), so it survives an app restart. |
 | Ten-snap cap | `Functional` | `TrayCapacity` (10) is the app's single hard constraint and matches `MovieSnapLimit`. Adding past it is refused rather than silently truncated: `addSnaps` reports `{ added, rejected }` and the Snap tab tells the user how many were turned away. Snaps already in the tray take no new room. |
 | Remove one snap / empty the tray | `Functional` | The ✕ on a tray thumbnail removes one; `비우기` empties it. The mark stays 20pt over the 52pt thumbnail and its touch target reaches 44pt through an **inward** `hitSlop` — down and left from the corner it sits in. A symmetric slop measured 34pt on the device: the thumbnail clips its children for its rounded frame, and Android delivers no touch that lands outside a clipping ancestor (verified 2026-08-12 — a tap 8pt beyond the frame did nothing, a tap 11pt inside it removed the snap). The enlarged target covers most of the frame, which costs nothing: the thumbnail itself is not a control. Its label names which snap it drops (`2번째 스냅 트레이에서 빼기`) — one label repeated per thumbnail announced the strip as N identical buttons (2026-08-12). |
-| Empty state | `Functional` | With nothing in it the panel keeps its place and offers `스냅 고르러 가기`, which opens the Snap tab in selection mode. The studio never shows a blank workbench (concept §7). |
+| Empty state | `Functional` | With nothing in it the panel keeps its place but collapses to **one row** — `담아둔 스냅 0 / 10` with `고르기` at the far edge — which opens the Snap tab in selection mode. The studio never shows a blank workbench (concept §7), but a 0/10 tray no longer spends the screen's strongest position (first block, only button) on a trip the tab bar already makes in one tap, and the template cards — the only thing on the screen that says what to go and shoot — move up by the height it gave back. `고르기` reads 44pt through `hitSlop`, and its accessibility label stays the full `스냅 고르러 가기` (2026-08-12). |
 | Cascading removal | `Functional` | Deleting a snap original removes it from the tray as well as from every movie (see [Snap library](snaps.md#deleting-an-original)). |
 | Start a movie from the tray | `Functional` | `이 스냅으로 새 무비` creates a draft from the whole tray in pick order, empties the tray, and opens [the movie screen](movie.md) on it. The draft is editable there — order, trims, and style are settled before the run. |
 

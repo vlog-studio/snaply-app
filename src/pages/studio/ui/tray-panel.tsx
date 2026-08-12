@@ -4,7 +4,7 @@ import type { Snap } from '@/entities/snap';
 import { TrayCapacity } from '@/entities/tray';
 import { formatSeconds } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
-import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
+import { Radius, Spacing, Typography, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 import { VideoFrame } from '@/shared/ui/video-frame';
 
@@ -44,13 +44,24 @@ const RemoveHitSlop = {
 } as const;
 
 /**
+ * Grows the empty row's 고르기 to a 44pt target. Symmetric is safe here: the
+ * panel does not clip, so the slop reaches (unlike {@link RemoveHitSlop}).
+ */
+const PickHitSlop = (MinTouchTarget - Typography.small.lineHeight) / 2;
+
+/**
  * The 담기 트레이 — the material picked out for the next movie.
  *
  * It is the studio's first block and never disappears: an empty tray still
- * offers the way out of being empty — the 스냅 고르러 가기 button, in place of
- * the strip — because a studio whose workbench is blank gives the user nowhere
- * to start (concept §7). The button is the whole answer; the sentence that used
- * to sit above it only narrated what the button already says.
+ * offers the way out of being empty — because a studio whose workbench is blank
+ * gives the user nowhere to start (concept §7).
+ *
+ * **Empty, it is one row**: the count and a 고르기 beside it, no strip and no
+ * full-width button (2026-08-12). A 0/10 tray was spending the screen's strongest
+ * position — first block, only button — on a trip to the Snap tab, which the tab
+ * bar reaches in one tap anyway, and pushing the templates (the only thing on the
+ * screen that says what to go and shoot) further down for it. The way out stays,
+ * at the weight a duplicate entrance deserves. Filled, the panel is unchanged.
  */
 export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }: TrayPanelProps) {
   const theme = useTheme();
@@ -61,13 +72,14 @@ export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }
     <View
       style={[
         styles.panel,
+        isEmpty ? styles.compactPanel : null,
         {
           backgroundColor: theme.backgroundElement,
           borderColor: isEmpty ? theme.border : theme.primary,
         },
       ]}
     >
-      <View style={styles.head}>
+      <View style={[styles.head, isEmpty ? styles.compactHead : null]}>
         <ThemedText type="smallBold">담아둔 스냅</ThemedText>
         <ThemedText type="note" themeColor={isEmpty ? 'textSecondary' : 'primary'}>
           {snaps.length} / {TrayCapacity}
@@ -118,7 +130,18 @@ export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }
       )}
 
       {isEmpty ? (
-        <SnaplyButton title="스냅 고르러 가기" variant="secondary" onPress={onPickMore} />
+        <Pressable
+          accessibilityRole="button"
+          // The row shows 고르기; the label says where it goes, since a screen
+          // reader hears it without the 담아둔 스냅 heading beside it.
+          accessibilityLabel="스냅 고르러 가기"
+          hitSlop={PickHitSlop}
+          onPress={onPickMore}
+        >
+          <ThemedText selectable={false} type="smallBold" themeColor="primary">
+            고르기
+          </ThemedText>
+        </Pressable>
       ) : (
         <View style={styles.actions}>
           <SnaplyButton
@@ -150,7 +173,11 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     gap: Spacing.three,
   },
+  compactPanel: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // Empty, the count reads as part of the heading rather than as the far end of
+  // a row, and 고르기 takes the edge the count used to hold.
+  compactHead: { flex: 1, justifyContent: 'flex-start', gap: Spacing.three },
   strip: { flexDirection: 'row', gap: Spacing.two },
   thumb: {
     width: ThumbWidth,

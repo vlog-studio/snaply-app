@@ -6,10 +6,14 @@ import {
   useNotificationEnabled,
   useQuietEnd,
   useQuietStart,
+  useReminderFrequency,
+  useReminderWindows,
   useSetMovieReadyEnabled,
   useSetNotificationEnabled,
   useSetQuietEnd,
   useSetQuietStart,
+  useSetReminderFrequency,
+  useSetReminderWindow,
   useToggleInterest,
 } from './notification-settings-store';
 
@@ -30,11 +34,15 @@ function useSettings() {
     quietEnd: useQuietEnd(),
     interests: useInterests(),
     movieReady: useMovieReadyEnabled(),
+    reminderWindows: useReminderWindows(),
+    reminderFrequency: useReminderFrequency(),
     setEnabled: useSetNotificationEnabled(),
     setQuietStart: useSetQuietStart(),
     setQuietEnd: useSetQuietEnd(),
     toggleInterest: useToggleInterest(),
     setMovieReady: useSetMovieReadyEnabled(),
+    setReminderWindow: useSetReminderWindow(),
+    setReminderFrequency: useSetReminderFrequency(),
   };
 }
 
@@ -48,6 +56,26 @@ describe('notification settings', () => {
       quietEnd: 8,
       interests: [],
       movieReady: false,
+      reminderWindows: { morning: true, lunch: true, evening: true },
+      reminderFrequency: 2,
+    });
+  });
+
+  it('persists a reminder window and the daily frequency across updates', async () => {
+    const { result } = await renderHook(useSettings);
+
+    await act(async () => {
+      result.current.setReminderWindow('evening', false);
+      result.current.setReminderFrequency(3);
+    });
+
+    expect(result.current.reminderWindows).toEqual({ morning: true, lunch: true, evening: false });
+    expect(result.current.reminderFrequency).toBe(3);
+    expect(mockStorageSetItem).toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.setReminderWindow('evening', true);
+      result.current.setReminderFrequency(2);
     });
   });
 

@@ -15,18 +15,32 @@ import { secureStorage } from '@/shared/lib/secure-storage';
  * and belongs beside the others rather than in a store of its own.
  *
  * Quiet hours are stored as integer hours (0–23), matching the backend.
+ *
+ * The capture-reminder fields (`reminderWindows`, `reminderFrequency`) persist
+ * the user's choice only — no scheduler consumes them yet, and they have no
+ * backend field. They live here so the 나 tab's controls survive remounts and
+ * restarts instead of silently resetting.
  */
+
+export const REMINDER_WINDOW_IDS = ['morning', 'lunch', 'evening'] as const;
+
+export type ReminderWindowId = (typeof REMINDER_WINDOW_IDS)[number];
+
 type NotificationSettingsState = {
   enabled: boolean;
   quietStart: number;
   quietEnd: number;
   interests: string[];
   movieReady: boolean;
+  reminderWindows: Record<ReminderWindowId, boolean>;
+  reminderFrequency: number;
   setEnabled: (enabled: boolean) => void;
   setQuietStart: (hour: number) => void;
   setQuietEnd: (hour: number) => void;
   toggleInterest: (interest: string) => void;
   setMovieReady: (enabled: boolean) => void;
+  setReminderWindow: (window: ReminderWindowId, enabled: boolean) => void;
+  setReminderFrequency: (count: number) => void;
 };
 
 const useNotificationSettingsStore = create<NotificationSettingsState>()(
@@ -40,6 +54,8 @@ const useNotificationSettingsStore = create<NotificationSettingsState>()(
       // prompt, and a default that prompts on the first generation would ask at
       // the worst possible moment.
       movieReady: false,
+      reminderWindows: { morning: true, lunch: true, evening: true },
+      reminderFrequency: 2,
       setEnabled: (enabled) => set({ enabled }),
       setQuietStart: (quietStart) => set({ quietStart }),
       setQuietEnd: (quietEnd) => set({ quietEnd }),
@@ -50,6 +66,9 @@ const useNotificationSettingsStore = create<NotificationSettingsState>()(
             : [...state.interests, interest],
         })),
       setMovieReady: (movieReady) => set({ movieReady }),
+      setReminderWindow: (window, enabled) =>
+        set((state) => ({ reminderWindows: { ...state.reminderWindows, [window]: enabled } })),
+      setReminderFrequency: (reminderFrequency) => set({ reminderFrequency }),
     }),
     {
       name: 'snaply.notification-settings',
@@ -88,6 +107,22 @@ export function useInterests(): string[] {
 
 export function useToggleInterest(): (interest: string) => void {
   return useNotificationSettingsStore((state) => state.toggleInterest);
+}
+
+export function useReminderWindows(): Record<ReminderWindowId, boolean> {
+  return useNotificationSettingsStore((state) => state.reminderWindows);
+}
+
+export function useSetReminderWindow(): (window: ReminderWindowId, enabled: boolean) => void {
+  return useNotificationSettingsStore((state) => state.setReminderWindow);
+}
+
+export function useReminderFrequency(): number {
+  return useNotificationSettingsStore((state) => state.reminderFrequency);
+}
+
+export function useSetReminderFrequency(): (count: number) => void {
+  return useNotificationSettingsStore((state) => state.setReminderFrequency);
 }
 
 /** Whether a finished (or broken) generation should raise a notification. */

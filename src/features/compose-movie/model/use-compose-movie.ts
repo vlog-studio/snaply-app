@@ -16,7 +16,6 @@ import {
   type SnapRef,
 } from '@/entities/movie';
 import { getSnapSyncEntries, useSnapIndex } from '@/entities/snap';
-import { useClearTray, useTraySnapIds } from '@/entities/tray';
 import { ApiError } from '@/shared/api';
 
 import { createEditJob, type EditJobClip } from '../api/create-edit-job';
@@ -154,9 +153,7 @@ function remoteClips(snapRefs: readonly SnapRef[]): EditJobClip[] | undefined {
 /**
  * Turning picked material into a movie, running it, and fixing what comes back.
  *
- * It spans the tray and the movie — starting a movie empties the tray — which is
- * what makes it a feature rather than page code. Concentrating it here also
- * concentrates the rules that guard it: at least one cut, at most
+ * It concentrates the rules that guard a movie: at least one cut, at most
  * {@link MovieSnapLimit}, no edits while a job owns the movie, and no
  * generation while one is already running. Enforcing those only in the UI would
  * leave each one a forgotten `disabled` prop away from being bypassed.
@@ -165,8 +162,6 @@ function remoteClips(snapRefs: readonly SnapRef[]): EditJobClip[] | undefined {
  * handlers, and the current movie is what the write must be checked against.
  */
 export function useComposeMovie() {
-  const traySnapIds = useTraySnapIds();
-  const clearTray = useClearTray();
   // Only for arranging an AI-arranged movie by capture time; nothing else here
   // needs a snap, and movies themselves never hold one.
   const snapIndex = useSnapIndex();
@@ -177,27 +172,28 @@ export function useComposeMovie() {
   const beginMovieJob = useBeginMovieJob();
 
   /**
-   * Starts a draft from everything in the tray and empties the tray, returning
-   * the movie so the caller can open it. An empty tray makes nothing — a movie
-   * with no cuts is a dead end.
+   * Starts a draft straight from hand-picked snaps — the Snap tab's selection —
+   * returning the movie so the caller can open it. No picks make nothing (a
+   * movie with no cuts is a dead end), and a batch past {@link MovieSnapLimit}
+   * is refused whole rather than truncated behind the user's back.
    *
-   * The tray's order is the user's, so the movie it makes is `user`-arranged and
-   * nothing may re-sort it.
+   * The pick order is the user's, so the movie it makes is `user`-arranged and
+   * nothing may re-sort it. The draft replaced the 담기 트레이 (2026-08-12): a
+   * draft already is the persistent basket the tray was — it survives restarts,
+   * takes more snaps later through the movie screen's 스냅 더 넣기, and there
+   * can be several of them at once, which the single tray never allowed.
    */
-  const startMovieFromTray = useCallback((): Movie | undefined => {
-    if (traySnapIds.length === 0) return undefined;
-    const movie = createMovie({ snapIds: traySnapIds, arranger: 'user' });
-    clearTray();
-    return movie;
-  }, [traySnapIds, createMovie, clearTray]);
+  const startMovieFromSnaps = useCallback(
+    (snapIds: readonly string[]): Movie | undefined => {
+      if (snapIds.length === 0 || snapIds.length > MovieSnapLimit) return undefined;
+      return createMovie({ snapIds, arranger: 'user' });
+    },
+    [createMovie],
+  );
 
   /**
    * Starts a movie from a filled template, in slot order, with the look the
-   * template asks for.
-   *
-   * The tray is untouched: material gathered by hand and material found by
-   * matching are two separate ways to start a movie, and finishing one should
-   * not empty the other. The movie is `ai`-arranged, which is what lets a later
+   * template asks for. The movie is `ai`-arranged, which is what lets a later
    * generation re-sort it — until the user rearranges it themselves.
    */
   const startMovieFromTemplate = useCallback(
@@ -375,7 +371,7 @@ export function useComposeMovie() {
   );
 
   return {
-    startMovieFromTray,
+    startMovieFromSnaps,
     startMovieFromTemplate,
     saveCuts,
     appendSnaps,

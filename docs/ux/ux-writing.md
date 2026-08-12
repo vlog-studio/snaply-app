@@ -61,7 +61,7 @@ Project addition (`Derived Principle`): **no explanatory UI copy.** Screens do n
 | 생성 모드를 선택하세요 | 무비를 몇 초로 만들까요? | Pipeline choice → a length the user wants |
 | 동기화 방식을 고르세요 | 와이파이에서만 올릴까요? | Internal mechanism → a condition the user knows |
 | 정렬 기준을 설정하세요 | 최신순으로 볼까요? | Configuration → an outcome |
-| 이 스냅을 트레이에 추가하시겠습니까? | 스냅 6개 담기 | A question that did not need asking → direct action |
+| 이 스냅들로 무비를 만드시겠습니까? | 이 스냅으로 새 무비 | A question that did not need asking → direct action |
 
 **Shape.** One line. One question. `~할까요?` / `~있나요?`. Options that are results, ordered by likelihood, and mutually exclusive. Never a question whose options a user must compare on more than one dimension at once.
 
@@ -93,8 +93,8 @@ The replacement for explanation. A read-out is a short labeled fact that makes t
 
 | Situation | Read-out |
 | --- | --- |
-| Tray contents | `담긴 스냅 6` |
-| Nothing in the tray | `담긴 스냅 0` |
+| A movie's cut list | `컷 6 · 0:14` |
+| The library's holdings | `18개 · 0:23` |
 | Upload in progress | `2개 올리는 중` |
 | Offline queue | `연결되면 올라가요` |
 | Generation running | `만드는 중 · 1분 정도 걸려요` |
@@ -142,11 +142,12 @@ Fixed product vocabulary. Use exactly these words; never introduce a synonym.
 | Term | Means | Never |
 | --- | --- | --- |
 | 스냅 | One short recorded or extracted clip | 클립, 영상, 필름, 사진 |
-| 트레이 | Where snaps wait to become a movie | 장바구니, 대기열, 큐 |
-| 무비 | One generated video | 비디오, 결과물, 프로젝트 |
+| 무비 | One generated video, or the draft collecting toward it | 비디오, 결과물, 프로젝트 |
+| 컷 | One snap inside a movie | 장면, 조각 |
 | 스튜디오 | The tab where a movie is started | 홈, 메인 |
-| 담기 | Putting snaps into the tray | 추가, 선택 완료 |
 | 가져오기 | Importing from the gallery | 업로드, 임포트 |
+
+`트레이` and `담기` left the vocabulary with the tray's removal (2026-08-12); picks now go straight into a movie (`이 스냅으로 새 무비`, `스냅 더 넣기`). Do not reintroduce them.
 
 Internal vocabulary that must never appear on screen: queue, job, sync, geofence, model, generation id, error codes, enum values, route names.
 

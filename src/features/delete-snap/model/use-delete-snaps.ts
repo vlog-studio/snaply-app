@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRemoveSnapsEverywhere } from '@/entities/movie';
 import { useForgetSnapSync, useRemoveSnaps } from '@/entities/snap';
-import { useRemoveSnapsFromTray } from '@/entities/tray';
 import { deleteLocalRecording } from '@/shared/lib/recording-files';
 import { deleteVideoThumbnail } from '@/shared/lib/video-thumbnails';
 
@@ -19,13 +18,13 @@ export type DeletableSnap = { id: string; uri: string };
 /**
  * Deletes originals from the library, permanently and completely.
  *
- * A snap exists in six places — the video file, its cached thumbnail, its snap
- * metadata, the references movies hold to it, possibly the tray, and its sync
- * state (plus a remote copy once uploaded) — so deleting only the file leaves
- * movies and the tray pointing at a video that is gone. This action removes all
- * six, which is why it is a feature composing three entities rather than a call
- * on any one of them. The remote copy is not deleted here: retiring the sync
- * entry leaves a tombstone, and the upload worker owes the server that DELETE.
+ * A snap exists in five places — the video file, its cached thumbnail, its snap
+ * metadata, the references movies hold to it, and its sync state (plus a remote
+ * copy once uploaded) — so deleting only the file leaves movies pointing at a
+ * video that is gone. This action removes all five, which is why it is a
+ * feature composing two entities rather than a call on any one of them. The
+ * remote copy is not deleted here: retiring the sync entry leaves a tombstone,
+ * and the upload worker owes the server that DELETE.
  *
  * Order matters. The file is deleted first because it is the irreversible,
  * failure-prone step: if it fails, nothing else has changed yet and the snap
@@ -40,7 +39,6 @@ export function useDeleteSnaps() {
   const isMounted = useRef(true);
   const removeSnaps = useRemoveSnaps();
   const removeSnapsEverywhere = useRemoveSnapsEverywhere();
-  const removeSnapsFromTray = useRemoveSnapsFromTray();
   const forgetSnapSync = useForgetSnapSync();
   const [deletingIds, setDeletingIds] = useState<ReadonlySet<string>>(() => new Set());
   const [errorMessage, setErrorMessage] = useState<string>();
@@ -82,14 +80,12 @@ export function useDeleteSnaps() {
         }
       }
 
-      // References first, then the snap metadata: all three are synchronous
-      // store writes, and this order never leaves a movie or the tray
-      // referencing a snap the library no longer knows about. Run even when the
-      // component has unmounted — the files are already gone, so the stores
-      // must catch up.
+      // References first, then the snap metadata: both are synchronous store
+      // writes, and this order never leaves a movie referencing a snap the
+      // library no longer knows about. Run even when the component has
+      // unmounted — the files are already gone, so the stores must catch up.
       if (deletedIds.length > 0) {
         removeSnapsEverywhere(deletedIds);
-        removeSnapsFromTray(deletedIds);
         removeSnaps(deletedIds);
         // Retire the sync entries last: an uploaded snap leaves a tombstone
         // behind, which is how the upload worker learns it owes the backend a
@@ -105,7 +101,7 @@ export function useDeleteSnaps() {
 
       return deletedIds;
     },
-    [removeSnaps, removeSnapsEverywhere, removeSnapsFromTray, forgetSnapSync],
+    [removeSnaps, removeSnapsEverywhere, forgetSnapSync],
   );
 
   return {

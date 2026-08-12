@@ -1,7 +1,7 @@
 /**
  * How many snaps one movie may hold. The single hard constraint of the product
- * (concept §5): a movie is a short-form vlog, not an album. `entities/tray` caps
- * the tray at the same number, so a full tray is exactly one movie's worth.
+ * (concept §5): a movie is a short-form vlog, not an album. Every picking
+ * surface measures its picks against this same number.
  */
 export const MovieSnapLimit = 10;
 

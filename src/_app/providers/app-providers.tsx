@@ -14,6 +14,7 @@ import { GeofenceGate } from './geofence-gate';
 import { MovieGenerationBridge } from './movie-generation-bridge';
 import { queryClient } from './query-client';
 import { SnapDurationBackfill } from './snap-duration-backfill';
+import { TrayDraftMigration } from './tray-draft-migration';
 
 // Navigation chrome recolors the matching base theme with the app palette of
 // the resolved scheme, so headers, backgrounds, and transitions follow the
@@ -59,6 +60,9 @@ export function AppProviders({ children }: PropsWithChildren) {
             option they were shot with; this reads the real length back from the
             files, once, in the background. */}
         <SnapDurationBackfill />
+        {/* Picks left in the removed 담기 트레이 by an older build become the
+            draft movie they were headed for, once. */}
+        <TrayDraftMigration />
         {/* Uploads live here for the same reason generation does: a capture's
             trip to the backend continues wherever the user navigates next. */}
         <SnapUploadGate />

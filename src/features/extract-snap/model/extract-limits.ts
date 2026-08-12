@@ -3,8 +3,8 @@
  *
  * Extraction cuts a snap out of a longer gallery video, so the ceiling matches
  * what capture can produce (a 5-second hold) — an extracted snap is the same
- * kind of material as a captured one, and every surface downstream (the tray,
- * the movie's per-cut trim, upload) already assumes that scale. The floor is a
+ * kind of material as a captured one, and every surface downstream (the movie's
+ * per-cut trim, upload) already assumes that scale. The floor is a
  * product choice: anything under half a second reads as a glitch, not a moment.
  * The floor is deliberately *not* `entities/movie`'s `MinCutSec` (0.4s) — that
  * rule is about how far a cut may be trimmed inside a movie, not about how

@@ -517,9 +517,9 @@ export function useLocalX() {
   Keep the file-system/native calls in a shared adapter (§12), not in the hook.
 - Keep only the mutations that stay inside this resource. The canonical hook lists and
   saves recording files but no longer deletes them: deleting an original also has to
-  reach snap metadata, every movie referencing it, and the tray, so it became its own
+  reach snap metadata and every movie referencing it, so it became its own
   feature ([`use-delete-snaps.ts`](../../src/features/delete-snap/model/use-delete-snaps.ts))
-  that composes all three entities. When a mutation spans entities, it outgrew this pattern — the
+  that composes both entities. When a mutation spans entities, it outgrew this pattern — the
   caller then reloads the list from the ids that action reports.
 
 ---
@@ -696,10 +696,11 @@ export function XPage() {
 - **`hitSlop` does not cross a clipping ancestor on Android.** A small control inside a
   container with `overflow: 'hidden'` — the rounded frames the app draws everywhere — only
   receives touches that land inside that container, however much slop it declares. Spend
-  the slop in the directions that stay inside: the tray's ✕ sits 2dp from the top-right
-  corner of a 52dp thumbnail and reaches 44dp by growing *down and left*
-  (`src/pages/studio/ui/tray-panel.tsx`). A symmetric slop there measured 34dp in
-  practice. Verify a grown target by tapping its far corner on the device — the bounds a
+  the slop in the directions that stay inside: the removed tray panel's ✕ sat 2dp from
+  the top-right corner of a 52dp thumbnail and reached 44dp by growing *down and left* —
+  a symmetric slop there measured 34dp in practice (2026-08-12, on device; the component
+  is gone but the measurement holds for every clipped corner control). Verify a grown
+  target by tapping its far corner on the device — the bounds a
   UI-hierarchy dump reports are the view's, and never include the slop.
 
 ---

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { MovieSnapLimit, useMovieById } from '@/entities/movie';
@@ -36,6 +36,10 @@ export type AddSnapsPageProps = {
 export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
   const theme = useTheme();
   const router = useRouter();
+  // The bar reports its real height (it varies with the safe-area inset, the
+  // font scale, and the notice line); the estimate only covers the frames
+  // before the first layout.
+  const [selectionBarHeight, setSelectionBarHeight] = useState(SelectionBarRoomEstimate);
   const movie = useMovieById(movieId);
   const { days, totalCount, isHydrated } = useSnapDays();
   const { appendSnaps } = useComposeMovie();
@@ -103,20 +107,9 @@ export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: Spacing.seven + SelectionBarRoom },
+          { paddingBottom: Spacing.seven + selectionBarHeight },
         ]}
       >
-        {notice ? (
-          <View
-            style={[
-              styles.notice,
-              { borderColor: theme.border, backgroundColor: theme.warmSurface },
-            ]}
-          >
-            <ThemedText type="small">{notice}</ThemedText>
-          </View>
-        ) : null}
-
         <SnapDayGrid
           days={days}
           selecting
@@ -138,16 +131,18 @@ export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
         capacity={MovieSnapLimit}
         targetLabel={movie.title}
         confirmLabel="이 무비에 넣기"
+        notice={notice}
         onClear={clear}
         onConfirm={confirmPicks}
+        onHeight={setSelectionBarHeight}
       />
     </View>
   );
 }
 
-// Room the selection bar takes at the bottom of the scroll: its two rows plus
-// the safe-area padding it adds itself.
-const SelectionBarRoom = 132;
+// What the selection bar roughly takes at the bottom of the scroll — only the
+// starting value; the bar reports its real height on layout.
+const SelectionBarRoomEstimate = 132;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -159,12 +154,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.five,
     paddingTop: Spacing.three,
     gap: Spacing.five,
-  },
-  notice: {
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.three,
   },
   empty: {
     borderWidth: 1.5,

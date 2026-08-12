@@ -1,9 +1,10 @@
 import { useIsFocused, useRouter, useScrollToTop } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { MovieSnapLimit } from '@/entities/movie';
 import { useFailedUploadCount, useRetryFailedUploads, type Snap } from '@/entities/snap';
-import { TrayCapacity, useAddSnapsToTray, useTraySnapIds } from '@/entities/tray';
+import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatDuration, formatSeconds } from '@/shared/lib/datetime';
 import { pickVideoFromLibrary } from '@/shared/lib/video-picker';
@@ -24,7 +25,7 @@ import { useMovieDeleteImpact } from '../model/use-movie-delete-impact';
 import { SnapDeleteDialog } from './snap-delete-dialog';
 
 export type SnapsPageProps = {
-  /** `?select=1` — the studio sends the user here to pick for the tray. */
+  /** `?select=1` — the studio sends the user here to pick for a new movie. */
   startSelecting?: boolean;
 };
 
@@ -33,16 +34,18 @@ export type SnapsPageProps = {
  *
  * A tap plays a snap; there is no blur and nothing to unlock, because the app no
  * longer withholds what was just recorded. Selection mode is what turns the
- * library into a picking surface: chosen snaps go to the studio's tray, not
- * straight into a movie, so material can be gathered across several days
- * (concept §5).
+ * library into a picking surface: confirming the picks starts a draft movie and
+ * lands on it. The draft is the basket the 담기 트레이 used to be (2026-08-12) —
+ * it persists, takes more snaps later through 스냅 더 넣기, and several can be
+ * gathered at once — so the tray's extra stop (담기 → 스튜디오 → 새 무비) is
+ * gone.
  *
  * The header carries one control — the mode switch — and one read-out: what the
- * library holds, and the tray's fill once it holds anything. 가져오기 is not up
- * there; it leads the grid as a cell of its own (`SnapImportCell`), where the
- * snaps it produces will land. Two same-weight header actions gave the mode
- * switch no more standing than an import, and taking one of them away on
- * entering selection slid the other sideways under the user's finger.
+ * library holds. 가져오기 is not up there; it leads the grid as a cell of its
+ * own (`SnapImportCell`), where the snaps it produces will land. Two same-weight
+ * header actions gave the mode switch no more standing than an import, and
+ * taking one of them away on entering selection slid the other sideways under
+ * the user's finger.
  *
  * Picking *into a movie* is a different screen — `/movie/[id]/add-snaps`, on the
  * root stack — even though it draws the same grid. It used to be this one under
@@ -57,8 +60,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const topInset = useTopContentInset();
   const tabBarHeight = useTabBarHeight();
   const { days, totalCount, totalDurationSec, isHydrated } = useSnapDays();
-  const traySnapIds = useTraySnapIds();
-  const addSnapsToTray = useAddSnapsToTray();
+  const { startMovieFromSnaps } = useComposeMovie();
   const { deleteSnaps, deletingIds, errorMessage, clearError } = useDeleteSnaps();
   const setTabBarHidden = useSetTabBarHidden();
   const isFocused = useIsFocused();
@@ -75,25 +77,24 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   const [playing, setPlaying] = useState<Snap>();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [importError, setImportError] = useState<string>();
+  // The bar reports its real height (it varies with the safe-area inset, the
+  // font scale, and the notice line); the estimate only covers the frames
+  // before the first layout.
+  const [selectionBarHeight, setSelectionBarHeight] = useState(SelectionBarRoomEstimate);
 
-  const heldIds = useMemo(() => new Set(traySnapIds), [traySnapIds]);
-  const { picked, notice, toggle, drop, clear, reset, announce } = useSnapPicking({
-    heldIds,
-    heldCount: traySnapIds.length,
-    capacity: TrayCapacity,
-    describeRefusal: (room) =>
-      room === 0
-        ? '트레이가 가득 찼어요. 스튜디오에서 먼저 비워주세요.'
-        : `한 편에는 스냅 ${TrayCapacity}개까지 들어가요. 지금은 ${room}개만 더 담을 수 있어요.`,
+  // A new movie starts empty, so nothing in the library is "held" here — unlike
+  // a movie's picker, where the movie's own cuts are.
+  const { picked, notice, toggle, drop, clear, reset } = useSnapPicking({
+    heldIds: NoHeldIds,
+    heldCount: 0,
+    capacity: MovieSnapLimit,
+    describeRefusal: () => `한 편에는 스냅 ${MovieSnapLimit}개까지 들어가요.`,
   });
 
   const impact = useMovieDeleteImpact(deleteOpen ? picked : EmptySelection);
-  // The delete sheet reports the tray specifically: deleting a snap empties it
-  // out of the tray as well as out of every movie.
-  const pickedInTray = picked.filter((snapId) => traySnapIds.includes(snapId)).length;
 
-  // Arriving with `?select=1` (the studio's tray sending the user to pick)
-  // opens selection mode. The tab stays mounted across visits, so the initial
+  // Arriving with `?select=1` (the studio sending the user to pick for a new
+  // movie) opens selection mode. The tab stays mounted across visits, so the initial
   // state is not enough — the prop change has to be noticed. Adjusted during
   // render rather than in an effect: React re-runs this render before painting,
   // so the screen never flashes out of selection mode first.
@@ -168,14 +169,12 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
   };
 
   const confirmPicks = () => {
-    const outcome = addSnapsToTray(picked);
+    // The draft is where the picks land, so open it — the cap was enforced pick
+    // by pick, so a non-empty selection always makes a movie.
+    const movie = startMovieFromSnaps(picked);
+    if (!movie) return;
     exitSelection();
-    // The studio is where the tray lives, so land there — the user should see
-    // what they just collected.
-    router.navigate('/');
-    if (outcome.rejected > 0) {
-      announce(`${outcome.added}개를 담았어요. ${outcome.rejected}개는 자리가 없어 빠졌어요.`);
-    }
+    router.push({ pathname: '/movie/[id]', params: { id: movie.id } });
   };
 
   const confirmDelete = async () => {
@@ -209,7 +208,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
           styles.content,
           {
             paddingTop: Spacing.six + topInset,
-            paddingBottom: Spacing.seven + (selecting ? SelectionBarRoom : tabBarHeight),
+            paddingBottom: Spacing.seven + (selecting ? selectionBarHeight : tabBarHeight),
           },
         ]}
       >
@@ -234,13 +233,6 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
             <ThemedText type="small" themeColor="textSecondary">
               {totalCount}개 · {formatDuration(totalDurationSec)}
             </ThemedText>
-            {traySnapIds.length > 0 ? (
-              <View style={[styles.trayChip, { borderColor: theme.border }]}>
-                <ThemedText selectable={false} type="note" themeColor="ai">
-                  트레이 {traySnapIds.length}/{TrayCapacity}
-                </ThemedText>
-              </View>
-            ) : null}
           </View>
         </View>
 
@@ -257,7 +249,10 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
           </Pressable>
         ) : null}
 
-        {notice ? (
+        {/* While selecting, refusals show in the selection bar instead — the
+            user's eye and thumb are down there, and a block appearing up here
+            would shift the grid they are picking from. */}
+        {notice && !selecting ? (
           <View
             style={[
               styles.notice,
@@ -296,26 +291,30 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
           days={days}
           selecting={selecting}
           picked={picked}
-          heldIds={heldIds}
+          heldIds={NoHeldIds}
           onPress={handlePress}
           onLongPress={handleLongPress}
           // Held back until the store has read itself back from disk, so the
           // tile does not stand alone for a frame in a library that is only
-          // hydrating, and while selecting, when a tap means picking.
-          onImport={!selecting && isHydrated ? () => void openExtract() : undefined}
+          // hydrating. During selection the grid keeps the cell and disables
+          // it — unmounting it here shifted the whole leading row one cell
+          // over under the user's finger.
+          onImport={isHydrated ? () => void openExtract() : undefined}
         />
       </ScrollView>
 
       {selecting ? (
         <SnapSelectionBar
           selectedCount={picked.length}
-          heldCount={traySnapIds.length}
-          capacity={TrayCapacity}
-          targetLabel="트레이"
-          confirmLabel="트레이에 담기"
+          heldCount={0}
+          capacity={MovieSnapLimit}
+          targetLabel="새 무비"
+          confirmLabel="이 스냅으로 새 무비"
+          notice={notice}
           onClear={clear}
           onConfirm={confirmPicks}
           onDelete={() => setDeleteOpen(true)}
+          onHeight={setSelectionBarHeight}
         />
       ) : null}
 
@@ -330,7 +329,6 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
         visible={deleteOpen}
         count={picked.length}
         impact={impact}
-        trayCount={pickedInTray}
         isDeleting={deletingIds.size > 0}
         errorMessage={errorMessage}
         onCancel={closeDelete}
@@ -343,9 +341,12 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
 /** Stable reference, so the impact hook does not recompute on every render. */
 const EmptySelection: string[] = [];
 
-// Room the selection bar takes at the bottom of the scroll: its two rows plus
-// the safe-area padding it adds itself.
-const SelectionBarRoom = 132;
+/** A new movie holds nothing yet, so no snap in the library reads as 담김. */
+const NoHeldIds: ReadonlySet<string> = new Set();
+
+// What the selection bar roughly takes at the bottom of the scroll — only the
+// starting value; the bar reports its real height on layout.
+const SelectionBarRoomEstimate = 132;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -360,13 +361,6 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   headerAction: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
-  trayChip: {
-    borderWidth: 1,
-    borderRadius: Radius.pill,
-    borderCurve: 'continuous',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 1,
-  },
   notice: {
     borderWidth: 1,
     borderRadius: Radius.medium,

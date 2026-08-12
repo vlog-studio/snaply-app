@@ -16,7 +16,7 @@ Users pick the shape of the movie first — 동네 산책, 하루 요약 — and
 └── 이대로 만들기          → /movie/[id], an editable draft
 ```
 
-This is the second way into a movie and it sits beside the tray rather than replacing it: the tray is "make a movie out of *these*", a template is "make me something like *this*". Both stay on the studio ([Studio and movies](studio.md)).
+This is the second way into a movie and it sits beside hand-picking rather than replacing it: picked snaps are "make a movie out of *these*", a template is "make me something like *this*". Both entries stay on the studio ([Studio and movies](studio.md)).
 
 ## What the match can and cannot do
 
@@ -55,7 +55,6 @@ The number used to carry its own caption, `같은 외출 확신 NN%`. That was d
 | 이대로 만들기 | `Functional` | Creates a movie from the filled slots in slot order, with the template's style and BGM, marked `arranger: 'ai'`, and replaces the screen with the movie — **an editable draft, not a running job**. Generation is slow remote work once a real backend runs it, so cut lengths, order, and style are settled on the movie screen first and the run starts there ([The movie screen](movie.md)). |
 | Manual changes are not stored | `Functional` | Dropping and shooting are held on the screen. Nothing exists to write to until the movie is created, and leaving costs nothing. |
 | One snap, one slot | `Functional` | A snap shot for an empty slot joins the library, so the next match would happily propose it for another slot as well. The slot it was shot for claims it, and the other one stays empty — a duplicate would have become two cuts of the same three seconds. |
-| The tray is untouched | `Functional` | Making a movie from a template does not empty the tray. Two ways of gathering material must not consume each other. |
 
 ## Ownership
 

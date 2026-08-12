@@ -22,7 +22,7 @@ type CaptureMomentInput = {
  *
  * That is the whole job. Capturing no longer files the snap into anything —
  * automatic collection is gone along with the daily roll and its all-day rule. A
- * snap sits in the library until the user picks it into the tray, which is now
+ * snap sits in the library until the user picks it into a movie, which is now
  * the one place material is chosen (concept §5).
  *
  * Owns its pending/error state and guards re-entry; it never navigates — the

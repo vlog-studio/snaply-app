@@ -9,7 +9,7 @@ import type { LocalRecording } from '@/shared/lib/recording-files';
  * visibility, which recording is being previewed, and deletion.
  *
  * Deletion goes through the delete-snap feature because an original may already
- * be a cut inside a movie or sitting in the tray — removing the file alone would
+ * be a cut inside a movie — removing the file alone would
  * leave those dangling. The list is read from disk, so it is reloaded once the
  * file is actually gone.
  */

@@ -21,8 +21,8 @@ export type CreateMovieInput = {
   arranger?: MovieArranger;
   /**
    * What the movie should start out looking and sounding like. A template says
-   * so; a movie started from the tray takes the defaults and the user changes
-   * them once there is a result to change them against.
+   * so; a movie started from hand-picked snaps takes the defaults and the user
+   * changes them once there is a result to change them against.
    */
   style?: MovieStyle;
   bgm?: string;

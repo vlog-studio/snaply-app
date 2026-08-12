@@ -2,7 +2,7 @@
 
 ## User goal
 
-Users can bring a video they already have — the phone's gallery — into Snaply by cutting snaps out of it: pick a video, slide a window (0.5–5 seconds) along a filmstrip of it, watch exactly that window loop, and cut as many snaps out of one video as they want. An extracted snap lands in the library exactly like a captured one: it uploads in the background, can be picked into the tray, and can be cut into movies.
+Users can bring a video they already have — the phone's gallery — into Snaply by cutting snaps out of it: pick a video, slide a window (0.5–5 seconds) along a filmstrip of it, watch exactly that window loop, and cut as many snaps out of one video as they want. An extracted snap lands in the library exactly like a captured one: it uploads in the background and can be picked into movies.
 
 ```text
 /snaps 헤더 가져오기  (or the empty state's 동영상에서 가져오기)

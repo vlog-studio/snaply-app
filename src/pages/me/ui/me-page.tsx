@@ -6,7 +6,6 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useMovies } from '@/entities/movie';
 import { useClearSession, useCurrentUser } from '@/entities/session';
 import { useSnaps } from '@/entities/snap';
-import { useTraySnapIds } from '@/entities/tray';
 import {
   useInterests,
   useReminderFrequency,
@@ -55,7 +54,6 @@ export function MePage() {
   const clearSession = useClearSession();
   const snaps = useSnaps();
   const movies = useMovies();
-  const traySnapIds = useTraySnapIds();
   const reminderWindows = useReminderWindows();
   const reminderFrequency = useReminderFrequency();
   const themeMode = useThemeMode();
@@ -95,7 +93,6 @@ export function MePage() {
         <View style={styles.statPills}>
           <StatPill label="스냅" value={snaps.length} />
           <StatPill label="무비" value={movies.length} />
-          <StatPill label="트레이" value={traySnapIds.length} />
         </View>
       </View>
 

@@ -2,13 +2,11 @@ import { useRouter, useScrollToTop } from 'expo-router';
 import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { useSnapsByRefs } from '@/entities/snap';
-import { useClearTray, useRemoveSnapsFromTray, useTraySnapIds } from '@/entities/tray';
-import { useComposeMovie } from '@/features/compose-movie';
 import { useTemplateOffers } from '@/features/fill-template';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
+  Radius,
   Spacing,
   useTabBarHeight,
   useTheme,
@@ -18,7 +16,6 @@ import { ThemedText } from '@/shared/ui/themed-text';
 import { MovieRow, useBoardMovies } from '@/widgets/movie-shelf';
 
 import { TemplatePanel } from './template-panel';
-import { TrayPanel } from './tray-panel';
 
 /** How many movies the board previews before deferring to the movie tab. */
 const BoardPreviewCount = 3;
@@ -26,13 +23,18 @@ const BoardPreviewCount = 3;
 /**
  * The studio — the workbench the app opens on.
  *
- * Three blocks, read top to bottom as material → work: the tray of picked snaps,
+ * Three blocks, read top to bottom as start → work: the way into a new movie,
  * the templates that will go looking for material on their own, and the movies
  * themselves — unfinished first. Reopening the app lands here so the user
  * resumes rather than restarts (concept §3).
  *
- * The tray and the templates are two entrances to the same place and both stay:
- * one is "make a movie out of these", the other is "make me something like this".
+ * The 새 무비 row and the templates are two entrances to the same place: one is
+ * "make a movie out of these", the other is "make me something like this". The
+ * row replaced the 담기 트레이 panel (2026-08-12): picks now become a draft
+ * movie directly, and a draft is the basket the tray was — persistent, refill-
+ * able through the movie screen, and plural — so the studio's job here shrank
+ * to offering the way in, at the one-row weight the empty tray had already
+ * settled on.
  */
 export function StudioPage() {
   const theme = useTheme();
@@ -46,16 +48,8 @@ export function StudioPage() {
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
 
-  const traySnapIds = useTraySnapIds();
-  const removeSnapsFromTray = useRemoveSnapsFromTray();
-  const clearTray = useClearTray();
-  const { startMovieFromTray } = useComposeMovie();
   const templateOffers = useTemplateOffers();
   const boardMovies = useBoardMovies();
-
-  // The tray stores ids; resolving them to snaps is the same join every movie
-  // surface uses, with the pick order standing in for the cut order.
-  const traySnaps = useSnapsByRefs(traySnapIds.map((snapId, order) => ({ snapId, order })));
 
   const pickSnaps = () => router.push({ pathname: '/snaps', params: { select: '1' } });
   // Every movie opens on the same screen, whatever it is waiting for: watching a
@@ -65,11 +59,6 @@ export function StudioPage() {
 
   const openTemplate = (templateId: string) =>
     router.push({ pathname: '/template/[id]', params: { id: templateId } });
-
-  const startMovie = () => {
-    const movie = startMovieFromTray();
-    if (movie) openMovie(movie.id);
-  };
 
   return (
     <ScrollView
@@ -86,13 +75,28 @@ export function StudioPage() {
       </View>
 
       <FadeInView duration={260} style={styles.blocks}>
-        <TrayPanel
-          snaps={traySnaps}
-          onPickMore={pickSnaps}
-          onRemove={(snapId) => removeSnapsFromTray([snapId])}
-          onClear={clearTray}
-          onStartMovie={startMovie}
-        />
+        {/* One row, whole-row tappable: picking the snaps is the first real
+            decision of a hand-made movie, and it happens on the Snap tab. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="스냅 골라서 새 무비 만들기"
+          onPress={pickSnaps}
+          style={({ pressed }) => [
+            styles.newMovieRow,
+            {
+              backgroundColor: theme.backgroundElement,
+              borderColor: theme.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <ThemedText selectable={false} type="smallBold">
+            새 무비
+          </ThemedText>
+          <ThemedText selectable={false} type="smallBold" themeColor="primary">
+            스냅 고르기
+          </ThemedText>
+        </Pressable>
 
         <TemplatePanel offers={templateOffers} onOpen={openTemplate} />
 
@@ -134,6 +138,18 @@ const styles = StyleSheet.create({
   },
   header: { gap: Spacing.half },
   blocks: { gap: Spacing.five },
+  // The one-row weight the empty tray panel had settled on, kept.
+  newMovieRow: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.three,
+    borderRadius: Radius.large,
+    borderCurve: 'continuous',
+    borderWidth: 1,
+    paddingHorizontal: Spacing.four,
+  },
   section: { gap: Spacing.two },
   sectionHead: {
     minHeight: 24,

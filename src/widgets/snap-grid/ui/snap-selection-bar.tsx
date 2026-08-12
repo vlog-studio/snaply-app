@@ -14,8 +14,22 @@ export type SnapSelectionBarProps = {
   targetLabel: string;
   /** Wording of the confirming action, since the target decides it. */
   confirmLabel: string;
+  /**
+   * What the picking rules just refused, if anything. It shows here — pinned
+   * where the thumb already is — because a message inserted at the top of the
+   * scroll is off-screen for a user deep in the grid, and inserting it shifts
+   * every cell under their finger.
+   */
+  notice?: string;
   onClear: () => void;
   onConfirm: () => void;
+  /**
+   * Reports the bar's rendered height. The bar floats over the screen's scroll,
+   * so the screen pads its content by exactly this much — a guessed constant is
+   * wrong the moment the safe-area inset, the font scale, or the notice line
+   * differs from the device it was measured on.
+   */
+  onHeight?: (height: number) => void;
   /**
    * Omitted where the screen does not own deletion: picking snaps *into* a
    * movie is not the place to delete originals out of the library.
@@ -37,9 +51,11 @@ export function SnapSelectionBar({
   capacity,
   targetLabel,
   confirmLabel,
+  notice,
   onClear,
   onConfirm,
   onDelete,
+  onHeight,
 }: SnapSelectionBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -48,6 +64,7 @@ export function SnapSelectionBar({
 
   return (
     <View
+      onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)}
       style={[
         styles.bar,
         {
@@ -57,6 +74,12 @@ export function SnapSelectionBar({
         },
       ]}
     >
+      {notice ? (
+        <ThemedText type="note" themeColor="danger" accessibilityLiveRegion="polite">
+          {notice}
+        </ThemedText>
+      ) : null}
+
       <View style={styles.counts}>
         <ThemedText type="smallBold">{selectedCount}개 선택</ThemedText>
         <ThemedText
@@ -65,8 +88,11 @@ export function SnapSelectionBar({
           numberOfLines={1}
           style={styles.room}
         >
-          {targetLabel} {heldCount}/{capacity}
-          {room === 0 ? ' · 가득 참' : ` · ${room}개 더`}
+          {/* A target holding nothing yet (a movie about to be created) has no
+              fill to report — its one fact is the cap. */}
+          {heldCount > 0
+            ? `${targetLabel} ${heldCount}/${capacity}${room === 0 ? ' · 가득 참' : ` · ${room}개 더`}`
+            : `${targetLabel} · 최대 ${capacity}개`}
         </ThemedText>
       </View>
 

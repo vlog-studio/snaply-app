@@ -22,8 +22,9 @@ export type SnapDayGridProps = {
   onLongPress?: (snap: Snap) => void;
   /**
    * Adds the leading `가져오기` cell. Omitted where the screen does not own
-   * importing — a movie's picker only chooses among snaps that already exist —
-   * and while selecting, since a pick and an import are different acts.
+   * importing — a movie's picker only chooses among snaps that already exist.
+   * While selecting the cell stays but goes inert: removing it slides every
+   * snap in the leading row one cell over, under the user's finger.
    */
   onImport?: () => void;
 };
@@ -67,7 +68,11 @@ export function SnapDayGrid({
   // The import cell leads the newest day's row, and stands alone when there is
   // no day at all: an empty library still has to offer the way out of being
   // empty, and this is that way — the other one is the shell's capture button.
-  const importCell = onImport ? <SnapImportCell width={cellWidth} onPress={onImport} /> : null;
+  // Disabled rather than unmounted while selecting, so entering and leaving
+  // selection never shifts the grid.
+  const importCell = onImport ? (
+    <SnapImportCell width={cellWidth} disabled={selecting} onPress={onImport} />
+  ) : null;
 
   if (days.length === 0) {
     return importCell ? <View style={styles.grid}>{importCell}</View> : null;

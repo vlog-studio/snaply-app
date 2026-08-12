@@ -7,7 +7,6 @@ const mockDeleteVideoThumbnail = jest.fn();
 const mockRemoveSnaps = jest.fn();
 const mockForgetSnapSync = jest.fn();
 const mockRemoveSnapsEverywhere = jest.fn();
-const mockRemoveSnapsFromTray = jest.fn();
 
 // Mock each dependency at its slice Public API so the test stays at the seam.
 jest.mock('@/shared/lib/recording-files', () => ({
@@ -23,9 +22,6 @@ jest.mock('@/entities/snap', () => ({
 jest.mock('@/entities/movie', () => ({
   useRemoveSnapsEverywhere: () => mockRemoveSnapsEverywhere,
 }));
-jest.mock('@/entities/tray', () => ({
-  useRemoveSnapsFromTray: () => mockRemoveSnapsFromTray,
-}));
 
 function makeRecording(id: string): DeletableSnap {
   return { id, uri: `file:///doc/recordings/${id}` };
@@ -37,7 +33,7 @@ beforeEach(() => {
 });
 
 describe('useDeleteSnaps', () => {
-  it('deletes the file, its thumbnail, its movie references, the tray entry, and its metadata', async () => {
+  it('deletes the file, its thumbnail, its movie references, and its metadata', async () => {
     const recording = makeRecording('snaply-1.mp4');
     const { result } = await renderHook(() => useDeleteSnaps());
 
@@ -48,7 +44,6 @@ describe('useDeleteSnaps', () => {
     expect(mockDeleteLocalRecording).toHaveBeenCalledWith(recording.uri);
     expect(mockDeleteVideoThumbnail).toHaveBeenCalledWith(recording.uri);
     expect(mockRemoveSnapsEverywhere).toHaveBeenCalledWith(['snaply-1.mp4']);
-    expect(mockRemoveSnapsFromTray).toHaveBeenCalledWith(['snaply-1.mp4']);
     expect(mockRemoveSnaps).toHaveBeenCalledWith(['snaply-1.mp4']);
     expect(mockForgetSnapSync).toHaveBeenCalledWith(['snaply-1.mp4']);
   });
@@ -74,7 +69,6 @@ describe('useDeleteSnaps', () => {
     });
 
     expect(mockRemoveSnapsEverywhere).toHaveBeenCalledTimes(1);
-    expect(mockRemoveSnapsFromTray).toHaveBeenCalledTimes(1);
     expect(mockRemoveSnaps).toHaveBeenCalledTimes(1);
     expect(mockRemoveSnaps).toHaveBeenCalledWith(['snaply-1.mp4', 'snaply-2.mp4']);
   });
@@ -107,7 +101,6 @@ describe('useDeleteSnaps', () => {
     });
 
     expect(mockRemoveSnapsEverywhere).not.toHaveBeenCalled();
-    expect(mockRemoveSnapsFromTray).not.toHaveBeenCalled();
     expect(mockRemoveSnaps).not.toHaveBeenCalled();
     expect(mockForgetSnapSync).not.toHaveBeenCalled();
     expect(result.current.errorMessage).toBe('스냅을 삭제하지 못했어요.'); // 스냅을 삭제하지 못했어요.

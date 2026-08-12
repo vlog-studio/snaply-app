@@ -11,8 +11,6 @@ export type SnapDeleteDialogProps = {
   count: number;
   /** Movies that would lose cuts — empty when nothing references the snaps. */
   impact: MovieDeleteImpact[];
-  /** Whether the snaps sit in the tray, which the delete also empties. */
-  trayCount: number;
   isDeleting: boolean;
   errorMessage?: string;
   onCancel: () => void;
@@ -31,7 +29,6 @@ export function SnapDeleteDialog({
   visible,
   count,
   impact,
-  trayCount,
   isDeleting,
   errorMessage,
   onCancel,
@@ -65,12 +62,6 @@ export function SnapDeleteDialog({
             </View>
           ))}
         </View>
-      ) : null}
-
-      {trayCount > 0 ? (
-        <ThemedText type="small" themeColor="textSecondary">
-          트레이에 담아둔 {trayCount}개도 함께 빠져요.
-        </ThemedText>
       ) : null}
 
       {errorMessage ? (

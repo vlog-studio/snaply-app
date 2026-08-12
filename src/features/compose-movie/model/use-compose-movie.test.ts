@@ -10,9 +10,7 @@ const mockUpdateMovieCuts = jest.fn();
 const mockUpdateMovieStyle = jest.fn();
 const mockBeginMovieJob = jest.fn();
 const mockSetMovieArranger = jest.fn();
-const mockClearTray = jest.fn();
 const mockGetMovieById = jest.fn<Movie | undefined, [string]>();
-const mockTraySnapIds = jest.fn<string[], []>();
 const mockSnapIndex = jest.fn<[string, { capturedAt: number }][], []>();
 const mockSyncEntries = jest.fn<Record<string, { status: string; videoId?: string }>, []>();
 const mockCreateEditJob = jest.fn();
@@ -44,10 +42,6 @@ jest.mock('@/shared/lib/supabase', () => ({
 jest.mock('../api/create-edit-job', () => ({
   createEditJob: (...args: unknown[]) => mockCreateEditJob(...args),
 }));
-jest.mock('@/entities/tray', () => ({
-  useTraySnapIds: () => mockTraySnapIds(),
-  useClearTray: () => mockClearTray,
-}));
 
 function makeMovie(overrides: Partial<Movie> = {}): Movie {
   return {
@@ -70,7 +64,6 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockTraySnapIds.mockReturnValue([]);
   mockSnapIndex.mockReturnValue([
     ['s1', { capturedAt: 100 }],
     ['s2', { capturedAt: 200 }],
@@ -84,34 +77,45 @@ beforeEach(() => {
   mockCreateEditJob.mockResolvedValue('job-1');
 });
 
-describe('startMovieFromTray', () => {
-  it('creates a draft from the tray in pick order and empties the tray', async () => {
-    mockTraySnapIds.mockReturnValue(['s3', 's1']);
+describe('startMovieFromSnaps', () => {
+  it('creates a user-arranged draft from the picks in pick order', async () => {
     const created = makeMovie({ id: 'new' });
     mockCreateMovie.mockReturnValue(created);
     const { result } = await renderHook(() => useComposeMovie());
 
     let movie;
     await act(async () => {
-      movie = result.current.startMovieFromTray();
+      movie = result.current.startMovieFromSnaps(['s3', 's1']);
     });
 
     expect(mockCreateMovie).toHaveBeenCalledWith({ snapIds: ['s3', 's1'], arranger: 'user' });
-    expect(mockClearTray).toHaveBeenCalled();
     expect(movie).toBe(created);
   });
 
-  it('makes nothing from an empty tray', async () => {
+  it('makes nothing from no picks', async () => {
     const { result } = await renderHook(() => useComposeMovie());
 
     let movie;
     await act(async () => {
-      movie = result.current.startMovieFromTray();
+      movie = result.current.startMovieFromSnaps([]);
     });
 
     expect(movie).toBeUndefined();
     expect(mockCreateMovie).not.toHaveBeenCalled();
-    expect(mockClearTray).not.toHaveBeenCalled();
+  });
+
+  it('refuses a batch past the movie cap whole rather than truncating it', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let movie;
+    await act(async () => {
+      movie = result.current.startMovieFromSnaps(
+        Array.from({ length: 11 }, (_, index) => `s${index}`),
+      );
+    });
+
+    expect(movie).toBeUndefined();
+    expect(mockCreateMovie).not.toHaveBeenCalled();
   });
 });
 
@@ -133,17 +137,6 @@ describe('startMovieFromTemplate', () => {
       bgm: 'sunny-side',
       arranger: 'ai',
     });
-  });
-
-  it('leaves the tray alone, so gathering by hand survives a template', async () => {
-    mockTraySnapIds.mockReturnValue(['kept']);
-    const { result } = await renderHook(() => useComposeMovie());
-
-    await act(async () => {
-      result.current.startMovieFromTemplate({ snapIds: ['s1'], style: 'daily', bgm: 'silence' });
-    });
-
-    expect(mockClearTray).not.toHaveBeenCalled();
   });
 
   it('makes nothing from a template with every slot empty', async () => {

@@ -28,11 +28,11 @@ const oneDay: SnapDay[] = [
   { key: '2026-02-02', label: '\uC624\uB298', snaps: [makeSnap('a')] }, // 오늘
 ];
 
-function renderGrid(days: SnapDay[], onImport?: () => void) {
+function renderGrid(days: SnapDay[], onImport?: () => void, selecting = false) {
   return render(
     <SnapDayGrid
       days={days}
-      selecting={false}
+      selecting={selecting}
       picked={[]}
       heldIds={new Set()}
       onPress={jest.fn()}
@@ -50,6 +50,16 @@ describe('SnapDayGrid', () => {
     await renderGrid(oneDay, onImport);
     await fireEvent.press(screen.getByRole('button', { name: importLabel }));
     expect(onImport).toHaveBeenCalled();
+  });
+
+  it('keeps the import cell while selecting, disabled, so the grid never shifts', async () => {
+    const onImport = jest.fn();
+    await renderGrid(oneDay, onImport, true);
+
+    const cell = screen.getByRole('button', { name: importLabel });
+    expect(cell).toBeDisabled();
+    await fireEvent.press(cell);
+    expect(onImport).not.toHaveBeenCalled();
   });
 
   it('keeps the import cell on an empty library, which has no day section to lead', async () => {

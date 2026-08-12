@@ -1,11 +1,14 @@
 import { act, renderHook } from '@testing-library/react-native';
 
 import {
+  clearPendingDeletion,
   exchangeAuthCode,
   initSession,
+  markPendingDeletion,
   useClearSession,
   useCurrentUser,
   useIsAuthenticated,
+  useIsPendingDeletion,
   useIsRecovering,
   useSessionHydrated,
   useSessionStore,
@@ -39,7 +42,12 @@ describe('session store', () => {
     mockSessionListener = undefined;
     mockExchangeSessionCode.mockResolvedValue(true);
     // The store is a module-level singleton; reset it so tests stay independent.
-    useSessionStore.setState({ user: null, hasHydrated: false, isRecovering: false });
+    useSessionStore.setState({
+      user: null,
+      hasHydrated: false,
+      isRecovering: false,
+      isPendingDeletion: false,
+    });
   });
 
   it('starts unauthenticated and unhydrated', async () => {
@@ -122,5 +130,31 @@ describe('session store', () => {
       await expect(exchangeAuthCode('code-2', { recovery: true })).resolves.toBe(false);
     });
     expect(result.current.recovering).toBe(false);
+  });
+
+  it('marks and clears the pending-deletion state', async () => {
+    const { result } = await renderHook(() => ({ pending: useIsPendingDeletion() }));
+
+    await act(async () => markPendingDeletion());
+    expect(result.current.pending).toBe(true);
+
+    await act(async () => clearPendingDeletion());
+    expect(result.current.pending).toBe(false);
+  });
+
+  it('drops the pending-deletion flag on sign-out, so the next account starts clean', async () => {
+    const { result } = await renderHook(() => ({
+      pending: useIsPendingDeletion(),
+      setSession: useSetSession(),
+      clearSession: useClearSession(),
+    }));
+
+    await act(async () => {
+      result.current.setSession(user);
+      markPendingDeletion();
+    });
+    await act(async () => result.current.clearSession());
+
+    expect(result.current.pending).toBe(false);
   });
 });

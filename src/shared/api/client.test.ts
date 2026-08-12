@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
+import { ApiError } from './api-error';
 import { apiRequest } from './client';
+import { subscribeToApiErrors } from './error-listeners';
 import { apiPath } from './paths';
 
 const mockAuthHeader = jest.fn<Promise<Record<string, string>>, []>();
@@ -252,5 +254,30 @@ describe('apiRequest runtime contract', () => {
     });
 
     await expect(request).rejects.toBeInstanceOf(z.ZodError);
+  });
+
+  it('announces every ApiError to subscribers and stops after unsubscribe', async () => {
+    const listener = jest.fn();
+    const unsubscribe = subscribeToApiErrors(listener);
+    fetchSpy.mockResolvedValue(
+      responseWith(
+        { success: false, error: { code: 'ACCOUNT_PENDING_DELETION', message: '삭제 대기' } },
+        403,
+      ),
+    );
+
+    await expect(
+      apiRequest('/locations', { query: { lat: 37, lng: 127 }, schema: z.array(z.unknown()) }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'ACCOUNT_PENDING_DELETION', status: 403 }),
+    );
+
+    unsubscribe();
+    await expect(
+      apiRequest('/locations', { query: { lat: 37, lng: 127 }, schema: z.array(z.unknown()) }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });

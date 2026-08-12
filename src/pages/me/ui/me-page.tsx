@@ -149,7 +149,11 @@ export function MePage() {
           <ThemedText type="smallBold">로그아웃</ThemedText>
         </Pressable>
         <RowDivider />
-        <Pressable accessibilityRole="button" style={styles.accountAction}>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.accountAction}
+          onPress={() => router.push('/settings/delete-account')}
+        >
           <ThemedText type="smallBold" themeColor="danger">
             계정 삭제
           </ThemedText>

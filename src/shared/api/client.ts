@@ -4,6 +4,7 @@ import { API_BASE_URL } from '@/shared/config/api';
 
 import { ApiError } from './api-error';
 import { authHeader } from './auth-header';
+import { notifyApiError } from './error-listeners';
 import type { ApiPath, ResolvedApiPath } from './paths';
 import type { paths } from './schema';
 
@@ -112,6 +113,21 @@ function buildUrl(path: string, query?: Record<string, QueryValue>): string {
  * schema that contradicts the spec is a compile error, at the call site.
  */
 export async function apiRequest<
+  P extends ApiPath,
+  T,
+  M extends ApiMethod<P> = Extract<'GET', ApiMethod<P>>,
+>(path: P | ResolvedApiPath<P>, options: ApiRequestOptions<P, M, T>): Promise<T> {
+  try {
+    return await performRequest(path, options);
+  } catch (error) {
+    // Announce every normalized failure once, here at the single exit, so a
+    // subscriber sees all of them regardless of which caller made the request.
+    if (error instanceof ApiError) notifyApiError(error);
+    throw error;
+  }
+}
+
+async function performRequest<
   P extends ApiPath,
   T,
   M extends ApiMethod<P> = Extract<'GET', ApiMethod<P>>,

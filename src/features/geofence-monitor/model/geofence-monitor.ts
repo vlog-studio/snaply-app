@@ -1,7 +1,7 @@
 import {
+  getBackgroundLocationPermission,
+  getForegroundLocationPermission,
   hasStartedGeofencing,
-  requestBackgroundLocationPermission,
-  requestForegroundLocationPermission,
   startGeofencing,
   stopGeofencing,
 } from '@/shared/lib/location';
@@ -12,52 +12,25 @@ import { GEOFENCE_TASK_NAME } from './geofence-task';
 
 type Origin = { latitude: number; longitude: number };
 
-export type LocationPermissionResult =
-  | { granted: true }
-  | {
-      granted: false;
-      reason: 'foreground-denied' | 'background-denied';
-      /** Whether the OS will still show a prompt (false → must open Settings). */
-      canAskAgain: boolean;
-      /** User-facing Korean copy explaining what is needed and why. */
-      message: string;
-    };
-
 /**
- * Request the permissions geofencing needs, foreground first then background
- * ("Always" on iOS). Owns the product flow and user-facing copy; the raw native
- * calls live in `shared/lib/location`.
+ * Whether geofencing already holds what it needs: foreground and background
+ * ("Always" on iOS) location. Check-only — never prompts. Requesting is the
+ * 위치 알림 받기 switch's job (`useLocationAlerts`), where the user's own action
+ * gives the OS prompt its context; an app-start gate that prompted would ask
+ * with none.
  */
-export async function ensureGeofencePermissions(): Promise<LocationPermissionResult> {
-  const foreground = await requestForegroundLocationPermission();
-  if (!foreground.granted) {
-    return {
-      granted: false,
-      reason: 'foreground-denied',
-      canAskAgain: foreground.canAskAgain,
-      message: '위치 권한을 허용해야 주변 촬영 스팟 알림을 받을 수 있어요.',
-    };
-  }
-
-  const background = await requestBackgroundLocationPermission();
-  if (!background.granted) {
-    return {
-      granted: false,
-      reason: 'background-denied',
-      canAskAgain: background.canAskAgain,
-      message:
-        '백그라운드 위치 권한(항상 허용)이 필요해요. 앱을 보고 있지 않아도 주변 스팟에 도착하면 알림을 보내드려요.',
-    };
-  }
-
-  return { granted: true };
+export async function hasGeofencePermissions(): Promise<boolean> {
+  const foreground = await getForegroundLocationPermission();
+  if (!foreground.granted) return false;
+  const background = await getBackgroundLocationPermission();
+  return background.granted;
 }
 
 /**
  * Start monitoring arrivals for the nearest points to `origin`. Replaces any
  * existing monitoring so the active region set always reflects the latest
  * `locations`. No-op when there is nothing nearby to monitor. Assumes
- * permissions are already granted (see `ensureGeofencePermissions`).
+ * permissions are already granted (see `hasGeofencePermissions`).
  */
 export async function startGeofenceMonitoring(
   locations: Location[],

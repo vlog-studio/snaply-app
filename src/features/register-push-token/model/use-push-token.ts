@@ -5,11 +5,11 @@ import {
   configureForegroundNotifications,
   ensureNotificationChannel,
   getFcmToken,
+  hasNotificationPermission,
   onFcmTokenRefresh,
   onForegroundMessage,
   presentLocalNotification,
   registerForRemoteMessages,
-  requestNotificationPermission,
 } from '@/shared/lib/notifications';
 
 import { registerFcmToken } from '../api/register-fcm-token';
@@ -18,12 +18,16 @@ import { registerFcmToken } from '../api/register-fcm-token';
  * Acquire the device's FCM token and keep it registered with the backend.
  *
  * Runs only while authenticated, because `POST /auth/fcm-token` ties the token
- * to the current user. On sign-in it requests permission, registers with APNs
- * (iOS), reads the token, and registers it; it then re-registers on token
- * refresh. Foreground messages are presented as a local notification, since FCM
- * suppresses the system banner while the app is foregrounded.
+ * to the current user. It only *checks* the notification grant — never prompts;
+ * asking belongs to a control the user just touched (today, the 무비 완성 알림
+ * switch), not to a background registrar at launch. Without the grant it does
+ * nothing; `recheckKey` lets the app layer re-run the check when a grant may
+ * have just landed. With the grant it registers with APNs (iOS), reads the
+ * token, and registers it; it then re-registers on token refresh. Foreground
+ * messages are presented as a local notification, since FCM suppresses the
+ * system banner while the app is foregrounded.
  */
-export function usePushTokenRegistration(): void {
+export function usePushTokenRegistration({ recheckKey }: { recheckKey?: unknown } = {}): void {
   const isAuthenticated = useIsAuthenticated();
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export function usePushTokenRegistration(): void {
 
     void (async () => {
       try {
-        const granted = await requestNotificationPermission();
+        const granted = await hasNotificationPermission();
         if (!granted || cancelled) return;
 
         // Present foreground messages ourselves; without this handler+channel a
@@ -73,5 +77,5 @@ export function usePushTokenRegistration(): void {
       cancelled = true;
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, recheckKey]);
 }

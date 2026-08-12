@@ -5,6 +5,10 @@ export function requestNotificationPermission(): Promise<boolean> {
   return Promise.resolve(false);
 }
 
+export function hasNotificationPermission(): Promise<boolean> {
+  return Promise.resolve(false);
+}
+
 export function registerForRemoteMessages(): Promise<void> {
   return Promise.resolve();
 }

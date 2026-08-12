@@ -7,18 +7,20 @@ import { useIsAuthenticated } from '@/entities/session';
 import { getCurrentCoordinates } from '@/shared/lib/location';
 
 import {
-  ensureGeofencePermissions,
+  hasGeofencePermissions,
   startGeofenceMonitoring,
   stopGeofenceMonitoring,
 } from './geofence-monitor';
 
 /**
  * Bridge the user's location-alert preference to OS geofencing. While the user
- * is authenticated and `enabled`, ensure permissions, resolve the current
- * position, load nearby points, and start monitoring; when either turns off,
- * stop monitoring so no arrivals are reported. Native-only (web has no
- * geofencing). The `enabled` value is supplied by the caller so this feature
- * does not depend on the notification-settings feature.
+ * is authenticated and `enabled`, check permissions (never prompt — the
+ * 위치 알림 받기 switch owns the asking), resolve the current position, load
+ * nearby points, and start monitoring; when either turns off, stop monitoring
+ * so no arrivals are reported. A grant revoked in OS settings just means
+ * monitoring silently does not start. Native-only (web has no geofencing). The
+ * `enabled` value is supplied by the caller so this feature does not depend on
+ * the notification-settings feature.
  */
 export function useGeofenceMonitoring({ enabled }: { enabled: boolean }): void {
   const isAuthenticated = useIsAuthenticated();
@@ -37,8 +39,8 @@ export function useGeofenceMonitoring({ enabled }: { enabled: boolean }): void {
           return;
         }
 
-        const permission = await ensureGeofencePermissions();
-        if (cancelled || !permission.granted) return;
+        const granted = await hasGeofencePermissions();
+        if (cancelled || !granted) return;
 
         const origin = await getCurrentCoordinates();
         if (cancelled || !origin) return;

@@ -15,3 +15,12 @@ export function requestForegroundLocationPermission() {
 export function requestBackgroundLocationPermission() {
   return Location.requestBackgroundPermissionsAsync();
 }
+
+/** Check-only variants: read the current grant without ever prompting. */
+export function getForegroundLocationPermission() {
+  return Location.getForegroundPermissionsAsync();
+}
+
+export function getBackgroundLocationPermission() {
+  return Location.getBackgroundPermissionsAsync();
+}

@@ -43,6 +43,19 @@ export async function requestNotificationPermission(): Promise<boolean> {
   );
 }
 
+/**
+ * Check-only variant: read the current notification grant without ever
+ * prompting. Same authorization the request resolves, minus the ask.
+ */
+export async function hasNotificationPermission(): Promise<boolean> {
+  if (!messaging) return false;
+  const status = await messaging.hasPermission(messaging.getMessaging());
+  return (
+    status === messaging.AuthorizationStatus.AUTHORIZED ||
+    status === messaging.AuthorizationStatus.PROVISIONAL
+  );
+}
+
 /** iOS: register with APNs before requesting a token. No-op on Android. */
 export async function registerForRemoteMessages(): Promise<void> {
   if (!messaging) return;

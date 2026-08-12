@@ -1,15 +1,15 @@
 import type { Location } from '@/entities/location';
 import {
+  getBackgroundLocationPermission,
+  getForegroundLocationPermission,
   hasStartedGeofencing,
-  requestBackgroundLocationPermission,
-  requestForegroundLocationPermission,
   startGeofencing,
   stopGeofencing,
 } from '@/shared/lib/location';
 
 import { selectNearestRegions } from '../lib/select-nearest-regions';
 import {
-  ensureGeofencePermissions,
+  hasGeofencePermissions,
   startGeofenceMonitoring,
   stopGeofenceMonitoring,
 } from './geofence-monitor';
@@ -17,8 +17,8 @@ import { GEOFENCE_TASK_NAME } from './geofence-task';
 
 jest.mock('@/shared/lib/location', () => ({
   hasStartedGeofencing: jest.fn(),
-  requestBackgroundLocationPermission: jest.fn(),
-  requestForegroundLocationPermission: jest.fn(),
+  getBackgroundLocationPermission: jest.fn(),
+  getForegroundLocationPermission: jest.fn(),
   startGeofencing: jest.fn(),
   stopGeofencing: jest.fn(),
 }));
@@ -27,11 +27,11 @@ jest.mock('./geofence-task', () => ({
   GEOFENCE_TASK_NAME: 'snaply-geofence-monitor',
 }));
 
-const foregroundPermission = requestForegroundLocationPermission as jest.MockedFunction<
-  typeof requestForegroundLocationPermission
+const foregroundPermission = getForegroundLocationPermission as jest.MockedFunction<
+  typeof getForegroundLocationPermission
 >;
-const backgroundPermission = requestBackgroundLocationPermission as jest.MockedFunction<
-  typeof requestBackgroundLocationPermission
+const backgroundPermission = getBackgroundLocationPermission as jest.MockedFunction<
+  typeof getBackgroundLocationPermission
 >;
 const hasStarted = hasStartedGeofencing as jest.MockedFunction<typeof hasStartedGeofencing>;
 const start = startGeofencing as jest.MockedFunction<typeof startGeofencing>;
@@ -54,13 +54,13 @@ beforeEach(() => {
   foregroundPermission.mockResolvedValue({
     granted: true,
     canAskAgain: true,
-    status: 'granted' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+    status: 'granted' as Awaited<ReturnType<typeof getForegroundLocationPermission>>['status'],
     expires: 'never',
   });
   backgroundPermission.mockResolvedValue({
     granted: true,
     canAskAgain: true,
-    status: 'granted' as Awaited<ReturnType<typeof requestBackgroundLocationPermission>>['status'],
+    status: 'granted' as Awaited<ReturnType<typeof getBackgroundLocationPermission>>['status'],
     expires: 'never',
   });
   hasStarted.mockResolvedValue(false);
@@ -68,40 +68,32 @@ beforeEach(() => {
   stop.mockResolvedValue(undefined);
 });
 
-describe('ensureGeofencePermissions', () => {
-  it('stops before requesting background access when foreground access is denied', async () => {
+describe('hasGeofencePermissions', () => {
+  it('stops before reading background access when foreground access is missing', async () => {
     foregroundPermission.mockResolvedValue({
       granted: false,
       canAskAgain: false,
-      status: 'denied' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+      status: 'denied' as Awaited<ReturnType<typeof getForegroundLocationPermission>>['status'],
       expires: 'never',
     });
 
-    await expect(ensureGeofencePermissions()).resolves.toMatchObject({
-      granted: false,
-      reason: 'foreground-denied',
-      canAskAgain: false,
-    });
+    await expect(hasGeofencePermissions()).resolves.toBe(false);
     expect(backgroundPermission).not.toHaveBeenCalled();
   });
 
-  it('distinguishes a background denial after foreground access succeeds', async () => {
+  it('reports missing background access even when foreground access is granted', async () => {
     backgroundPermission.mockResolvedValue({
       granted: false,
       canAskAgain: true,
-      status: 'denied' as Awaited<ReturnType<typeof requestBackgroundLocationPermission>>['status'],
+      status: 'denied' as Awaited<ReturnType<typeof getBackgroundLocationPermission>>['status'],
       expires: 'never',
     });
 
-    await expect(ensureGeofencePermissions()).resolves.toMatchObject({
-      granted: false,
-      reason: 'background-denied',
-      canAskAgain: true,
-    });
+    await expect(hasGeofencePermissions()).resolves.toBe(false);
   });
 
-  it('grants monitoring only after both permission levels succeed', async () => {
-    await expect(ensureGeofencePermissions()).resolves.toEqual({ granted: true });
+  it('confirms monitoring only when both permission levels are already granted', async () => {
+    await expect(hasGeofencePermissions()).resolves.toBe(true);
     expect(foregroundPermission).toHaveBeenCalledTimes(1);
     expect(backgroundPermission).toHaveBeenCalledTimes(1);
   });

@@ -81,7 +81,10 @@ export type ApiRequestOptions<P extends ApiPath, M extends ApiMethod<P>, T> = {
 /** The common success/failure envelope every endpoint returns. */
 type ApiEnvelope =
   | { success: true; data: unknown }
-  | { success: false; error?: { code?: string; message?: string } };
+  // The error object is open: an endpoint may put a field of its own next to
+  // `code`/`message` (the pending-deletion 403 carries `purgeAfter`). The
+  // transport passes those through as `ApiError.details` without reading them.
+  | { success: false; error?: { code?: string; message?: string; [key: string]: unknown } };
 
 function isEnvelope(value: unknown): value is ApiEnvelope {
   return typeof value === 'object' && value !== null && 'success' in value;
@@ -169,11 +172,11 @@ async function performRequest<
   }
 
   if (!payload.success) {
-    throw new ApiError(
-      payload.error?.code ?? 'unknown_error',
-      payload.error?.message ?? '요청을 처리하지 못했습니다.',
-      { status: response.status },
-    );
+    const { code, message, ...details } = payload.error ?? {};
+    throw new ApiError(code ?? 'unknown_error', message ?? '요청을 처리하지 못했습니다.', {
+      status: response.status,
+      details,
+    });
   }
 
   return schema.parse(payload.data);

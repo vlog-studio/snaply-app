@@ -3,6 +3,7 @@ export {
   exchangeAuthCode,
   initSession,
   markPendingDeletion,
+  useAccountPurgeAfter,
   useClearSession,
   useCurrentUser,
   useFinishPasswordRecovery,

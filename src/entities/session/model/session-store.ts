@@ -21,6 +21,13 @@ type SessionState = {
    * forces the restore screen instead of the app.
    */
   isPendingDeletion: boolean;
+  /**
+   * When the soft-deleted account stops being recoverable, as reported by the
+   * backend alongside the 403. Null when the backend did not say — the restore
+   * screen then states the consequence without a deadline rather than guessing
+   * one from a local clock.
+   */
+  purgeAfter: Date | null;
 };
 
 /**
@@ -41,6 +48,7 @@ export const useSessionStore = create<SessionState>()(() => ({
   hasHydrated: false,
   isRecovering: false,
   isPendingDeletion: false,
+  purgeAfter: null,
 }));
 
 /**
@@ -73,21 +81,34 @@ export async function signOut(): Promise<void> {
   await endSession();
   // Pending deletion is a property of the account that was signed in; the next
   // sign-in (possibly another account) re-detects it from the backend's 403.
-  useSessionStore.setState({ user: null, isRecovering: false, isPendingDeletion: false });
+  useSessionStore.setState({
+    user: null,
+    isRecovering: false,
+    isPendingDeletion: false,
+    purgeAfter: null,
+  });
 }
 
 /**
  * Enter/leave the pending-deletion state. `markPendingDeletion` is called by
  * the app-layer bridge whenever a request fails with
- * `ACCOUNT_PENDING_DELETION`; `clearPendingDeletion` by the restore action
- * once the backend confirms the account is active again.
+ * `ACCOUNT_PENDING_DELETION`, carrying the deadline that response reported;
+ * `clearPendingDeletion` by the restore action once the backend confirms the
+ * account is active again.
+ *
+ * A known deadline survives a later 403 that omits one — several requests fail
+ * per entry, and losing the date to whichever landed last would blank the
+ * restore screen's read-out for no reason.
  */
-export function markPendingDeletion(): void {
-  useSessionStore.setState({ isPendingDeletion: true });
+export function markPendingDeletion(purgeAfter?: Date): void {
+  useSessionStore.setState((state) => ({
+    isPendingDeletion: true,
+    purgeAfter: purgeAfter ?? state.purgeAfter,
+  }));
 }
 
 export function clearPendingDeletion(): void {
-  useSessionStore.setState({ isPendingDeletion: false });
+  useSessionStore.setState({ isPendingDeletion: false, purgeAfter: null });
 }
 
 /**
@@ -138,6 +159,10 @@ export function useIsRecovering(): boolean {
 
 export function useIsPendingDeletion(): boolean {
   return useSessionStore((state) => state.isPendingDeletion);
+}
+
+export function useAccountPurgeAfter(): Date | null {
+  return useSessionStore((state) => state.purgeAfter);
 }
 
 export function useFinishPasswordRecovery(): () => void {

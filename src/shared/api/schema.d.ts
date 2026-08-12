@@ -314,6 +314,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -408,6 +426,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -523,6 +559,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -621,6 +675,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -734,6 +806,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -881,6 +971,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -1017,6 +1125,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -1161,6 +1287,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1295,6 +1439,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1392,6 +1554,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -1590,6 +1770,8 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -1739,6 +1921,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -1873,6 +2073,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -1994,6 +2212,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2102,6 +2338,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -2187,6 +2441,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -2315,6 +2587,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -2455,6 +2745,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -2554,6 +2862,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -2682,6 +3008,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -2817,6 +3161,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };
@@ -3060,6 +3422,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -3175,6 +3555,24 @@ export interface paths {
                     };
                 };
                 /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
                 429: {
                     headers: {
                         [name: string]: unknown;
@@ -3277,6 +3675,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
                             };
                         };
                     };

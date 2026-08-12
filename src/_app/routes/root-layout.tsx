@@ -12,6 +12,7 @@ import {
   useIsRecovering,
   useSessionHydrated,
 } from '@/entities/session';
+import { readPurgeAfter } from '@/features/delete-account';
 import { subscribeToApiErrors } from '@/shared/api';
 import { Fonts, useTheme } from '@/shared/ui/theme';
 
@@ -27,13 +28,14 @@ export function RootLayout() {
   useEffect(() => initSession(), []);
 
   // A soft-deleted account still authenticates; the backend rejects every
-  // other request with this code. Whichever call trips it first (profile
-  // fetch, FCM registration, an upload) flips the session flag, and the guard
-  // below swaps the app for the restore screen.
+  // other request with this code, and attaches the purge deadline to it.
+  // Whichever call trips it first (profile fetch, FCM registration, an upload)
+  // flips the session flag, and the guard below swaps the app for the restore
+  // screen.
   useEffect(
     () =>
       subscribeToApiErrors((error) => {
-        if (error.code === 'ACCOUNT_PENDING_DELETION') markPendingDeletion();
+        if (error.code === 'ACCOUNT_PENDING_DELETION') markPendingDeletion(readPurgeAfter(error));
       }),
     [],
   );

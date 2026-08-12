@@ -41,6 +41,18 @@ export function formatTimestamp(epochMs: number): string {
   return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/**
+ * A calendar date on its own: `2026년 9월 11일`.
+ *
+ * For a date that is a fact rather than a position in a list — a deadline the
+ * user may act on days from now. {@link formatDayHeading} is the list-facing
+ * variant and would render the same day as `오늘`, which reads as a heading of
+ * the current group rather than as a date.
+ */
+export function formatFullDate(epochMs: number): string {
+  return fullDateFormat.format(new Date(epochMs));
+}
+
 function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

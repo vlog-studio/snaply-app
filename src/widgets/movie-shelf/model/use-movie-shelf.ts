@@ -102,18 +102,24 @@ export function useMovieSummaries(): MovieSummary[] {
 }
 
 /**
- * The studio board's lane: everything still being worked on — drafts, jobs in
- * flight, and failures. "Not finished" rather than "draft", so a movie whose
- * generation broke surfaces here instead of falling between the board and the
- * finished grid.
+ * The studio board: every movie in one lane, with the unfinished ones first.
+ *
+ * One lane rather than the 작업 중 / 최근 완성 pair it replaced (2026-08-12).
+ * Splitting by status put the same fact in two places — the lane heading and the
+ * row's own status badge — and made the board render two "없어요" placeholders on
+ * a device that simply had no movies yet. Ordering carries what the split
+ * carried: what still needs the user is on top, and drafts, jobs in flight and
+ * failures stay together, so a movie whose generation broke cannot fall between
+ * two lanes. Within each half the summaries keep their most-recently-worked-on
+ * order.
  */
-export function useInProgressMovies(): MovieSummary[] {
+export function useBoardMovies(): MovieSummary[] {
   const summaries = useMovieSummaries();
-  return useMemo(() => summaries.filter((movie) => movie.status !== 'ready'), [summaries]);
-}
-
-/** Finished movies, most recent first. */
-export function useReadyMovies(): MovieSummary[] {
-  const summaries = useMovieSummaries();
-  return useMemo(() => summaries.filter((movie) => movie.status === 'ready'), [summaries]);
+  return useMemo(
+    () => [
+      ...summaries.filter((movie) => movie.status !== 'ready'),
+      ...summaries.filter((movie) => movie.status === 'ready'),
+    ],
+    [summaries],
+  );
 }

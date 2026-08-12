@@ -18,6 +18,30 @@ export type TrayPanelProps = {
 };
 
 const ThumbWidth = 52;
+const RemoveMarkWidth = 20;
+const MinTouchTarget = 44;
+const RemoveMarkInset = 2;
+
+/**
+ * Grows the 20pt mark's target to 44pt — **inwards only**.
+ *
+ * A symmetric slop does not work here and measuring it on the device is how that
+ * showed up (2026-08-12): the thumbnail clips its children (`overflow: 'hidden'`
+ * for the rounded frame), and on Android a touch outside a clipping ancestor
+ * never reaches the child, however much `hitSlop` it declares. A tap 8pt beyond
+ * the thumbnail's edge did nothing while a tap 11pt inside it removed the snap.
+ *
+ * So the slop is spent in the two directions that stay inside the thumbnail: the
+ * mark sits 2pt from the top-right corner, and the target extends 44pt down and
+ * left from there. It covers most of the frame, which costs nothing — the
+ * thumbnail itself is not a control.
+ */
+const RemoveHitSlop = {
+  top: RemoveMarkInset,
+  right: RemoveMarkInset,
+  bottom: MinTouchTarget - RemoveMarkWidth - RemoveMarkInset,
+  left: MinTouchTarget - RemoveMarkWidth - RemoveMarkInset,
+} as const;
 
 /**
  * The 담기 트레이 — the material picked out for the next movie.
@@ -54,13 +78,20 @@ export function TrayPanel({ snaps, onPickMore, onRemove, onClear, onStartMovie }
       {isEmpty ? null : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.strip}>
-            {snaps.map((snap) => (
+            {snaps.map((snap, index) => (
               <View key={snap.id} style={[styles.thumb, { borderColor: theme.border }]}>
                 <VideoFrame uri={snap.uri} />
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="트레이에서 빼기"
-                  hitSlop={6}
+                  // Which one, not just what happens: every thumbnail carried the
+                  // same label, so a screen reader announced the strip as N
+                  // identical buttons. The number is the pick order the strip
+                  // already draws left to right, and it is the cut order too.
+                  accessibilityLabel={`${index + 1}번째 스냅 트레이에서 빼기`}
+                  // The mark stays 20pt over the 52pt thumbnail; the target
+                  // reaches 44 inwards — see RemoveHitSlop for why it cannot
+                  // grow the other way.
+                  hitSlop={RemoveHitSlop}
                   onPress={() => onRemove(snap.id)}
                   style={styles.remove}
                 >
@@ -134,9 +165,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: RemoveMarkWidth,
+    height: RemoveMarkWidth,
+    borderRadius: RemoveMarkWidth / 2,
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',

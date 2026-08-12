@@ -6,7 +6,7 @@ Users run a movie, watch it, fix what came back, and run it again. All of that h
 
 ```text
 /  (스튜디오)  이 스냅으로 새 무비        →  /movie/[id]
-/  (스튜디오)  작업 중 / 최근 완성 row    →  /movie/[id]
+/  (스튜디오)  무비 board row            →  /movie/[id]
 /movies       any tile                  →  /movie/[id]
 /template/[id]  이대로 만들기            →  /movie/[id]   (an editable draft)
 

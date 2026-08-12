@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react-native';
 import type { Movie } from '@/entities/movie';
 import type { Snap } from '@/entities/snap';
 
-import { useInProgressMovies, useMovieSummaries, useReadyMovies } from './use-movie-shelf';
+import { useBoardMovies, useMovieSummaries } from './use-movie-shelf';
 
 const mockMovies = jest.fn<Movie[], []>();
 const mockSnaps = jest.fn<Snap[], []>();
@@ -189,25 +189,30 @@ describe('useMovieSummaries', () => {
   });
 });
 
-describe('the two lanes', () => {
-  beforeEach(() => {
+describe('useBoardMovies', () => {
+  it('puts everything unfinished first, failures included, then the finished ones', async () => {
     mockMovies.mockReturnValue([
+      makeMovie({ id: 'ready-new', status: 'ready', updatedAt: 5 }),
       makeMovie({ id: 'draft', status: 'draft', updatedAt: 4 }),
       makeMovie({ id: 'generating', status: 'generating', updatedAt: 3 }),
       makeMovie({ id: 'failed', status: 'failed', updatedAt: 2 }),
-      makeMovie({ id: 'ready', status: 'ready', updatedAt: 1 }),
+      makeMovie({ id: 'ready-old', status: 'ready', updatedAt: 1 }),
+    ]);
+
+    const { result } = await renderHook(() => useBoardMovies());
+
+    expect(result.current.map((movie) => movie.id)).toEqual([
+      'draft',
+      'generating',
+      'failed',
+      'ready-new',
+      'ready-old',
     ]);
   });
 
-  it('puts everything unfinished on the board, failures included', async () => {
-    const { result } = await renderHook(() => useInProgressMovies());
+  it('holds every movie, so an empty board means the user has none', async () => {
+    const { result } = await renderHook(() => useBoardMovies());
 
-    expect(result.current.map((movie) => movie.id)).toEqual(['draft', 'generating', 'failed']);
-  });
-
-  it('keeps only finished movies in the shelf', async () => {
-    const { result } = await renderHook(() => useReadyMovies());
-
-    expect(result.current.map((movie) => movie.id)).toEqual(['ready']);
+    expect(result.current).toEqual([]);
   });
 });

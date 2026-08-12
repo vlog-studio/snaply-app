@@ -9,28 +9,27 @@ import { useTemplateOffers } from '@/features/fill-template';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
-  Radius,
   Spacing,
   useTabBarHeight,
   useTheme,
   useTopContentInset,
 } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
-import { MovieRow, useInProgressMovies, useReadyMovies } from '@/widgets/movie-shelf';
+import { MovieRow, useBoardMovies } from '@/widgets/movie-shelf';
 
 import { TemplatePanel } from './template-panel';
 import { TrayPanel } from './tray-panel';
 
-/** How many finished movies the studio previews before deferring to the tab. */
-const RecentReadyCount = 2;
+/** How many movies the board previews before deferring to the movie tab. */
+const BoardPreviewCount = 3;
 
 /**
  * The studio — the workbench the app opens on.
  *
- * Four blocks, read top to bottom as material → work → results: the tray of
- * picked snaps, the templates that will go looking for material on their own,
- * the movies still being worked on, and the most recent finished ones. Reopening
- * the app lands here so the user resumes rather than restarts (concept §3).
+ * Three blocks, read top to bottom as material → work: the tray of picked snaps,
+ * the templates that will go looking for material on their own, and the movies
+ * themselves — unfinished first. Reopening the app lands here so the user
+ * resumes rather than restarts (concept §3).
  *
  * The tray and the templates are two entrances to the same place and both stay:
  * one is "make a movie out of these", the other is "make me something like this".
@@ -52,8 +51,7 @@ export function StudioPage() {
   const clearTray = useClearTray();
   const { startMovieFromTray } = useComposeMovie();
   const templateOffers = useTemplateOffers();
-  const inProgress = useInProgressMovies();
-  const ready = useReadyMovies();
+  const boardMovies = useBoardMovies();
 
   // The tray stores ids; resolving them to snaps is the same join every movie
   // surface uses, with the pick order standing in for the cut order.
@@ -98,25 +96,13 @@ export function StudioPage() {
 
         <TemplatePanel offers={templateOffers} onOpen={openTemplate} />
 
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <ThemedText type="smallBold">작업 중</ThemedText>
-          </View>
-          {inProgress.length > 0 ? (
-            inProgress.map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
-          ) : (
-            <View style={[styles.empty, { borderColor: theme.border }]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                진행 중인 무비가 없어요.
-              </ThemedText>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHead}>
-            <ThemedText type="smallBold">최근 완성</ThemedText>
-            {ready.length > 0 ? (
+        {/* No movies yet means no board: a heading over a dashed sentence that
+            says the list is empty adds a block without adding a fact. The two
+            entrances above are what an empty studio has to offer. */}
+        {boardMovies.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHead}>
+              <ThemedText type="smallBold">무비</ThemedText>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="무비 전체 보기"
@@ -127,20 +113,12 @@ export function StudioPage() {
                   전체 보기
                 </ThemedText>
               </Pressable>
-            ) : null}
-          </View>
-          {ready.length > 0 ? (
-            ready
-              .slice(0, RecentReadyCount)
-              .map((movie) => <MovieRow key={movie.id} movie={movie} onPress={openMovie} />)
-          ) : (
-            <View style={[styles.empty, { borderColor: theme.border }]}>
-              <ThemedText type="small" themeColor="textSecondary">
-                아직 완성한 무비가 없어요.
-              </ThemedText>
             </View>
-          )}
-        </View>
+            {boardMovies.slice(0, BoardPreviewCount).map((movie) => (
+              <MovieRow key={movie.id} movie={movie} onPress={openMovie} />
+            ))}
+          </View>
+        ) : null}
       </FadeInView>
     </ScrollView>
   );
@@ -163,13 +141,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: Spacing.two,
-  },
-  empty: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: Radius.medium,
-    borderCurve: 'continuous',
-    padding: Spacing.four,
-    alignItems: 'center',
   },
 });

@@ -2,7 +2,7 @@
 
 ## User goal
 
-The Studio (`/`) is the workbench the app opens on: the snaps picked out for the next movie, the movies still being worked on, and the most recent finished ones. The Movie tab (`/movies`) is the full list of everything made.
+The Studio (`/`) is the workbench the app opens on: the snaps picked out for the next movie, and the movies themselves with the unfinished ones on top. The Movie tab (`/movies`) is the full list of everything made.
 
 ```text
 /  (스튜디오)
@@ -10,11 +10,13 @@ The Studio (`/`) is the workbench the app opens on: the snaps picked out for the
 │                    · 스냅 고르러 가기 / +  → /snaps?select=1
 │                    · ✕ per snap, 비우기
 │                    · 이 스냅으로 새 무비   → /movie/[id]
-├── 템플릿으로 시작    a card per template, each with how far the library gets
-│                    through it (4/6컷 있음 · 2컷 더)               → /template/[id]
-├── 작업 중           movies with status draft / generating / failed  → /movie/[id]
-│                    · a generating movie carries a progress bar
-└── 최근 완성         movies with status ready (2 most recent)        → /movie/[id]
+├── 템플릿으로 시작    a card per template, closest to filled first, each with how
+│                    far the library gets through it (4/6컷 있음 · 2컷 더)
+│                                                                    → /template/[id]
+└── 무비             unfinished first then finished, the first 3 of that order,
+                     with 전체 보기 → /movies                         → /movie/[id]
+                     · a generating movie carries a progress bar
+                     · the whole block is absent while the user has no movies
 
 /movies  (무비)
 └── 2-column tile grid, every movie, most recent edit first          → /movie/[id]
@@ -33,7 +35,7 @@ The studio offers both, and they answer different questions.
 | Who arranges it | the user (pick order) | the AI, until the user reorders it |
 | What it is good at | a set nobody could have guessed at | telling the user what is missing, and what to go shoot |
 
-They do not consume each other: making a movie from a template leaves the tray exactly as it was. The template half is documented in [Movie templates](movie-templates.md); the rest of this page is the tray and the lanes.
+They do not consume each other: making a movie from a template leaves the tray exactly as it was. The template half is documented in [Movie templates](movie-templates.md); the rest of this page is the tray and the board.
 
 ## The tray
 
@@ -43,17 +45,17 @@ The tray is the concept's one invention (concept §5): choosing a snap does not 
 | --- | --- | --- |
 | Collect snaps into the tray | `Functional` | Selection mode on the Snap tab adds snaps in pick order (see [Snap library](snaps.md)). The tray persists to a document-directory JSON file (`snaply.tray`), so it survives an app restart. |
 | Ten-snap cap | `Functional` | `TrayCapacity` (10) is the app's single hard constraint and matches `MovieSnapLimit`. Adding past it is refused rather than silently truncated: `addSnaps` reports `{ added, rejected }` and the Snap tab tells the user how many were turned away. Snaps already in the tray take no new room. |
-| Remove one snap / empty the tray | `Functional` | The ✕ on a tray thumbnail removes one; `비우기` empties it. |
-| Empty state | `Functional` | With nothing in it the panel keeps its place and explains what to do, with `스냅 고르러 가기` opening the Snap tab in selection mode. The studio never shows a blank workbench (concept §7). |
+| Remove one snap / empty the tray | `Functional` | The ✕ on a tray thumbnail removes one; `비우기` empties it. The mark stays 20pt over the 52pt thumbnail and its touch target reaches 44pt through an **inward** `hitSlop` — down and left from the corner it sits in. A symmetric slop measured 34pt on the device: the thumbnail clips its children for its rounded frame, and Android delivers no touch that lands outside a clipping ancestor (verified 2026-08-12 — a tap 8pt beyond the frame did nothing, a tap 11pt inside it removed the snap). The enlarged target covers most of the frame, which costs nothing: the thumbnail itself is not a control. Its label names which snap it drops (`2번째 스냅 트레이에서 빼기`) — one label repeated per thumbnail announced the strip as N identical buttons (2026-08-12). |
+| Empty state | `Functional` | With nothing in it the panel keeps its place and offers `스냅 고르러 가기`, which opens the Snap tab in selection mode. The studio never shows a blank workbench (concept §7). |
 | Cascading removal | `Functional` | Deleting a snap original removes it from the tray as well as from every movie (see [Snap library](snaps.md#deleting-an-original)). |
 | Start a movie from the tray | `Functional` | `이 스냅으로 새 무비` creates a draft from the whole tray in pick order, empties the tray, and opens [the movie screen](movie.md) on it. The draft is editable there — order, trims, and style are settled before the run. |
 
-## Movie lanes
+## The board
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| 작업 중 lane | `Functional` | Reads `useInProgressMovies()` — every movie whose status is not `ready`, so drafts, in-flight generations, and failures all surface in one place. Each row shows the movie's first cut as a square frame, its cut count and length, its status, and when it was last worked on. |
-| 최근 완성 lane | `Functional` | Reads `useReadyMovies()` and previews the two most recent, with `전체 보기` deferring to the movie tab. |
+| 무비 board | `Functional` | One lane, reading `useBoardMovies()`: every movie, with the unfinished ones first — so drafts, in-flight generations, and failures stay together and above the finished work — and each half in most-recently-worked-on order. The studio draws the first three and defers to the movie tab through `전체 보기`. Each row shows the movie's first cut as a square frame, its cut count and length, its status badge, and when it was last worked on. **The block is absent while the user has no movies** rather than drawing an empty state. |
+| Replaced: 작업 중 / 최근 완성 | — | The board was two status-split lanes until 2026-08-12. The split restated what each row's own status badge already said, and on a device with no movies yet it drew two dashed "없어요" placeholders — two headings and two boxes carrying no fact. Ordering carries what the split carried. Nothing became less reachable: every movie the two lanes showed is in this one, and the full list is one tap away in the movie tab. |
 | Movie tab grid | `Functional` | `/movies` draws every movie as a square tile — with its status badge and length — cropped to a square, as in the snap grid, so a second row of movies stays on screen. **The cover is the render's own thumbnail once a run has produced one** (2026-08-10): the grid is cover art, and a finished movie's cover should be the movie rather than the first thing that went into it. A draft, a failed run, a render made before covers were kept, or a cover the OS has reclaimed draws the first cut's frame instead — the fallback is triggered by the image failing to load, not by a check, because a cached file can vanish under the app and only the load says so. Drafts sit in the same grid as finished movies — they are the same object at a different point in its life. |
 | Open a movie | `Functional` | Every movie, at every status, opens on [the movie screen](movie.md). Watching a finished one and fixing it are the same visit, so there is nothing for a row or a tile to branch on. |
 | Generation progress | `Functional` | A row or tile for a `generating` movie carries a bar from `MovieSummary.progress` — the percentage the backend last published, held on the movie (`movieJobRatio`). Every surface reads the same stored number and none of them ticks: progress moves when a milestone arrives, which is six times over a run (see [The movie screen](movie.md)). |
@@ -94,7 +96,7 @@ Two of these are deliberately identity-preserving: a write that changes nothing 
 - `src/features/compose-movie` owns starting a movie from the tray or a template, committing cut lists and style settings, the arrangement rules, starting generation, and the app-wide generation runner (see [The movie screen](movie.md)).
 - `src/entities/tray` owns the tray store: pick order, the ten-snap cap, and the `{ added, rejected }` outcome. It holds ids only and never imports `entities/snap` — resolving a tray entry to a snap is the studio's join, through `useSnapsByRefs`.
 - `src/entities/movie` owns movies and their persisted store (`snaply.movies`). It never imports `entities/snap`; `SnapRef` is matched structurally by `entities/snap`'s `SnapRefLike`.
-- `src/widgets/movie-shelf` owns the movie↔snap read model (`MovieSummary`: cut count, total played seconds, cover frames, the render's own cover image when it has one, date label, job progress, failure reason), the two lane selectors, and the two ways a movie is drawn — `MovieRow` for the board and `MovieTile` for the grid, sharing one status badge and one failure notice. Only the tile prefers the render's cover image (`shared/ui/image-frame`): a board row is a work list, where the movie's own first cut says more about the work than finished cover art. It is a widget because both the studio and the movie tab need the same summary and the same vocabulary, and neither entity may own a cross-entity join. The failure notice is the one card part that acts rather than draws: it calls `compose-movie`'s `startGeneration` itself, so the retry cannot drift between the two surfaces.
+- `src/widgets/movie-shelf` owns the movie↔snap read model (`MovieSummary`: cut count, total played seconds, cover frames, the render's own cover image when it has one, date label, job progress, failure reason), the board selector (`useBoardMovies`), and the two ways a movie is drawn — `MovieRow` for the board and `MovieTile` for the grid, sharing one status badge and one failure notice. Only the tile prefers the render's cover image (`shared/ui/image-frame`): a board row is a work list, where the movie's own first cut says more about the work than finished cover art. It is a widget because both the studio and the movie tab need the same summary and the same vocabulary, and neither entity may own a cross-entity join. The failure notice is the one card part that acts rather than draws: it calls `compose-movie`'s `startGeneration` itself, so the retry cannot drift between the two surfaces.
 - `src/shared/ui/video-frame` draws a video's first frame from the shared thumbnail cache. Business-agnostic — it takes a URI, not a `Snap`.
 
 ## Known limitations

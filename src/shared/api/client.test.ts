@@ -219,6 +219,32 @@ describe('apiRequest runtime contract', () => {
     });
   });
 
+  it('carries a field the error object added next to code and message', async () => {
+    fetchSpy.mockResolvedValue(
+      responseWith(
+        {
+          success: false,
+          error: {
+            code: 'ACCOUNT_PENDING_DELETION',
+            message: '삭제 대기 중인 계정입니다.',
+            purgeAfter: '2026-09-11T08:00:00.000Z',
+          },
+        },
+        403,
+      ),
+    );
+
+    const request = apiRequest('/locations', {
+      query: { lat: 37, lng: 127 },
+      schema: z.array(z.unknown()),
+    });
+
+    await expect(request).rejects.toMatchObject({
+      code: 'ACCOUNT_PENDING_DELETION',
+      details: { purgeAfter: '2026-09-11T08:00:00.000Z' },
+    });
+  });
+
   it('carries the backend error contract through to callers', async () => {
     fetchSpy.mockResolvedValue(
       responseWith(

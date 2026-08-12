@@ -2,6 +2,7 @@ import {
   formatDateTime,
   formatDayHeading,
   formatDuration,
+  formatFullDate,
   formatSeconds,
   formatTimestamp,
   relativeDayLabel,
@@ -87,6 +88,23 @@ describe('formatDayHeading', () => {
     expect(label).toContain('20일');
     expect(label).not.toBe('오늘');
     expect(label).not.toBe('어제');
+  });
+});
+
+describe('formatFullDate', () => {
+  it('writes the calendar date with its year', () => {
+    const label = formatFullDate(new Date(2026, 8, 11, 17, 0).getTime());
+
+    expect(label).toContain('2026');
+    expect(label).toContain('9월');
+    expect(label).toContain('11일');
+  });
+
+  it('never relabels today, unlike formatDayHeading', () => {
+    const today = new Date(2026, 6, 24, 8, 0).getTime();
+
+    expect(formatFullDate(today)).not.toBe('오늘');
+    expect(formatDayHeading(today, today)).toBe('오늘');
   });
 });
 

@@ -8,6 +8,7 @@ import {
   useClearSession,
   useCurrentUser,
   useIsAuthenticated,
+  useAccountPurgeAfter,
   useIsPendingDeletion,
   useIsRecovering,
   useSessionHydrated,
@@ -47,6 +48,7 @@ describe('session store', () => {
       hasHydrated: false,
       isRecovering: false,
       isPendingDeletion: false,
+      purgeAfter: null,
     });
   });
 
@@ -132,29 +134,47 @@ describe('session store', () => {
     expect(result.current.recovering).toBe(false);
   });
 
-  it('marks and clears the pending-deletion state', async () => {
-    const { result } = await renderHook(() => ({ pending: useIsPendingDeletion() }));
+  it('marks and clears the pending-deletion state with its deadline', async () => {
+    const purgeAfter = new Date('2026-09-11T08:00:00.000Z');
+    const { result } = await renderHook(() => ({
+      pending: useIsPendingDeletion(),
+      purgeAfter: useAccountPurgeAfter(),
+    }));
 
-    await act(async () => markPendingDeletion());
+    await act(async () => markPendingDeletion(purgeAfter));
     expect(result.current.pending).toBe(true);
+    expect(result.current.purgeAfter).toEqual(purgeAfter);
 
     await act(async () => clearPendingDeletion());
     expect(result.current.pending).toBe(false);
+    expect(result.current.purgeAfter).toBeNull();
+  });
+
+  it('keeps a known deadline when a later 403 reports none', async () => {
+    const purgeAfter = new Date('2026-09-11T08:00:00.000Z');
+    const { result } = await renderHook(() => ({ purgeAfter: useAccountPurgeAfter() }));
+
+    await act(async () => markPendingDeletion(purgeAfter));
+    await act(async () => markPendingDeletion());
+
+    expect(result.current.purgeAfter).toEqual(purgeAfter);
   });
 
   it('drops the pending-deletion flag on sign-out, so the next account starts clean', async () => {
     const { result } = await renderHook(() => ({
       pending: useIsPendingDeletion(),
+      purgeAfter: useAccountPurgeAfter(),
       setSession: useSetSession(),
       clearSession: useClearSession(),
     }));
 
     await act(async () => {
       result.current.setSession(user);
-      markPendingDeletion();
+      markPendingDeletion(new Date('2026-09-11T08:00:00.000Z'));
     });
     await act(async () => result.current.clearSession());
 
     expect(result.current.pending).toBe(false);
+    expect(result.current.purgeAfter).toBeNull();
   });
 });

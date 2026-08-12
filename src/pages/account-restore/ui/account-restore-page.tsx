@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useClearSession } from '@/entities/session';
+import { useAccountPurgeAfter, useClearSession } from '@/entities/session';
 import { useRestoreAccount } from '@/features/delete-account';
+import { formatFullDate } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -18,6 +19,7 @@ export function AccountRestorePage() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const clearSession = useClearSession();
+  const purgeAfter = useAccountPurgeAfter();
   const { restoreAccount, isPending, error } = useRestoreAccount();
 
   return (
@@ -35,7 +37,9 @@ export function AccountRestorePage() {
         <Ionicons color={theme.amber} name="hourglass-outline" size={40} />
         <ThemedText type="subtitle">삭제 대기 중인 계정</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          기한이 지나면 영구 삭제됩니다
+          {purgeAfter
+            ? `${formatFullDate(purgeAfter.getTime())} 이후 영구 삭제`
+            : '기한이 지나면 영구 삭제됩니다'}
         </ThemedText>
       </View>
 

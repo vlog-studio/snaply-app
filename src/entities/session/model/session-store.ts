@@ -14,6 +14,13 @@ type SessionState = {
    * the new password is set, even though a session technically exists.
    */
   isRecovering: boolean;
+  /**
+   * True once the backend has answered `403 ACCOUNT_PENDING_DELETION` — the
+   * account is soft-deleted and inside its grace period. Auth still succeeds
+   * (the auth backend account survives until the purge), so the route guard
+   * forces the restore screen instead of the app.
+   */
+  isPendingDeletion: boolean;
 };
 
 /**
@@ -33,6 +40,7 @@ export const useSessionStore = create<SessionState>()(() => ({
   user: null,
   hasHydrated: false,
   isRecovering: false,
+  isPendingDeletion: false,
 }));
 
 /**
@@ -63,7 +71,23 @@ export function setSessionUser(user: User): void {
 /** End the backend session; the auth listener clears the mirrored user too. */
 export async function signOut(): Promise<void> {
   await endSession();
-  useSessionStore.setState({ user: null, isRecovering: false });
+  // Pending deletion is a property of the account that was signed in; the next
+  // sign-in (possibly another account) re-detects it from the backend's 403.
+  useSessionStore.setState({ user: null, isRecovering: false, isPendingDeletion: false });
+}
+
+/**
+ * Enter/leave the pending-deletion state. `markPendingDeletion` is called by
+ * the app-layer bridge whenever a request fails with
+ * `ACCOUNT_PENDING_DELETION`; `clearPendingDeletion` by the restore action
+ * once the backend confirms the account is active again.
+ */
+export function markPendingDeletion(): void {
+  useSessionStore.setState({ isPendingDeletion: true });
+}
+
+export function clearPendingDeletion(): void {
+  useSessionStore.setState({ isPendingDeletion: false });
 }
 
 /**
@@ -110,6 +134,10 @@ export function useSessionHydrated(): boolean {
 
 export function useIsRecovering(): boolean {
   return useSessionStore((state) => state.isRecovering);
+}
+
+export function useIsPendingDeletion(): boolean {
+  return useSessionStore((state) => state.isPendingDeletion);
 }
 
 export function useFinishPasswordRecovery(): () => void {

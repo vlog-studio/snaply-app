@@ -42,6 +42,8 @@ Snaply opens into a four-tab application — 스튜디오 (`/`), 스냅 (`/snaps
 | `/settings/theme` | Root-stack screen with the stack's titled header (화면 테마); the theme-mode radio | `pages/me` |
 | `/settings/interests` | Root-stack screen with the stack's titled header (관심사); the interest tags | `pages/me` |
 | `/settings/social` | Root-stack screen with the stack's titled header (소셜 연결); the placeholder connection rows | `pages/me` |
+| `/settings/delete-account` | Root-stack screen with the stack's titled header (계정 삭제); the deletion consequence read-out and confirm button | `pages/me` |
+| `/account-restore` | Headerless full-screen block (back gesture disabled), forced by its own guard group while the account is pending deletion; restore or sign out | `pages/account-restore` |
 
 `src/app` parses string search parameters where needed and passes them to page components as explicit props (`snaps.tsx` turns `?select=1` into `startSelecting`). The `src/_app/routes` module owns stack and tab policies; page slices own screen content.
 

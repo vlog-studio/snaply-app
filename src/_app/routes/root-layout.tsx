@@ -6,10 +6,13 @@ import { AppProviders } from '@/_app/providers';
 import '@/_app/styles/global.css';
 import {
   initSession,
+  markPendingDeletion,
   useIsAuthenticated,
+  useIsPendingDeletion,
   useIsRecovering,
   useSessionHydrated,
 } from '@/entities/session';
+import { subscribeToApiErrors } from '@/shared/api';
 import { Fonts, useTheme } from '@/shared/ui/theme';
 
 import { AnimatedSplashOverlay } from './animated-splash-overlay';
@@ -22,6 +25,18 @@ export function RootLayout() {
   // to the app lifecycle for as long as the app is mounted. Auth email deep
   // links are handled by the `auth/callback` and `auth/reset` route screens.
   useEffect(() => initSession(), []);
+
+  // A soft-deleted account still authenticates; the backend rejects every
+  // other request with this code. Whichever call trips it first (profile
+  // fetch, FCM registration, an upload) flips the session flag, and the guard
+  // below swaps the app for the restore screen.
+  useEffect(
+    () =>
+      subscribeToApiErrors((error) => {
+        if (error.code === 'ACCOUNT_PENDING_DELETION') markPendingDeletion();
+      }),
+    [],
+  );
 
   return (
     <AppProviders>
@@ -36,6 +51,7 @@ function RootStack() {
   const hasHydrated = useSessionHydrated();
   const isAuthenticated = useIsAuthenticated();
   const isRecovering = useIsRecovering();
+  const isPendingDeletion = useIsPendingDeletion();
 
   // Keep the splash overlay in place until the persisted session is read back,
   // so an authenticated user never sees a flash of the sign-in screen.
@@ -57,11 +73,24 @@ function RootStack() {
         contentStyle: { backgroundColor: theme.background },
       }}
     >
-      {/* Auth email deep-link landing screens. Declared outside every guard so
-          the link resolves regardless of auth state; each exchanges the code and
-          redirects (see AuthCallbackPage). */}
-      <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
-      <Stack.Screen name="auth/reset" options={{ headerShown: false }} />
+      {/* Declaration order is also fallback priority: when a guard flips and
+          yanks the current screen, the router redirects to the FIRST available
+          screen in declaration order. The guarded groups therefore come first,
+          most-specific state first, and the unguarded auth/* landings come
+          LAST — an always-available screen declared early becomes the fallback
+          for every state, and the callback spinner (which needs a `code` param
+          to go anywhere) dead-ends whoever gets dropped on it (verified on
+          device, 2026-08-12). */}
+
+      {/* An account inside its deletion grace period authenticates but must
+          not reach the app — every request would fail with the same 403. The
+          only ways forward are restoring or signing out, both on this screen. */}
+      <Stack.Protected guard={isAuthenticated && isPendingDeletion && !isRecovering}>
+        <Stack.Screen
+          name="account-restore"
+          options={{ headerShown: false, gestureEnabled: false }}
+        />
+      </Stack.Protected>
 
       {/* A password-recovery deep link signs the user in but must not reach the
           app until a new password is set — this takes precedence over the
@@ -73,7 +102,7 @@ function RootStack() {
         />
       </Stack.Protected>
 
-      <Stack.Protected guard={isAuthenticated && !isRecovering}>
+      <Stack.Protected guard={isAuthenticated && !isRecovering && !isPendingDeletion}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="capture/index"
@@ -115,6 +144,7 @@ function RootStack() {
         <Stack.Screen name="settings/theme" options={{ title: '화면 테마' }} />
         <Stack.Screen name="settings/interests" options={{ title: '관심사' }} />
         <Stack.Screen name="settings/social" options={{ title: '소셜 연결' }} />
+        <Stack.Screen name="settings/delete-account" options={{ title: '계정 삭제' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !isRecovering}>
@@ -122,6 +152,14 @@ function RootStack() {
         <Stack.Screen name="sign-up" options={{ title: '회원가입' }} />
         <Stack.Screen name="reset-password" options={{ title: '비밀번호 재설정' }} />
       </Stack.Protected>
+
+      {/* Auth email deep-link landing screens. Declared outside every guard so
+          the link resolves regardless of auth state — but LAST, so they are
+          never the fallback a guard change redirects to (see the ordering
+          comment above); each exchanges the code and redirects (see
+          AuthCallbackPage). */}
+      <Stack.Screen name="auth/callback" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/reset" options={{ headerShown: false }} />
     </Stack>
   );
 }

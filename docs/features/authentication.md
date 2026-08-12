@@ -19,6 +19,8 @@ Users sign in to Snaply with an email and password, or with Google, before reach
 | Stay signed in across restarts | `Functional` | Supabase persists its session through the chunked SecureStore adapter and restores it on launch; the splash overlay stays up until the initial session is read back. Tokens refresh automatically while the app is foregrounded. |
 | Reach the app after signing in | `Functional` | Once a session exists the guard reveals the tabs and capture stack; no manual navigation is performed. |
 | Sign out | `Functional` | The Settings account control calls `supabase.auth.signOut()`; the auth listener clears the mirrored session, returning the user to `/sign-in`. |
+| Blocked while an account is pending deletion | `Functional` | A soft-deleted account (deleted from Settings, inside its 30-day grace period) still authenticates — the Supabase account survives until the purge — but the backend rejects every other API request with `403 ACCOUNT_PENDING_DELETION`. The root layout subscribes to the transport's error stream (`subscribeToApiErrors`) and flips the session store's `isPendingDeletion` on the first such response; the route guard then forces `/account-restore` (no header, no back gesture) instead of the app. |
+| Restore a pending-deletion account | `Functional` | `/account-restore` offers exactly two ways out: 계정 복구 calls `POST /auth/me/restore` (allowed for deleted accounts), invalidates all queries (everything fetched while blocked errored with the 403), and clears the flag so the guard reveals the app again — the subscription, SNS connections, and notification token cleaned up at deletion time do not come back. 로그아웃 signs out, which also clears the flag so the next account starts clean. A `400 BAD_REQUEST` from restore means the account was not pending deletion — the stale flag is cleared the same way. |
 
 ## Route flow
 
@@ -35,6 +37,11 @@ Cold start
            → tap email link → snaplyapp://auth/reset?code → exchangeCodeForSession + isRecovering=true
            → guard forces /update-password → updateUser → finishPasswordRecovery → (tabs)
 Settings → 로그아웃 → supabase.auth.signOut() → guard returns to /sign-in
+Settings → 계정 삭제 → /settings/delete-account → DELETE /auth/me → signOut → /sign-in
+  → sign in during the grace period → any API call → 403 ACCOUNT_PENDING_DELETION
+  → isPendingDeletion=true → guard forces /account-restore
+     → 계정 복구 → POST /auth/me/restore → flag cleared → (tabs)
+     → 로그아웃 → guard returns to /sign-in
 ```
 
 Email links are handled by real Expo Router routes — `/auth/callback` (sign-up
@@ -54,7 +61,10 @@ the user in — cannot reach the app until the new password is set.
 
 | Concern | Owner |
 | --- | --- |
-| Session meaning, current user (incl. `AuthMethod` = social + `'email'`), hydration, recovery state, sign-out | `src/entities/session` (`model/session-store.ts`, `model/user.ts`) |
+| Session meaning, current user (incl. `AuthMethod` = social + `'email'`), hydration, recovery state, pending-deletion state, sign-out | `src/entities/session` (`model/session-store.ts`, `model/user.ts`) |
+| Delete-account and restore actions (`DELETE /auth/me`, `POST /auth/me/restore`) | `src/features/delete-account` (`use-delete-account.ts`, `use-restore-account.ts`) |
+| Pending-deletion detection (transport error stream → session flag) | `src/_app/routes/root-layout.tsx` (`subscribeToApiErrors` → `markPendingDeletion`) |
+| Delete confirmation and restore screen composition | `src/pages/me` (`me-delete-account-page.tsx`), `src/pages/account-restore` |
 | Every Supabase call and Supabase type the session domain needs — auth subscription + token-refresh lifecycle, sign-out, code exchange, and the `SupabaseUser` → `User` mapping | `src/entities/session/api` (`session-gateway.ts`, `map-user.ts`) |
 | Auth email deep-link code exchange (`exchangeAuthCode` → the gateway's `exchangeSessionCode` → `exchangeCodeForSession`) | `src/entities/session` (`model/session-store.ts`), invoked by the `auth/callback` + `auth/reset` route screens (`src/pages/auth-callback`) |
 | Supabase client, session persistence, token auto-refresh; shared auth redirect URLs | `src/shared/lib/supabase` (`supabase-client.ts`, `auth-redirect.ts`) |
@@ -119,4 +129,5 @@ Supabase's session is stored under its own key (`sb-<project-ref>-auth-token`) t
 - Google sign-in is offered; Apple sign-in is deferred (code/metadata retained, not listed in `socialProviders`). Offering social login on iOS eventually requires Apple sign-in for App Store review, so enable Apple before an iOS store submission. Kakao/Naver are still not offered — Supabase Auth does not support them without custom OIDC setup.
 - The Google OAuth flow uses the `expo-web-browser` / `expo-auth-session` native modules and the `snaplyapp://` custom scheme, so it needs a development build or standalone app (not the standard Expo Go client), on the same device that initiates it (PKCE stores the code verifier locally).
 - The authenticated backend API client (`Authorization: Bearer` injection over TanStack Query) is not wired yet; it is separate from sign-in.
-- Account deletion in Settings remains a no-op prototype and is unrelated to this flow.
+- Pending deletion is detected reactively: the flag flips on the first API response carrying `ACCOUNT_PENDING_DELETION`, so a grace-period account that signs in sees the app shell until some request fails (in practice immediately — FCM registration and content fetches run on entry). In mock mode (`USE_MOCK_API`) no request can carry the 403, so the restore screen is reachable only against a real backend.
+- `/account-restore` cannot show the exact purge date: the authoritative `purgeAfter` is only in the deletion response, and the 403 carries no date, so the screen states the consequence without a deadline.

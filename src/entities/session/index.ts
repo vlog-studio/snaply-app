@@ -1,10 +1,13 @@
 export {
+  clearPendingDeletion,
   exchangeAuthCode,
   initSession,
+  markPendingDeletion,
   useClearSession,
   useCurrentUser,
   useFinishPasswordRecovery,
   useIsAuthenticated,
+  useIsPendingDeletion,
   useIsRecovering,
   useSessionHydrated,
   useSetSession,

@@ -10,9 +10,9 @@ The end-to-end product effect (an actual push landing on arrival) is decided and
 
 | Capability | Status | Actual behavior |
 | --- | --- | --- |
-| Register the device for push (FCM) | `Partial` | While authenticated, the app requests notification permission, registers with APNs (iOS), reads the FCM token, and posts it to `POST /auth/fcm-token`; it re-posts on token refresh. Routes to a mock until an API origin is configured. Native only. |
+| Register the device for push (FCM) | `Partial` | While authenticated, the app *checks* the notification grant (never prompts — the OS ask belongs to the 무비 완성 알림 switch, see [Me tab](me.md)); with the grant it registers with APNs (iOS), reads the FCM token, and posts it to `POST /auth/fcm-token`, re-posting on token refresh. Without the grant it does nothing until the grant lands (the movie-alert opt-in re-triggers the check) or the next app start. Routes to a mock until an API origin is configured. Native only. |
 | Present a foreground push | `Partial` | A message arriving while the app is foregrounded is re-presented as a local notification (`expo-notifications`), because FCM suppresses the system banner in the foreground. Requires the `expo-notifications` native module to be present in the build. |
-| Start/stop geofence monitoring | `Functional` | Turning 위치 알림 받기 on (authenticated, with foreground **and** background location permission) resolves the current position, loads nearby points, and starts OS geofencing on the nearest ones; turning it off stops all monitoring. Native only. |
+| Start/stop geofence monitoring | `Functional` | Off by default. Turning 위치 알림 받기 on runs the two-stage ask (an in-app sheet, then the OS foreground and background prompts — see [Me tab](me.md)); with the grants stored, monitoring resolves the current position, loads nearby points, and starts OS geofencing on the nearest ones. At app start the gate only *checks* the grants (never prompts): both present → monitoring resumes; revoked → it silently does not start. Turning the switch off stops all monitoring. Native only. |
 | Report an arrival | `Partial` | On a geofence *enter* event the app posts the location id to `POST /notifications/geofence-enter`, even when relaunched headlessly in the background. Routes to a mock until an API origin is configured; the backend that turns a report into a push does not exist yet. |
 | Receive an arrival push | `Not implemented` | The backend owns the authoritative decision (30-minute per-(user, location) dedup, quiet hours, `notification_enabled`) and the send. No backend, so no arrival push is delivered end-to-end. |
 
@@ -20,7 +20,7 @@ The end-to-end product effect (an actual push landing on arrival) is decided and
 
 There is no screen or route for this feature. It is composed headlessly at the app layer and driven by app lifecycle and OS events:
 
-- `src/_app/providers/app-providers.tsx` renders `<PushTokenRegistrar />` and `<GeofenceGate />` once, high in the tree, for the whole authenticated session.
+- `src/_app/providers/app-providers.tsx` renders `<PushTokenGate />` and `<GeofenceGate />` once, high in the tree, for the whole authenticated session.
 - `src/_app/routes/register-background-tasks.ts` is a side-effect import from `src/_app/routes/root-layout.tsx`. It runs `TaskManager.defineTask` at global scope so the geofence task is defined at startup — including when the OS relaunches the app headlessly on a geofence event, before any screen mounts.
 - The master switch that gates all of it is the 위치 알림 받기 control in [Me tab](me.md).
 
@@ -29,12 +29,13 @@ There is no screen or route for this feature. It is composed headlessly at the a
 | Layer | Module | Responsibility |
 | --- | --- | --- |
 | `src/_app/providers` | `geofence-gate.tsx` | Headless bridge: reads `useNotificationEnabled` (notification-settings) and drives `useGeofenceMonitoring` (geofence-monitor). The two features must not import each other, so the app layer composes them. |
-| `src/_app/providers` | `app-providers.tsx` | Mounts `PushTokenRegistrar`, `GeofenceGate`, and `MovieGenerationBridge`. |
+| `src/_app/providers` | `push-token-gate.tsx` | The same bridge shape for push: reads `useMovieReadyEnabled` (notification-settings, the one control whose opt-in obtains the notification grant) and passes it as `PushTokenRegistrar`'s `recheckKey`, so a fresh grant re-runs the registrar's check without waiting for the next app start. |
+| `src/_app/providers` | `app-providers.tsx` | Mounts `PushTokenGate`, `GeofenceGate`, and `MovieGenerationBridge`. |
 | `src/_app/providers` | `movie-generation-bridge.tsx` | The same bridge shape for the other notification preference: reads `useMovieReadyEnabled` and lets `compose-movie` announce a finished or failed generation. Documented in [The movie screen](movie.md). |
 | `src/_app/routes` | `register-background-tasks.ts` | Side-effect import that defines the background geofence task at startup. |
-| `src/features/register-push-token` | `ui/push-token-registrar.tsx`, `model/use-push-token.ts`, `api/register-fcm-token.ts` | Acquire and keep the FCM token registered while authenticated; present foreground messages locally; `POST /auth/fcm-token` (mock-routed). |
-| `src/features/geofence-monitor` | `model/use-geofence-monitoring.ts` | Bridge the `enabled` preference to OS geofencing: ensure permissions, resolve position, load nearby points, start/stop monitoring. Native only. |
-| `src/features/geofence-monitor` | `model/geofence-monitor.ts` | Product-level permission flow (foreground then background "항상 허용", with Korean copy) and start/stop that always replaces the active region set. |
+| `src/features/register-push-token` | `ui/push-token-registrar.tsx`, `model/use-push-token.ts`, `api/register-fcm-token.ts` | Acquire and keep the FCM token registered while authenticated — check-only on the notification grant (never prompts; `recheckKey` re-runs the check); present foreground messages locally; `POST /auth/fcm-token` (mock-routed). |
+| `src/features/geofence-monitor` | `model/use-geofence-monitoring.ts` | Bridge the `enabled` preference to OS geofencing: check permissions (never prompt — requesting belongs to the 위치 알림 받기 switch), resolve position, load nearby points, start/stop monitoring. Native only. |
+| `src/features/geofence-monitor` | `model/geofence-monitor.ts` | Check-only permission gate (`hasGeofencePermissions`: foreground and background "항상 허용") and start/stop that always replaces the active region set. |
 | `src/features/geofence-monitor` | `model/geofence-task.ts` | `defineTask` at global scope; on *enter* applies a 5-minute in-memory client cooldown and calls `reportGeofenceEnter`. |
 | `src/features/geofence-monitor` | `lib/select-nearest-regions.ts` | Haversine sort + cap at `MAX_MONITORED_REGIONS` (20, the stricter iOS ceiling), mapped to `expo-location` regions with `notifyOnEnter` only. |
 | `src/features/geofence-monitor` | `api/report-geofence-enter.ts` | `POST /notifications/geofence-enter` (mock-routed). |
@@ -56,7 +57,7 @@ The `GET /locations` response carries `id`, `name`, `lat`, `lng`, `radiusMeters`
 ## Known limitations and implementation requirements
 
 - Arrival reports and token registrations call real endpoints (`POST /notifications/geofence-enter`, `POST /auth/fcm-token`) when a backend origin is configured, and in-code mocks under `USE_MOCK_API`. No arrival push is delivered end-to-end yet: the backend has no notification-send pipeline, so foreground presentation is wired but end-to-end FCM display remains unverified.
-- Geofence monitoring needs foreground **and** background ("항상 허용") location permission. If the user declines, toggling the switch on cannot start monitoring. Resolving the position and nearby points also needs a location/network fix, so there is a short delay before monitoring begins.
+- Geofence monitoring needs foreground **and** background ("항상 허용") location permission. Only the 위치 알림 받기 switch requests them (after the in-app sheet's yes); the app-start gate is check-only, so a grant revoked in OS settings means monitoring silently does not start until the switch is toggled again. Resolving the position and nearby points also needs a location/network fix, so there is a short delay before monitoring begins.
 - On Android 13+, presenting a delivered notification also requires the `POST_NOTIFICATIONS` runtime permission (separate from location permission).
 - At most `MAX_MONITORED_REGIONS` (20) points are monitored at once, the nearest to the resolved position; the set is recomputed each time monitoring (re)starts.
 - The 5-minute client cooldown is in-memory only and resets on a cold background relaunch; the authoritative 30-minute per-(user, location) dedup is the backend's responsibility.

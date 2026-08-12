@@ -6,12 +6,12 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { PushTokenRegistrar } from '@/features/register-push-token';
 import { SnapUploadGate } from '@/features/upload-snap';
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
 import { GeofenceGate } from './geofence-gate';
 import { MovieGenerationBridge } from './movie-generation-bridge';
+import { PushTokenGate } from './push-token-gate';
 import { queryClient } from './query-client';
 import { SnapDurationBackfill } from './snap-duration-backfill';
 import { TrayDraftMigration } from './tray-draft-migration';
@@ -50,7 +50,7 @@ export function AppProviders({ children }: PropsWithChildren) {
             module reads it as content color (`hasLightBackground = style ==
             "dark"` -> dark glyphs), so it must track StatusBar, not invert it. */}
         <NavigationBar style={scheme === 'dark' ? 'light' : 'dark'} />
-        <PushTokenRegistrar />
+        <PushTokenGate />
         <GeofenceGate />
         {/* Movie generation runs here rather than on the movie screen: a job is meant
             to keep going after the user leaves the screen, and to be picked back

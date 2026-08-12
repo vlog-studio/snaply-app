@@ -1,4 +1,5 @@
-import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 
 import {
   useLocationAlerts,
@@ -17,6 +18,7 @@ import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
 import { reminderWindowOptions } from '../model/reminder-windows';
+import { LocationAlertsSheet } from './location-alerts-sheet';
 import { OptionPill, RowDivider, SettingRow, SettingsSection, type RowIconName } from './rows';
 
 const reminderWindowIcons: Record<ReminderWindowId, RowIconName> = {
@@ -39,6 +41,9 @@ export function MeNotificationsPage() {
   const setReminderFrequency = useSetReminderFrequency();
   const movieReadyAlerts = useMovieReadyAlerts();
   const locationAlerts = useLocationAlerts();
+  // The OS prompts run only after the in-app sheet's yes; flipping the switch
+  // on just opens the sheet, so a dismissal costs nothing and can be re-asked.
+  const [locationSheetVisible, setLocationSheetVisible] = useState(false);
   const quietStart = useQuietStart();
   const quietEnd = useQuietEnd();
   const setQuietStart = useSetQuietStart();
@@ -113,6 +118,16 @@ export function MeNotificationsPage() {
             />
           }
         />
+        {movieReadyAlerts.blocked ? (
+          <>
+            <RowDivider />
+            <SettingRow
+              icon="settings-outline"
+              title="설정에서 권한 켜기"
+              onPress={() => void Linking.openSettings()}
+            />
+          </>
+        ) : null}
       </SettingsSection>
 
       <SettingsSection title="위치 알림">
@@ -129,13 +144,26 @@ export function MeNotificationsPage() {
             <Switch
               accessibilityLabel="위치 알림 받기"
               value={locationAlerts.enabled}
-              onValueChange={locationAlerts.setEnabled}
+              onValueChange={(value) => {
+                if (value) setLocationSheetVisible(true);
+                else locationAlerts.setEnabled(false);
+              }}
               trackColor={{ false: theme.border, true: theme.primary }}
               thumbColor="#FFFFFF"
               ios_backgroundColor={theme.border}
             />
           }
         />
+        {locationAlerts.blocked ? (
+          <>
+            <RowDivider />
+            <SettingRow
+              icon="settings-outline"
+              title="설정에서 권한 켜기"
+              onPress={() => void Linking.openSettings()}
+            />
+          </>
+        ) : null}
       </SettingsSection>
 
       <SettingsSection title="조용한 시간">
@@ -149,6 +177,15 @@ export function MeNotificationsPage() {
           </ThemedText>
         </View>
       </SettingsSection>
+
+      <LocationAlertsSheet
+        visible={locationSheetVisible}
+        onAccept={() => {
+          setLocationSheetVisible(false);
+          locationAlerts.setEnabled(true);
+        }}
+        onDecline={() => setLocationSheetVisible(false)}
+      />
     </ScrollView>
   );
 }

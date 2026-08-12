@@ -46,7 +46,9 @@ type NotificationSettingsState = {
 const useNotificationSettingsStore = create<NotificationSettingsState>()(
   persist(
     (set) => ({
-      enabled: true,
+      // Off until asked for, like movieReady: enabling is what runs the location
+      // permission flow, so a default of on would prompt cold at first launch.
+      enabled: false,
       quietStart: 22,
       quietEnd: 8,
       interests: [],
@@ -73,6 +75,14 @@ const useNotificationSettingsStore = create<NotificationSettingsState>()(
     {
       name: 'snaply.notification-settings',
       storage: createJSONStorage(() => secureStorage),
+      // v1: `enabled` stopped defaulting to true. A persisted `true` from v0 was
+      // that default, not a choice the user made (the opt-in switch didn't gate
+      // the value yet), so it resets to off; opting back in is one tap.
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<NotificationSettingsState>;
+        return version < 1 ? { ...state, enabled: false } : state;
+      },
     },
   ),
 );

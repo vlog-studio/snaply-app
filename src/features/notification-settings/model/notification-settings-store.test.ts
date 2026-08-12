@@ -47,11 +47,11 @@ function useSettings() {
 }
 
 describe('notification settings', () => {
-  it('starts with alerts enabled but does not opt into movie completion prompts', async () => {
+  it('starts with every prompting preference off until the user opts in', async () => {
     const { result } = await renderHook(useSettings);
 
     expect(result.current).toMatchObject({
-      enabled: true,
+      enabled: false,
       quietStart: 22,
       quietEnd: 8,
       interests: [],

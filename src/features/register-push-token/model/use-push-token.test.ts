@@ -9,7 +9,7 @@ import {
   onForegroundMessage,
   presentLocalNotification,
   registerForRemoteMessages,
-  requestNotificationPermission,
+  hasNotificationPermission,
 } from '@/shared/lib/notifications';
 
 import { registerFcmToken } from '../api/register-fcm-token';
@@ -25,14 +25,14 @@ jest.mock('@/shared/lib/notifications', () => ({
   onForegroundMessage: jest.fn(),
   presentLocalNotification: jest.fn(),
   registerForRemoteMessages: jest.fn(),
-  requestNotificationPermission: jest.fn(),
+  hasNotificationPermission: jest.fn(),
 }));
 
 jest.mock('../api/register-fcm-token', () => ({ registerFcmToken: jest.fn() }));
 
 const mockIsAuthenticated = useIsAuthenticated as jest.MockedFunction<typeof useIsAuthenticated>;
-const mockRequestPermission = requestNotificationPermission as jest.MockedFunction<
-  typeof requestNotificationPermission
+const mockHasPermission = hasNotificationPermission as jest.MockedFunction<
+  typeof hasNotificationPermission
 >;
 const mockEnsureChannel = ensureNotificationChannel as jest.MockedFunction<
   typeof ensureNotificationChannel
@@ -56,7 +56,7 @@ const mockConfigureForeground = configureForegroundNotifications as jest.MockedF
 beforeEach(() => {
   jest.clearAllMocks();
   mockIsAuthenticated.mockReturnValue(true);
-  mockRequestPermission.mockResolvedValue(true);
+  mockHasPermission.mockResolvedValue(true);
   mockEnsureChannel.mockResolvedValue(undefined);
   mockRegisterRemote.mockResolvedValue(undefined);
   mockGetToken.mockResolvedValue('token-1');
@@ -73,15 +73,15 @@ describe('usePushTokenRegistration', () => {
     await renderHook(usePushTokenRegistration);
     await Promise.resolve();
 
-    expect(mockRequestPermission).not.toHaveBeenCalled();
+    expect(mockHasPermission).not.toHaveBeenCalled();
     expect(mockRegisterToken).not.toHaveBeenCalled();
   });
 
-  it('stops before native registration when notification permission is denied', async () => {
-    mockRequestPermission.mockResolvedValue(false);
+  it('stops before native registration when the notification grant is missing', async () => {
+    mockHasPermission.mockResolvedValue(false);
 
     await renderHook(usePushTokenRegistration);
-    await waitFor(() => expect(mockRequestPermission).toHaveBeenCalled());
+    await waitFor(() => expect(mockHasPermission).toHaveBeenCalled());
 
     expect(mockConfigureForeground).not.toHaveBeenCalled();
     expect(mockRegisterRemote).not.toHaveBeenCalled();
@@ -131,6 +131,22 @@ describe('usePushTokenRegistration', () => {
       body: 'Open Snaply',
       data: { movieId: 'm1' },
     });
+  });
+
+  it('re-checks the grant when the recheck key changes and registers once it is there', async () => {
+    mockHasPermission.mockResolvedValue(false);
+    const { rerender } = await renderHook(
+      ({ recheckKey }: { recheckKey: boolean }) => usePushTokenRegistration({ recheckKey }),
+      { initialProps: { recheckKey: false } },
+    );
+    await waitFor(() => expect(mockHasPermission).toHaveBeenCalledTimes(1));
+    expect(mockRegisterToken).not.toHaveBeenCalled();
+
+    mockHasPermission.mockResolvedValue(true);
+    await act(async () => rerender({ recheckKey: true }));
+
+    await waitFor(() => expect(mockRegisterToken).toHaveBeenCalledWith('token-1'));
+    expect(mockHasPermission).toHaveBeenCalledTimes(2);
   });
 
   it('unsubscribes both native listeners on unmount', async () => {

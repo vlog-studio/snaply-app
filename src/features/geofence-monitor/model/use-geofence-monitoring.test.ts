@@ -6,10 +6,10 @@ import { Platform } from 'react-native';
 import { locationQueries, type Location } from '@/entities/location';
 import { useIsAuthenticated } from '@/entities/session';
 import {
+  getBackgroundLocationPermission,
   getCurrentCoordinates,
+  getForegroundLocationPermission,
   hasStartedGeofencing,
-  requestBackgroundLocationPermission,
-  requestForegroundLocationPermission,
   startGeofencing,
   stopGeofencing,
 } from '@/shared/lib/location';
@@ -24,10 +24,10 @@ jest.mock('@/entities/session', () => ({ useIsAuthenticated: jest.fn() }));
 jest.mock('@/shared/api', () => ({ apiRequest: jest.fn() }));
 
 jest.mock('@/shared/lib/location', () => ({
+  getBackgroundLocationPermission: jest.fn(),
   getCurrentCoordinates: jest.fn(),
+  getForegroundLocationPermission: jest.fn(),
   hasStartedGeofencing: jest.fn(),
-  requestBackgroundLocationPermission: jest.fn(),
-  requestForegroundLocationPermission: jest.fn(),
   startGeofencing: jest.fn(),
   stopGeofencing: jest.fn(),
 }));
@@ -40,11 +40,11 @@ const mockIsAuthenticated = useIsAuthenticated as jest.MockedFunction<typeof use
 const mockGetCurrentCoordinates = getCurrentCoordinates as jest.MockedFunction<
   typeof getCurrentCoordinates
 >;
-const mockForegroundPermission = requestForegroundLocationPermission as jest.MockedFunction<
-  typeof requestForegroundLocationPermission
+const mockForegroundPermission = getForegroundLocationPermission as jest.MockedFunction<
+  typeof getForegroundLocationPermission
 >;
-const mockBackgroundPermission = requestBackgroundLocationPermission as jest.MockedFunction<
-  typeof requestBackgroundLocationPermission
+const mockBackgroundPermission = getBackgroundLocationPermission as jest.MockedFunction<
+  typeof getBackgroundLocationPermission
 >;
 const mockHasStarted = hasStartedGeofencing as jest.MockedFunction<typeof hasStartedGeofencing>;
 const mockStart = startGeofencing as jest.MockedFunction<typeof startGeofencing>;
@@ -82,13 +82,13 @@ beforeEach(() => {
   mockForegroundPermission.mockResolvedValue({
     granted: true,
     canAskAgain: true,
-    status: 'granted' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+    status: 'granted' as Awaited<ReturnType<typeof getForegroundLocationPermission>>['status'],
     expires: 'never',
   });
   mockBackgroundPermission.mockResolvedValue({
     granted: true,
     canAskAgain: true,
-    status: 'granted' as Awaited<ReturnType<typeof requestBackgroundLocationPermission>>['status'],
+    status: 'granted' as Awaited<ReturnType<typeof getBackgroundLocationPermission>>['status'],
     expires: 'never',
   });
   mockGetCurrentCoordinates.mockResolvedValue(origin);
@@ -141,11 +141,11 @@ describe('useGeofenceMonitoring', () => {
     expect(mockStart).not.toHaveBeenCalled();
   });
 
-  it('does not resolve locations after foreground permission is denied', async () => {
+  it('does not resolve locations when foreground permission is missing', async () => {
     mockForegroundPermission.mockResolvedValue({
       granted: false,
       canAskAgain: false,
-      status: 'denied' as Awaited<ReturnType<typeof requestForegroundLocationPermission>>['status'],
+      status: 'denied' as Awaited<ReturnType<typeof getForegroundLocationPermission>>['status'],
       expires: 'never',
     });
     const { wrapper } = createQueryWrapper();

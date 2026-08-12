@@ -693,6 +693,14 @@ export function XPage() {
   no row to spend on a title — a screen whose zones are all fixed, like `/movie/[id]`,
   where the stage lives on the height everything else leaves over. The bar's row is a
   44dp tap target either way, so a title there is free.
+- **`hitSlop` does not cross a clipping ancestor on Android.** A small control inside a
+  container with `overflow: 'hidden'` — the rounded frames the app draws everywhere — only
+  receives touches that land inside that container, however much slop it declares. Spend
+  the slop in the directions that stay inside: the tray's ✕ sits 2dp from the top-right
+  corner of a 52dp thumbnail and reaches 44dp by growing *down and left*
+  (`src/pages/studio/ui/tray-panel.tsx`). A symmetric slop there measured 34dp in
+  practice. Verify a grown target by tapping its far corner on the device — the bounds a
+  UI-hierarchy dump reports are the view's, and never include the slop.
 
 ---
 

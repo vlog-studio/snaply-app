@@ -8,9 +8,9 @@ export type SnapSelectionBarProps = {
   selectedCount: number;
   /** Snaps the target already holds — what the remaining room is measured against. */
   heldCount: number;
-  /** The target's cap: the tray's or a movie's. */
+  /** The target movie's cap. */
   capacity: number;
-  /** What the picks are headed for: `트레이`, or a movie's title. */
+  /** What the picks are headed for: `새 무비`, or an existing movie's title. */
   targetLabel: string;
   /** Wording of the confirming action, since the target decides it. */
   confirmLabel: string;

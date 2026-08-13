@@ -5,6 +5,7 @@ import {
   getMovieById,
   useAdvanceMovieJob,
   useBeginMovieJob,
+  useCancelMovieJob,
   useCreateMovie,
   useDeleteMovie,
   useFailMovieJob,
@@ -479,11 +480,12 @@ describe('generating a movie', () => {
     }));
 
     await act(async () => result.current.begin('m1', 'job-abc', startedAt));
-    await act(async () => result.current.fail('m1', '원본이 사라졌어요', 999));
+    await act(async () => result.current.fail('m1', '원본이 사라졌어요', '서버 진단 원문', 999));
 
     expect(useMovieStore.getState().movies[0]).toMatchObject({
       status: 'failed',
       error: '원본이 사라졌어요',
+      errorDetail: '서버 진단 원문',
       updatedAt: 999,
     });
     expect(useMovieStore.getState().movies[0].job).toBeUndefined();
@@ -508,7 +510,28 @@ describe('generating a movie', () => {
     });
   });
 
-  it.each(['advanceMovieJob', 'finishMovieJob', 'failMovieJob'] as const)(
+  it('cancels a job back into a draft, keeping nothing of the attempt', async () => {
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      cancel: useCancelMovieJob(),
+    }));
+
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.cancel('m1', 999));
+
+    const movie = useMovieStore.getState().movies[0];
+    // A deliberate stop is not a failure: no `failed` state, no stored reason,
+    // and the cuts and settings stay for the next run.
+    expect(movie).toMatchObject({ status: 'draft', updatedAt: 999 });
+    expect(movie.job).toBeUndefined();
+    expect(movie.error).toBeUndefined();
+    expect(movie.snapRefs).toEqual([
+      { snapId: 's1', order: 0 },
+      { snapId: 's2', order: 1 },
+    ]);
+  });
+
+  it.each(['advanceMovieJob', 'finishMovieJob', 'failMovieJob', 'cancelMovieJob'] as const)(
     'ignores %s for a movie no job owns',
     async (action) => {
       const before = useMovieStore.getState().movies[0];
@@ -517,7 +540,8 @@ describe('generating a movie', () => {
         const store = useMovieStore.getState();
         if (action === 'advanceMovieJob') store.advanceMovieJob('m1', 2);
         else if (action === 'finishMovieJob') store.finishMovieJob('m1', render, 999);
-        else store.failMovieJob('m1', '터졌어요', 999);
+        else if (action === 'failMovieJob') store.failMovieJob('m1', '터졌어요', undefined, 999);
+        else store.cancelMovieJob('m1', 999);
       });
 
       expect(useMovieStore.getState().movies[0]).toBe(before);

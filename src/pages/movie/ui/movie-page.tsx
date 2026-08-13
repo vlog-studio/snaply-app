@@ -16,6 +16,7 @@ import { toCutIndex, toPlaybackCuts, toPlaybackIndex } from '../model/playback-c
 import type { TimelinePlayhead } from '../model/timeline-layout';
 import { useMovieCuts } from '../model/use-movie-cuts';
 import { useWatchCuts } from '../model/watch-cuts';
+import { CancelRunControl } from './cancel-run-control';
 import { CutInspector } from './cut-inspector';
 import { CutPlayer, type CutPlayerHandle } from './cut-player';
 import { DetailSheet } from './detail-sheet';
@@ -60,7 +61,7 @@ export type MoviePageProps = {
  *
  * - `draft` — the stage previews the cuts, and the footer runs the first job.
  * - `generating` — the stage holds the progress ring; everything else is a
- *   read-out. Leaving is expected.
+ *   read-out except the footer's 만들기 취소. Leaving is expected.
  * - `ready` — **watch mode**: the stage plays the render's own composition and
  *   every edit tool is out of sight; the ⋯ sheet holds 편집·이름 바꾸기·공유·
  *   삭제. "무비 편집하기" brings the studio (this screen's other face) back,
@@ -74,7 +75,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const theme = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { saveStyle, setArranger, startGeneration } = useComposeMovie();
+  const { saveStyle, setArranger, startGeneration, cancelGeneration } = useComposeMovie();
   const list = useMovieCuts(movieId);
   const { movie, cuts, totalSec, canEdit, refusal, editedSinceRender, editCount } = list;
   // Resolved once here and handed to both consumers: the watch stage plays
@@ -409,6 +410,13 @@ export function MoviePage({ movieId }: MoviePageProps) {
             owns the movie) still has to be answered somewhere. */}
             {isGenerating && refusal ? (
               <RefusalNotice message={CutsRefusalMessages[refusal]} />
+            ) : null}
+
+            {/* The one act a run offers: stopping it. Keyed by the job so a new
+            run always opens on the resting button, not a previous run's
+            half-answered confirm. */}
+            {isGenerating ? (
+              <CancelRunControl key={movie.job?.id} cancel={() => cancelGeneration(movie.id)} />
             ) : null}
 
             {isGenerating ? null : (

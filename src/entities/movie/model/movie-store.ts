@@ -66,7 +66,8 @@ type MovieState = {
   advanceMovieJob: (movieId: string, progress: number, step?: string) => void;
   finishMovieJob: (movieId: string, render: MovieRender, updatedAt?: number) => void;
   setRenderThumbnail: (movieId: string, renderedAt: number, thumbnailUri: string) => void;
-  failMovieJob: (movieId: string, error: string, updatedAt?: number) => void;
+  failMovieJob: (movieId: string, error: string, detail?: string, updatedAt?: number) => void;
+  cancelMovieJob: (movieId: string, updatedAt?: number) => void;
   removeSnapsEverywhere: (snapIds: readonly string[]) => void;
   setHasHydrated: (value: boolean) => void;
 };
@@ -221,6 +222,7 @@ export const useMovieStore = create<MovieState>()(
             job: { id: jobId, progress: 0, startedAt },
             render: undefined,
             error: undefined,
+            errorDetail: undefined,
             updatedAt: startedAt,
           })),
         ),
@@ -275,14 +277,42 @@ export const useMovieStore = create<MovieState>()(
               : movie,
           ),
         ),
-      // The other way out of `generating`. The job is dropped but the cut list and
-      // settings are left exactly as they were: recovery is running the same movie
-      // again, so everything the retry needs has to survive the failure.
-      failMovieJob: (movieId, error, updatedAt = Date.now()) =>
+      // One of the two other ways out of `generating`. The job is dropped but the
+      // cut list and settings are left exactly as they were: recovery is running
+      // the same movie again, so everything the retry needs has to survive the
+      // failure. `detail` is the server's diagnostic when it sent one — worded
+      // for a log, kept apart from the reason worded for the user.
+      failMovieJob: (movieId, error, detail, updatedAt = Date.now()) =>
         set((state) =>
           patchMovie(state, movieId, (movie) =>
             movie.status === 'generating'
-              ? { ...movie, status: 'failed', error, job: undefined, updatedAt }
+              ? {
+                  ...movie,
+                  status: 'failed',
+                  error,
+                  errorDetail: detail,
+                  job: undefined,
+                  updatedAt,
+                }
+              : movie,
+          ),
+        ),
+      // The user's own way out of `generating` (2026-08-13). Not a failure: the
+      // run was stopped on purpose, so the movie goes back to being the draft it
+      // was — the previous render and error were already dropped when the job
+      // began, and nothing about a deliberate stop needs a recovery notice.
+      cancelMovieJob: (movieId, updatedAt = Date.now()) =>
+        set((state) =>
+          patchMovie(state, movieId, (movie) =>
+            movie.status === 'generating'
+              ? {
+                  ...movie,
+                  status: 'draft',
+                  job: undefined,
+                  error: undefined,
+                  errorDetail: undefined,
+                  updatedAt,
+                }
               : movie,
           ),
         ),
@@ -423,8 +453,22 @@ export function useSetRenderThumbnail(): (
   return useMovieStore((state) => state.setRenderThumbnail);
 }
 
-export function useFailMovieJob(): (movieId: string, error: string, updatedAt?: number) => void {
+export function useFailMovieJob(): (
+  movieId: string,
+  error: string,
+  detail?: string,
+  updatedAt?: number,
+) => void {
   return useMovieStore((state) => state.failMovieJob);
+}
+
+/**
+ * Ends a running job because the user asked it to stop. The movie returns to
+ * `draft` — a deliberate stop is not a failure, and everything a re-run needs
+ * (cuts, settings) is exactly as it was.
+ */
+export function useCancelMovieJob(): (movieId: string, updatedAt?: number) => void {
+  return useMovieStore((state) => state.cancelMovieJob);
 }
 
 export function useDeleteMovie(): (movieId: string) => void {

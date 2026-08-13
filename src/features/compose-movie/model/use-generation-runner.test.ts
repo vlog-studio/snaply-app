@@ -4,12 +4,14 @@ import type { Movie } from '@/entities/movie';
 import { ApiError } from '@/shared/api';
 
 import type { EditProgressHandlers } from '../api/subscribe-edit-progress';
+import { editFailureMessage } from '../lib/edit-failure-copy';
 
 import { useGenerationRunner } from './use-generation-runner';
 
 const mockAdvance = jest.fn();
 const mockFinish = jest.fn();
 const mockFail = jest.fn();
+const mockCancel = jest.fn();
 const mockSetThumbnail = jest.fn();
 const mockDownloadThumbnail = jest.fn<Promise<string | undefined>, [string, string]>();
 const mockMovies = jest.fn<Movie[], []>();
@@ -27,6 +29,7 @@ jest.mock('@/entities/movie', () => ({
   useAdvanceMovieJob: () => mockAdvance,
   useFinishMovieJob: () => mockFinish,
   useFailMovieJob: () => mockFail,
+  useCancelMovieJob: () => mockCancel,
   useSetRenderThumbnail: () => mockSetThumbnail,
   cutsDurationSec: (refs: { snapId: string }[], lookup: (id: string) => number | undefined) =>
     refs.reduce((total, ref) => total + (lookup(ref.snapId) ?? 0), 0),
@@ -238,15 +241,18 @@ describe('useGenerationRunner', () => {
     expect(mockFinish).toHaveBeenCalledWith('m1', expect.objectContaining({ durationSec: 4 }));
   });
 
-  it('fails a job with the reason the backend gave', async () => {
+  // The reason shown is worded from the classification code — the server's own
+  // message is a diagnostic, carried as the demoted detail rather than spoken.
+  it('fails a job with copy worded from its code, keeping the diagnostic apart', async () => {
     mockMovies.mockReturnValue([generatingMovie()]);
     await act(async () => {
       await renderHook(() => useGenerationRunner());
     });
 
-    await emit('job-1', { kind: 'failed', error: serverReason });
+    await emit('job-1', { kind: 'failed', error: serverReason, code: 'TIMEOUT' });
 
-    expect(mockFail).toHaveBeenCalledWith('m1', serverReason);
+    expect(mockFail).toHaveBeenCalledWith('m1', editFailureMessage('TIMEOUT'), serverReason);
+    expect(mockFail.mock.calls[0][1]).not.toBe(serverReason);
   });
 
   it('fails a job the backend reports as failed on the catch-up pass', async () => {
@@ -256,13 +262,45 @@ describe('useGenerationRunner', () => {
       progress: 60,
       videoId: 'result-1',
       errorMessage: serverReason,
+      errorCode: 'INTERNAL',
     });
 
     await act(async () => {
       await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockFail).toHaveBeenCalledWith('m1', serverReason);
+    expect(mockFail).toHaveBeenCalledWith('m1', editFailureMessage('INTERNAL'), serverReason);
+  });
+
+  // A canceled run is not a failure: the movie returns to `draft`, keeps no
+  // reason, and — unlike either real ending — is announced to nobody.
+  it('returns a movie whose run was canceled to a draft, on the socket frame', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    await act(async () => {
+      await renderHook(() => useGenerationRunner({ announce: true }));
+    });
+    mockAnnounce.mockClear();
+
+    await emit('job-1', { kind: 'canceled' });
+
+    expect(mockCancel).toHaveBeenCalledWith('m1');
+    expect(mockFail).not.toHaveBeenCalled();
+    expect(mockAnnounce).not.toHaveBeenCalled();
+  });
+
+  // A job canceled while the app was away — another session, or account
+  // deletion — must not read as still running, or the movie would poll forever.
+  it('returns a canceled job to a draft on the catch-up pass', async () => {
+    mockMovies.mockReturnValue([generatingMovie()]);
+    mockGetEditJob.mockResolvedValue({ status: 'canceled', progress: 60, videoId: 'result-1' });
+
+    await act(async () => {
+      await renderHook(() => useGenerationRunner());
+    });
+
+    expect(mockCancel).toHaveBeenCalledWith('m1');
+    expect(mockFail).not.toHaveBeenCalled();
+    expect(mockFinish).not.toHaveBeenCalled();
   });
 
   // Also how a movie left generating by a build that predates the real backend
@@ -275,7 +313,7 @@ describe('useGenerationRunner', () => {
       await renderHook(() => useGenerationRunner());
     });
 
-    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('\uC11C\uBC84')); // 서버
+    expect(mockFail).toHaveBeenCalledWith('m1', expect.stringContaining('\uC11C\uBC84'), undefined); // 서버
   });
 
   it('leaves a job running when this device cannot reach the backend', async () => {
@@ -307,6 +345,7 @@ describe('useGenerationRunner', () => {
     expect(mockFail).toHaveBeenCalledWith(
       'm1',
       expect.stringContaining('\uC2A4\uB0C5 \uC6D0\uBCF8'),
+      undefined,
     ); // 스냅 원본
     expect(mockGetEditJob).not.toHaveBeenCalled();
   });

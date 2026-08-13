@@ -1827,10 +1827,11 @@ export interface paths {
          * 편집 작업 상태 조회
          * @description `POST /edit-jobs`로 만든 작업의 진행 상태. WebSocket 대신 **폴링으로 확인할 때 쓰는 엔드포인트**라 Swagger에서 편집 전 과정을 추적할 수 있다.
          *
-         *     - `status`: `queued`(워커 대기) → `processing` → `done` | `failed`
+         *     - `status`: `queued`(워커 대기) → `processing` → `done` | `failed` | `canceled`(사용자 취소)
          *     - `progress`: 0~100. 워커가 단계별로 갱신한다
          *     - `videoId`: **결과물** 영상 id (원본 클립이 아니다). 완료 후 `GET /videos/{videoId}`로 `editedUrl`을 얻는다
-         *     - `errorMessage`: `failed`일 때만 채워진다
+         *     - `errorMessage`: `failed`일 때만 채워진다 (서버 진단용 원문 — 사용자 노출 문구가 아니다)
+         *     - `errorCode`: `failed`일 때의 분류 코드. `TIMEOUT` | `SOURCE_UNAVAILABLE` | `QUEUE_FAILED` | `INTERNAL`. 앱은 이 코드로 사용자 문구를 분기한다
          *     - `pipelineVersion`/`editSpec`/`renderSpec`: 재현 가능한 작업 스냅샷
          *
          *     남의 작업은 404.
@@ -1891,9 +1892,14 @@ export interface paths {
                                     fitMode: "contain" | "cover" | "blur_background";
                                 };
                                 /** @enum {string} */
-                                status: "queued" | "processing" | "done" | "failed";
+                                status: "queued" | "processing" | "done" | "failed" | "canceled";
                                 progress: number;
                                 errorMessage: string | null;
+                                /**
+                                 * @description 실패 분류 코드. status가 failed일 때만 채워진다.
+                                 * @enum {string|null}
+                                 */
+                                errorCode: "TIMEOUT" | "SOURCE_UNAVAILABLE" | "QUEUE_FAILED" | "INTERNAL" | null;
                                 /** Format: date-time */
                                 startedAt: string | null;
                                 /** Format: date-time */
@@ -1990,7 +1996,144 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * 편집 작업 취소
+         * @description `queued` 또는 `processing` 상태의 편집 작업을 취소한다. 최종 상태는 `canceled`.
+         *
+         *     - 대기 중(queued) 작업은 큐에서 제거되어 처리되지 않는다.
+         *     - 처리 중(processing) 작업은 워커가 다음 진행률 갱신 시점에 취소를 감지하고 중단한다. 이미 업로드 직전 단계라면 완료될 수 있으나, `canceled`로 확정된 작업이 `done`으로 되살아나지는 않는다.
+         *     - 결과물 영상 레코드는 삭제 처리되어 목록에 나타나지 않는다.
+         *     - 열려 있는 진행률 WebSocket에는 `{"status":"canceled"}` 메시지 후 연결이 종료된다.
+         *     - 이미 취소된 작업의 재취소는 200(멱등). `done`/`failed`로 끝난 작업은 409.
+         *     - 크레딧 차감/환급 규칙은 크레딧 결제 정책 확정 후 이 엔드포인트에 연결된다.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description `POST /edit-jobs`가 반환한 jobId(uuid) */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                canceled: boolean;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

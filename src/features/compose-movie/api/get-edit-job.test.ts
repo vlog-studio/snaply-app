@@ -34,7 +34,7 @@ describe('getEditJob', () => {
     expect(mockApiRequest.mock.calls[0][0]).toBe('/edit-jobs/job-1');
   });
 
-  it.each(['queued', 'processing', 'done', 'failed'])(
+  it.each(['queued', 'processing', 'done', 'failed', 'canceled'])(
     'keeps the known status %s',
     async (status) => {
       respondWith({ status });
@@ -74,5 +74,17 @@ describe('getEditJob', () => {
   it('omits the reason when the server sent none', async () => {
     respondWith({ errorMessage: null });
     await expect(getEditJob('job-1')).resolves.not.toHaveProperty('errorMessage');
+  });
+
+  // The classification code is what the app words the failure from; it must
+  // arrive even when this build has never heard of the value (append-only).
+  it.each(['TIMEOUT', 'NEXT_YEARS_CODE'])('carries the failure code %s', async (errorCode) => {
+    respondWith({ status: 'failed', errorCode });
+    await expect(getEditJob('job-1')).resolves.toMatchObject({ errorCode });
+  });
+
+  it('omits the failure code when the server sent none', async () => {
+    respondWith({ errorCode: null });
+    await expect(getEditJob('job-1')).resolves.not.toHaveProperty('errorCode');
   });
 });

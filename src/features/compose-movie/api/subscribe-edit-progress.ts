@@ -13,7 +13,15 @@ import { USE_MOCK_API } from '@/shared/config/api';
 export type EditProgressEvent =
   | { kind: 'progress'; progress: number; step?: string }
   | { kind: 'done'; outputUrl?: string }
-  | { kind: 'failed'; error?: string };
+  | {
+      kind: 'failed';
+      /** The server's diagnostic — not user copy; the screen words from `code`. */
+      error?: string;
+      /** The failure's classification code, same values as `GET`'s `errorCode`. */
+      code?: string;
+    }
+  /** The job was canceled — by this device or another session — and the run ended. */
+  | { kind: 'canceled' };
 
 export type EditProgressHandlers = {
   onEvent: (event: EditProgressEvent) => void;
@@ -21,15 +29,25 @@ export type EditProgressHandlers = {
   onClose?: () => void;
 };
 
-// Failure is checked first: a failure frame carries `status` and no `progress`,
-// and reading it as a progress frame would drop the reason on the floor.
-const failureFrame = z.object({ status: z.literal('failed'), error: z.string().optional() });
+// Terminal frames are checked first: they carry `status` and no `progress`,
+// and reading one as a progress frame would drop the reason on the floor.
+const failureFrame = z.object({
+  status: z.literal('failed'),
+  error: z.string().optional(),
+  code: z.string().optional(),
+});
+// The server's last word on a canceled job, published as the cancel endpoint
+// ends the run; the socket closes right after it.
+const canceledFrame = z.object({ status: z.literal('canceled') });
 const progressFrame = z.object({ progress: z.number(), step: z.string().optional() });
 const doneFrame = progressFrame.extend({ outputUrl: z.string().optional() });
 
 function toEvent(payload: unknown): EditProgressEvent | undefined {
   const failure = failureFrame.safeParse(payload);
-  if (failure.success) return { kind: 'failed', error: failure.data.error };
+  if (failure.success) {
+    return { kind: 'failed', error: failure.data.error, code: failure.data.code };
+  }
+  if (canceledFrame.safeParse(payload).success) return { kind: 'canceled' };
 
   const progress = doneFrame.safeParse(payload);
   if (!progress.success) return undefined;

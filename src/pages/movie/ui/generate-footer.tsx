@@ -101,11 +101,18 @@ export function GenerateFooter({
       {hasFailed ? (
         // The stored reason, not a generic apology: the user has to know
         // whether running it again is worth anything, and today's one failure
-        // is only answered by putting cuts back first.
+        // is only answered by putting cuts back first. The server's own
+        // diagnostic, when one was kept, rides under it demoted — it is what a
+        // bug report needs, not what the failure means.
         <View style={[styles.notice, { borderColor: theme.danger }]}>
           <ThemedText type="small" themeColor="danger">
             {movie.error ?? '알 수 없는 이유로 생성이 멈췄어요.'}
           </ThemedText>
+          {movie.errorDetail ? (
+            <ThemedText type="note" themeColor="textSecondary">
+              {movie.errorDetail}
+            </ThemedText>
+          ) : null}
         </View>
       ) : null}
 

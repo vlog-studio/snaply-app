@@ -6,6 +6,7 @@ import {
   isAiArranged,
   sameArrangement,
   useBeginMovieJob,
+  useCancelMovieJob,
   useCreateMovie,
   useSetMovieArranger,
   useUpdateMovieCuts,
@@ -18,6 +19,7 @@ import {
 import { getSnapSyncEntries, useSnapIndex } from '@/entities/snap';
 import { ApiError } from '@/shared/api';
 
+import { cancelEditJob } from '../api/cancel-edit-job';
 import { createEditJob, type EditJobClip } from '../api/create-edit-job';
 
 /**
@@ -65,6 +67,24 @@ export type GenerationOutcome = {
    * and nowhere else, so wording it here would mean guessing which one it was.
    */
   message?: string;
+};
+
+/**
+ * Why a cancel did not cancel.
+ *
+ * `settled` — the run already ended, one way or the other: no job owns the movie
+ * any more, or the backend answered `409` because the job finished while the
+ * request was in flight. Nothing to show — the result (or failure) is arriving
+ * through the runner as the answer.
+ * `unreachable` — the request itself failed. The run is untouched and still
+ * going, so pressing again is the whole recovery.
+ */
+export type CancellationRefusal = 'settled' | 'unreachable';
+
+export type CancellationOutcome = {
+  /** True when the movie is back to `draft` — the run will produce nothing. */
+  canceled: boolean;
+  refused?: CancellationRefusal;
 };
 
 /**
@@ -172,6 +192,7 @@ export function useComposeMovie() {
   const updateMovieStyle = useUpdateMovieStyle();
   const setMovieArranger = useSetMovieArranger();
   const beginMovieJob = useBeginMovieJob();
+  const cancelMovieJob = useCancelMovieJob();
 
   /**
    * Starts a draft straight from hand-picked snaps — the Snap tab's selection —
@@ -372,6 +393,51 @@ export function useComposeMovie() {
     [beginMovieJob, updateMovieCuts, snapIndex],
   );
 
+  /**
+   * Stops the run a movie is under and returns the movie to `draft`
+   * (2026-08-13). The server is asked first (`DELETE /edit-jobs/{id}`) and the
+   * movie leaves `generating` only on its word — a movie taken back to `draft`
+   * while the run kept going would finish into a state no longer expecting it.
+   *
+   * The two ways the server refuses are two different answers here. A `409`
+   * means the run ended while the request was in flight (`done`/`failed`), so
+   * there is nothing to stop and the runner is already delivering the result —
+   * `settled`, show nothing. A `404` means the backend has never heard of the
+   * job — nothing is running, which is exactly what the user asked for, so the
+   * movie goes back to `draft` all the same. A transport failure changes
+   * nothing: the run is still going, and pressing again is the recovery.
+   *
+   * What a cancel costs is the run itself: `beginMovieJob` already dropped the
+   * previous render when the job started, so a canceled regeneration returns to
+   * a draft, not to the finished movie it was replacing.
+   */
+  const cancelGeneration = useCallback(
+    async (movieId: string): Promise<CancellationOutcome> => {
+      const movie = getMovieById(movieId);
+      if (!movie || movie.status !== 'generating' || !movie.job) {
+        return { canceled: false, refused: 'settled' };
+      }
+
+      try {
+        await cancelEditJob(movie.job.id);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
+          return { canceled: false, refused: 'settled' };
+        }
+        if (!(error instanceof ApiError && error.status === 404)) {
+          if (__DEV__) {
+            console.warn(`[compose-movie] could not cancel ${movieId}: ${String(error)}`);
+          }
+          return { canceled: false, refused: 'unreachable' };
+        }
+      }
+
+      cancelMovieJob(movieId);
+      return { canceled: true };
+    },
+    [cancelMovieJob],
+  );
+
   return {
     startMovieFromSnaps,
     startMovieFromTemplate,
@@ -380,5 +446,6 @@ export function useComposeMovie() {
     saveStyle,
     setArranger,
     startGeneration,
+    cancelGeneration,
   };
 }

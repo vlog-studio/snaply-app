@@ -67,14 +67,22 @@ describe('subscribeEditProgress', () => {
     expect(receive({ progress: 100, step: doneStep })).toEqual([{ kind: 'done' }]);
   });
 
-  it('reports a failure with the reason the server gave', () => {
-    expect(receive({ status: 'failed', error: failureReason })).toEqual([
-      { kind: 'failed', error: failureReason },
+  it('reports a failure with the diagnostic and classification the server gave', () => {
+    expect(receive({ status: 'failed', error: failureReason, code: 'TIMEOUT' })).toEqual([
+      { kind: 'failed', error: failureReason, code: 'TIMEOUT' },
     ]);
   });
 
   it('reports a failure that came with no reason', () => {
-    expect(receive({ status: 'failed' })).toEqual([{ kind: 'failed', error: undefined }]);
+    expect(receive({ status: 'failed' })).toEqual([
+      { kind: 'failed', error: undefined, code: undefined },
+    ]);
+  });
+
+  // Published by the cancel endpoint as it ends the run — from this device or
+  // another session — right before the server closes the socket.
+  it('reports a cancellation', () => {
+    expect(receive({ status: 'canceled' })).toEqual([{ kind: 'canceled' }]);
   });
 
   it.each([

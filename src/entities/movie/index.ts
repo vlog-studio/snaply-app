@@ -22,7 +22,7 @@ export { isAiArranged, movieArranger, sameArrangement } from './lib/movie-arrang
 export { isEditedSinceRender, sameCuts } from './lib/movie-render';
 export { MovieSnapLimit } from './model/movie';
 export { MovieTitleMaxLength } from './lib/movie-title';
-export { MovieBgmCatalog, movieBgmLabel } from './lib/movie-bgm';
+export { MovieBgmCatalog } from './lib/movie-bgm';
 export { MovieStyleCatalog, movieStyleLabel, movieStyleOrDefault } from './lib/movie-style';
 export { movieJobRatio } from './lib/movie-generation';
 export {

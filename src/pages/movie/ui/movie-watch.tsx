@@ -1,9 +1,9 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { movieBgmLabel, movieStyleLabel, type Movie } from '@/entities/movie';
+import { movieStyleLabel, type Movie } from '@/entities/movie';
 import type { RenderSource } from '@/features/compose-movie';
-import type { MovieSharing } from '@/features/share-movie';
+import { ShareBlockMessages, type MovieSharing } from '@/features/share-movie';
 import { formatDateTime, formatSeconds } from '@/shared/lib/datetime';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -44,7 +44,12 @@ export type MovieWatchProps = {
  * timeline, no transport, no chips, no inspector. Playing is the stage's own
  * tap. What the studio's chips and 세부 sheet carry as editable settings, the
  * one line under the stage states as facts — when it was finished, how long it
- * runs, and the style and track it was made with.
+ * runs, and the style it was made with. Each is read off the *render*, not off
+ * the movie's live settings: a finished movie's style can be changed in the
+ * studio without being made again, and this line describes the file on the
+ * stage (2026-08-13). No track is among them: the pipeline scores a run from
+ * the style preset, so a movie's stored `bgm` was never a fact about the file
+ * being played.
  *
  * 공유 is the mode's one standing action (editing, renaming, and deleting live
  * in the ⋯ sheet). It is visible but disabled until a render produces a real
@@ -75,11 +80,17 @@ export function MovieWatch({
   const insets = useSafeAreaInsets();
   const playbackCuts = toPlaybackCuts(cuts);
   const totalSec = watchDurationSec(movie, cuts);
+  // Facts about the *finished* movie, so each one comes off the render rather
+  // than off the movie's live settings, which keep moving after a run: the style
+  // is the preset the file was actually graded and cut with, and a render that
+  // never stored one says nothing instead of naming the current pick (2026-08-13).
+  // No track among them either — the pipeline scores from the preset, so the
+  // stored `bgm` never described what this file plays.
+  const renderedStyle = movie.render?.style;
   const facts = [
     movie.render ? `${formatDateTime(movie.render.renderedAt)} 완성` : undefined,
     formatSeconds(totalSec),
-    movieStyleLabel(movie.style),
-    movieBgmLabel(movie.bgm),
+    renderedStyle ? movieStyleLabel(renderedStyle) : undefined,
   ].filter((fact) => fact !== undefined);
 
   return (
@@ -96,6 +107,31 @@ export function MovieWatch({
         ) : renderSource.uri !== undefined ? (
           <View style={styles.playerBox}>
             <RenderPlayer uri={renderSource.uri} style={styles.player} />
+          </View>
+        ) : renderSource.unresolved ? (
+          // The movie has a file and this device could not reach its address.
+          // Falling through to the cuts below would put the raw material on the
+          // stage in the finished movie's place — the substitution 공유 refuses
+          // to make — and it would look like the run had produced nothing.
+          <View style={[styles.empty, { borderColor: theme.border }]}>
+            <ThemedText type="heading">완성 파일을 불러오지 못했어요</ThemedText>
+            <ThemedText themeColor="textSecondary" style={styles.centerText}>
+              연결을 확인하고 다시 시도해주세요.
+            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="완성 파일 다시 불러오기"
+              onPress={renderSource.retry}
+              hitSlop={Spacing.two}
+              style={({ pressed }) => [
+                styles.retry,
+                { borderColor: theme.primary, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <ThemedText selectable={false} type="smallBold" themeColor="primary">
+                다시 시도
+              </ThemedText>
+            </Pressable>
           </View>
         ) : playbackCuts.length > 0 ? (
           <View style={styles.playerBox}>
@@ -144,7 +180,7 @@ export function MovieWatch({
         />
         {sharing.blocked !== undefined ? (
           <ThemedText type="note" themeColor="textSecondary" style={styles.centerText}>
-            아직 완성 파일이 만들어지지 않아 공유할 수 없어요.
+            {ShareBlockMessages[sharing.blocked]}
           </ThemedText>
         ) : sharing.failed ? (
           <ThemedText type="note" themeColor="textSecondary" style={styles.centerText}>
@@ -207,6 +243,15 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   centerText: { textAlign: 'center' },
+  retry: {
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    borderCurve: 'continuous',
+    paddingHorizontal: Spacing.four,
+    minHeight: 40,
+    justifyContent: 'center',
+    marginTop: Spacing.one,
+  },
   notice: {
     borderWidth: 1,
     borderRadius: Radius.medium,

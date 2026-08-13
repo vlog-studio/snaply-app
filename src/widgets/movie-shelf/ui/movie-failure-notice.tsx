@@ -10,6 +10,12 @@ export type MovieFailureNoticeProps = {
   error: string | undefined;
   /** Cuts the movie still holds. Nothing to run means nothing to retry. */
   snapCount: number;
+  /**
+   * Where it is drawn. A grid tile clamps the reason to one line so every cell
+   * in a row keeps the same height; a board row lets it wrap, having the width
+   * for it.
+   */
+  variant?: 'row' | 'tile';
 };
 
 const UnknownError = '알 수 없는 이유로 생성이 멈췄어요.';
@@ -26,14 +32,30 @@ const UnknownError = '알 수 없는 이유로 생성이 멈췄어요.';
  * Retrying is refused rather than offered when the movie has no cuts left: that
  * is the one failure the app can produce today, and a retry would fail again
  * immediately. The card itself opens the movie, which is where cuts come back.
+ *
+ * In the grid the reason is clamped to one line (2026-08-13). The backend words
+ * it, so it can run to any length, and a wrapped sentence in one two-column cell
+ * made its whole row taller than the tiles beside it — a grid is scanned, and a
+ * cell that grows by its content breaks the scan. The reason is not lost: the
+ * movie screen's footer states it in full, and the tile still carries the 실패
+ * badge and the retry that is the point of this notice.
  */
-export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNoticeProps) {
+export function MovieFailureNotice({
+  movieId,
+  error,
+  snapCount,
+  variant = 'row',
+}: MovieFailureNoticeProps) {
   const theme = useTheme();
   const { startGeneration } = useComposeMovie();
 
   return (
     <View style={[styles.notice, { borderColor: theme.danger }]}>
-      <ThemedText type="note" themeColor="danger">
+      <ThemedText
+        type="note"
+        themeColor="danger"
+        numberOfLines={variant === 'tile' ? 1 : undefined}
+      >
         {error ?? UnknownError}
       </ThemedText>
       {snapCount > 0 ? (
@@ -56,7 +78,7 @@ export function MovieFailureNotice({ movieId, error, snapCount }: MovieFailureNo
           </ThemedText>
         </Pressable>
       ) : (
-        <ThemedText type="note" themeColor="textSecondary">
+        <ThemedText type="note" themeColor="textSecondary" numberOfLines={1}>
           무비를 열어 스냅을 다시 넣어주세요.
         </ThemedText>
       )}

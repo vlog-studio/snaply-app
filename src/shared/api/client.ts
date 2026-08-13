@@ -73,6 +73,16 @@ export type ApiRequestOptions<P extends ApiPath, M extends ApiMethod<P>, T> = {
   /** Validates and types the envelope's `data` field. */
   schema: ResponseSchema<OperationOf<P, M>, T>;
   signal?: AbortSignal;
+  /**
+   * Give up after this many milliseconds and fail as a `network_error`.
+   *
+   * Opt-in, because most callers are answered by a screen that can wait: with
+   * no timeout a request to an unreachable host hangs for the platform's own
+   * TCP timeout, and under a retrying query that stacks. Pass it wherever a
+   * screen is *holding a state* on the answer — a spinner with no end is worse
+   * than a failure with a retry.
+   */
+  timeoutMs?: number;
   // `method` may be omitted only where the runtime default (GET) is an
   // operation the spec defines — otherwise omitting it would silently GET a
   // POST-only endpoint.
@@ -135,7 +145,15 @@ async function performRequest<
   T,
   M extends ApiMethod<P> = Extract<'GET', ApiMethod<P>>,
 >(path: P | ResolvedApiPath<P>, options: ApiRequestOptions<P, M, T>): Promise<T> {
-  const { method = 'GET', query, body, schema, signal } = options;
+  const { method = 'GET', query, body, schema, signal, timeoutMs } = options;
+
+  // The caller's own signal still cancels; the deadline only adds a second way
+  // for the request to end. Cleared in `finally` so a fast answer leaves no
+  // timer behind.
+  const deadline = timeoutMs === undefined ? undefined : new AbortController();
+  const timer = deadline === undefined ? undefined : setTimeout(() => deadline.abort(), timeoutMs);
+  const abortDeadline = () => deadline?.abort();
+  signal?.addEventListener('abort', abortDeadline);
 
   let response: Response;
   try {
@@ -143,7 +161,7 @@ async function performRequest<
     // needs to know its values are primitives.
     response = await fetch(buildUrl(path, query as Record<string, QueryValue> | undefined), {
       method,
-      signal,
+      signal: deadline?.signal ?? signal,
       headers: {
         Accept: 'application/json',
         ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -153,6 +171,9 @@ async function performRequest<
     });
   } catch (cause) {
     throw new ApiError('network_error', '네트워크 요청에 실패했습니다.', { cause });
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    signal?.removeEventListener('abort', abortDeadline);
   }
 
   let payload: unknown;

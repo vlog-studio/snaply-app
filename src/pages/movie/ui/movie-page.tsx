@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { movieBgmLabel, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
+import { isAiArranged, movieStyleLabel, useDeleteMovie } from '@/entities/movie';
 import { useComposeMovie, useRenderSource } from '@/features/compose-movie';
 import { RenameMovieSheet } from '@/features/rename-movie';
 import { useShareMovie } from '@/features/share-movie';
@@ -178,6 +178,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const playbackCuts = toPlaybackCuts(cuts);
   const isGenerating = movie.status === 'generating';
   const viewing = movie.status === 'ready' && !editing;
+  // Worded exactly as the 세부 sheet words it, since the chip is that row's
+  // read-out standing outside the sheet.
+  const arrangementLabel = isAiArranged(movie) ? '찍은 시각 순' : '지금 순서';
 
   // The picker is a screen of its own on the root stack, not the Snap tab: a
   // pushed tab route brings a whole second tab navigator with it, and that
@@ -271,6 +274,16 @@ export function MoviePage({ movieId }: MoviePageProps) {
                   onPlayingChange={setIsPlaying}
                   style={styles.player}
                 />
+                {/* What this stage is, in one word: the raw cuts, without the
+                    grading, music, or subtitles the run will add. A sentence
+                    saying so would be the screen explaining itself; the badge
+                    is the state, and it sits opposite the player's own 컷 n/N
+                    so the two never collide. */}
+                <View style={[styles.previewTag, { backgroundColor: theme.media }]}>
+                  <ThemedText selectable={false} type="note" style={styles.previewTagText}>
+                    미리보기
+                  </ThemedText>
+                </View>
               </View>
             ) : (
               <View style={[styles.empty, { borderColor: theme.border }]}>
@@ -364,9 +377,12 @@ export function MoviePage({ movieId }: MoviePageProps) {
                   {movieStyleLabel(movie.style)}
                 </ThemedText>
               </Pressable>
+              {/* The chip's second line is the one thing inside the sheet the
+                  user can still change — since 배경 음악 left it (2026-08-13),
+                  that is 순서 고정, read out in the sheet's own words. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`세부 설정, 배경 음악 ${movieBgmLabel(movie.bgm)}`}
+                accessibilityLabel={`세부 설정, 컷 순서 ${arrangementLabel}`}
                 onPress={() => setDetailOpen(true)}
                 style={[styles.chip, { borderColor: theme.border }]}
               >
@@ -374,7 +390,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
                   세부
                 </ThemedText>
                 <ThemedText selectable={false} type="small" themeColor="textSecondary">
-                  {movieBgmLabel(movie.bgm)}
+                  {arrangementLabel}
                 </ThemedText>
               </Pressable>
             </View>
@@ -422,6 +438,7 @@ export function MoviePage({ movieId }: MoviePageProps) {
                       }}
                       onRemove={list.removeCut}
                       onResetTrim={list.resetTrim}
+                      onDeselect={deselectCut}
                     />
                   ) : undefined
                 }
@@ -436,14 +453,10 @@ export function MoviePage({ movieId }: MoviePageProps) {
         movie={movie}
         cutCount={watchCuts.length}
         totalSec={watchCuts.reduce((sum, cut) => sum + cut.usedSec, 0)}
-        shareBlocked={sharing.blocked !== undefined || sharing.busy}
+        shareBlock={sharing.blocked}
         onEdit={() => {
           setActionsOpen(false);
           openStudio();
-        }}
-        onRename={() => {
-          setActionsOpen(false);
-          setRenaming(true);
         }}
         onShare={() => {
           setActionsOpen(false);
@@ -487,12 +500,13 @@ export function MoviePage({ movieId }: MoviePageProps) {
         movie={movie}
         totalSec={totalSec}
         canEdit={canEdit}
-        onChangeStyle={(patch) => saveStyle(movie.id, patch)}
         onChangeArranger={(locked) => setArranger(movie.id, locked ? 'user' : 'ai')}
         onClose={() => setDetailOpen(false)}
       />
 
-      {/* Keyed by the movie so the field opens on the name that is stored now. */}
+      {/* The studio's ✎ — watch mode renames inside the ⋯ sheet instead, where
+          a second Modal would be racing the first one's animation. Keyed by the
+          movie so the field opens on the name that is stored now. */}
       <RenameMovieSheet
         key={`${movie.id}:${movie.title}`}
         visible={renaming}
@@ -526,6 +540,17 @@ const styles = StyleSheet.create({
   // ratio sets the width, so the timeline never gets pushed off screen.
   playerBox: { flex: 1, aspectRatio: 9 / 16, maxWidth: '100%' },
   player: { width: '100%', height: '100%' },
+  previewTag: {
+    position: 'absolute',
+    top: Spacing.two,
+    right: Spacing.two,
+    borderRadius: Radius.small,
+    borderCurve: 'continuous',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 2,
+  },
+  // Drawn over arbitrary footage, so plain white rather than a palette color.
+  previewTagText: { color: '#FFFFFF' },
   progressScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: Spacing.four },
   centerText: { textAlign: 'center' },
   empty: {

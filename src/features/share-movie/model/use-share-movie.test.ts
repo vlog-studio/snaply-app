@@ -33,7 +33,14 @@ function makeMovie(overrides: Partial<Movie> = {}): Movie {
   };
 }
 
-const resolved = (uri: string | undefined): ShareSource => ({ uri, resolving: false });
+const resolved = (uri: string | undefined): ShareSource => ({
+  uri,
+  resolving: false,
+  unresolved: false,
+});
+
+/** The ask for the address failed and left nothing to play. */
+const unresolved: ShareSource = { uri: undefined, resolving: false, unresolved: true };
 
 beforeEach(() => {
   jest.restoreAllMocks();
@@ -66,6 +73,18 @@ describe('useShareMovie', () => {
     const { result } = await renderHook(() => useShareMovie(makeMovie(), resolved(undefined)));
 
     expect(result.current.blocked).toBe('no-render');
+    await act(async () => result.current.share());
+
+    expect(mockShareFile).not.toHaveBeenCalled();
+  });
+
+  // Same empty uri, opposite situations: a file that was never made, and one
+  // whose address this device could not fetch. Only the second is a connection
+  // problem, and saying "not made yet" about a finished movie is the worse lie.
+  it('tells an unfetched address apart from a movie with no file', async () => {
+    const { result } = await renderHook(() => useShareMovie(makeMovie(), unresolved));
+
+    expect(result.current.blocked).toBe('unresolved');
     await act(async () => result.current.share());
 
     expect(mockShareFile).not.toHaveBeenCalled();

@@ -247,10 +247,12 @@ export const useMovieStore = create<MovieState>()(
                   status: 'ready',
                   // The render remembers what it was made from: the cut list as
                   // the job ends (a mid-job deletion has already stripped its
-                  // refs by now). Frozen here rather than by the caller so no
-                  // runner can finish a job into a render that cannot say.
+                  // refs by now) and the preset it was made with. Frozen here
+                  // rather than by the caller so no runner can finish a job into
+                  // a render that cannot say.
                   render: {
                     ...render,
+                    style: movie.style,
                     snapRefs: [...movie.snapRefs].sort((left, right) => left.order - right.order),
                   },
                   job: undefined,

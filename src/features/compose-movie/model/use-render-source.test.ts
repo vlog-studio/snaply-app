@@ -28,10 +28,11 @@ function makeMovie(render?: Movie['render']): Movie {
 }
 
 function renderSourceHook(movie: Movie | undefined) {
-  // Retries off: the error fallback is the behavior under test, and the
-  // default policy would keep it pending across three retries. `gcTime: 0`
-  // because the default keeps a five-minute cache timer per query, which
-  // holds the Jest process open after the suite ends.
+  // `gcTime: 0` because the default keeps a five-minute cache timer per query,
+  // which holds the Jest process open after the suite ends. Retries are *not*
+  // switched off here any more: the query asks for one of its own (bounding the
+  // wait is the point — see `editedVideoQueries`), which a client default
+  // cannot override, so the failure paths below wait it out instead.
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -54,7 +55,7 @@ describe('useRenderSource', () => {
 
     const { result } = await renderSourceHook(movie);
 
-    expect(result.current).toEqual({ uri: undefined, resolving: true });
+    expect(result.current).toMatchObject({ uri: undefined, resolving: true, unresolved: false });
     await waitFor(() => expect(result.current.resolving).toBe(false));
     expect(mockGetEditedVideo).toHaveBeenCalledWith('result-1', expect.anything());
     expect(result.current.uri).toBe('https://fresh/e.mp4');
@@ -89,8 +90,23 @@ describe('useRenderSource', () => {
 
     const { result } = await renderSourceHook(movie);
 
-    await waitFor(() => expect(result.current.resolving).toBe(false));
+    await waitFor(() => expect(result.current.resolving).toBe(false), { timeout: 5_000 });
     expect(result.current.uri).toBe('https://stored/e.mp4');
+    // Something is left to try, so this is not the unresolved state.
+    expect(result.current.unresolved).toBe(false);
+  });
+
+  // With no stored link either, the ask failing is a *different* empty than a
+  // movie that produced no file — the screens say so, and offer the retry.
+  it('reports an unresolved render when the ask fails with nothing stored', async () => {
+    mockGetEditedVideo.mockRejectedValue(new Error('network'));
+    const movie = makeMovie({ videoId: 'result-1', renderedAt: 1, durationSec: 8 });
+
+    const { result } = await renderSourceHook(movie);
+
+    await waitFor(() => expect(result.current.resolving).toBe(false), { timeout: 5_000 });
+    expect(result.current.uri).toBeUndefined();
+    expect(result.current.unresolved).toBe(true);
   });
 
   it('uses the stored uri outright for a render that kept no result id', async () => {
@@ -98,14 +114,18 @@ describe('useRenderSource', () => {
 
     const { result } = await renderSourceHook(movie);
 
-    expect(result.current).toEqual({ uri: 'https://old/e.mp4', resolving: false });
+    expect(result.current).toMatchObject({
+      uri: 'https://old/e.mp4',
+      resolving: false,
+      unresolved: false,
+    });
     expect(mockGetEditedVideo).not.toHaveBeenCalled();
   });
 
   it('resolves to nothing for a movie without a render', async () => {
     const { result } = await renderSourceHook(makeMovie());
 
-    expect(result.current).toEqual({ uri: undefined, resolving: false });
+    expect(result.current).toMatchObject({ uri: undefined, resolving: false, unresolved: false });
     expect(mockGetEditedVideo).not.toHaveBeenCalled();
   });
 });

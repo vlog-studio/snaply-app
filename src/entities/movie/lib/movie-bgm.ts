@@ -8,11 +8,18 @@ export type MovieBgmOption = {
 /**
  * The background tracks a movie can be scored with (concept §6 step ②).
  *
- * A local constant until the backend serves `GET /bgms`, which is why `Movie.bgm`
- * is a plain string rather than a union: the catalog is going to come from the
- * server, and a movie must keep pointing at a track this build has never heard
- * of. `무음` is a real choice, not the absence of one — a plain style with no
- * music is a look.
+ * **Nothing shows these to the user, and nothing sends one to a run
+ * (2026-08-13).** `POST /edit-jobs` takes no track id — the pipeline picks the
+ * music from the style preset — so the picker that used to stand in the 세부
+ * sheet was choosing something the finished movie then contradicted. The
+ * catalog stays because `Movie.bgm` is still stored and templates still name a
+ * track: this is the seam a real `GET /bgms` lands on, not a live setting.
+ *
+ * A local constant until the backend serves that endpoint, which is why
+ * `Movie.bgm` is a plain string rather than a union: the catalog is going to
+ * come from the server, and a movie must keep pointing at a track this build has
+ * never heard of. `무음` is a real choice, not the absence of one — a plain style
+ * with no music is a look.
  */
 export const MovieBgmCatalog: readonly MovieBgmOption[] = [
   { id: 'lofi-walk', label: 'Lo-fi Walk' },
@@ -24,8 +31,3 @@ export const MovieBgmCatalog: readonly MovieBgmOption[] = [
 
 /** What a movie starts scored with, before the user reaches the style step. */
 export const DefaultMovieBgm = 'lofi-walk';
-
-/** A track's name, falling back to its id for a track this build does not know. */
-export function movieBgmLabel(id: string): string {
-  return MovieBgmCatalog.find((track) => track.id === id)?.label ?? id;
-}

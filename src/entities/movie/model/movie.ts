@@ -86,10 +86,19 @@ export type SnapRef = {
  * playable, not archival: deleting a snap original strips its reference here
  * exactly as it is stripped from the live list, so restoring it can never
  * resurrect a cut with nothing to play.
+ *
+ * `style` is frozen the same way and for the same reason (2026-08-13): the
+ * preset is what the pipeline graded, cut, and scored the file with, and the
+ * movie's live `style` keeps moving after a run — so watch mode, which plays
+ * what was made, has to read the style off the render or it will name a look
+ * the file does not have. Optional on renders stored before the field existed;
+ * a missing one is left unsaid rather than filled in from the live value, since
+ * that is the value that may have drifted.
  */
 export type MovieRender = {
   uri?: string;
   videoId?: string;
+  style?: MovieStyle;
   /**
    * The render's own cover image, as a **local** file — the backend's
    * thumbnail brought onto the device.
@@ -165,7 +174,11 @@ export type Movie = {
   updatedAt: number;
   snapRefs: SnapRef[];
   style: MovieStyle;
-  /** Track identifier from the BGM catalog. */
+  /**
+   * Track identifier from the BGM catalog. Stored and defaulted, but **read by
+   * nothing** since 2026-08-13: the pipeline scores a run from the style preset
+   * and `POST /edit-jobs` takes no track id, so no screen offers or names one.
+   */
   bgm: string;
   /** Whether generation should burn in automatic subtitles. */
   captions: boolean;

@@ -34,7 +34,7 @@ Project addition (`Derived Principle`): **no explanatory UI copy.** Screens do n
 | 계속 | 만들기 시작하기 | Removes "continue to *what*?" |
 | 제출 | 가입하고 시작하기 | Outcome, not mechanism |
 | 설정 저장 | 알림 켜기 | Describes the effect, not the persistence |
-| 선택 완료 | 스냅 6개 담기 | Carries the object and the count |
+| 선택 완료 | 이 무비에 넣기 | Names the destination the selection is headed for |
 | 삭제 | 스냅 3개 삭제 | Names what is destroyed |
 
 **Construction.** `[object] + [verb]`, imperative-neutral form (`-기` or `-하기`). Include a count when the action operates on a selection. Keep it short enough to fit one line at the largest supported font scale — shorten the phrase, never its meaning; the full phrase belongs in the accessibility label.
@@ -147,7 +147,9 @@ Fixed product vocabulary. Use exactly these words; never introduce a synonym.
 | 스튜디오 | The tab where a movie is started | 홈, 메인 |
 | 가져오기 | Importing from the gallery | 업로드, 임포트 |
 
-`트레이` and `담기` left the vocabulary with the tray's removal (2026-08-12); picks now go straight into a movie (`이 스냅으로 새 무비`, `스냅 더 넣기`). Do not reintroduce them.
+`트레이` left the vocabulary with the tray's removal (2026-08-12): picks now go straight into a movie (`이 스냅으로 새 무비`, `스냅 더 넣기`), and no surface may name a destination other than a movie. Do not reintroduce it.
+
+`담기` / `담김` stayed, because it names the **act** of taking a snap and the confirmation that one was taken, which no other word covers: the shutter's `꾹 눌러 담기` and `다시 담기`, the `담김 · 스냅 N개` badge after a capture or an extraction, and the picker cell's `담김` badge for a snap the target movie already holds. Use it for the act and its confirmation only — never for a place things are collected into, which is what the tray was.
 
 Internal vocabulary that must never appear on screen: queue, job, sync, geofence, model, generation id, error codes, enum values, route names.
 

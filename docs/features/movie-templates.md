@@ -18,13 +18,17 @@ Users pick the shape of the movie first — 동네 산책, 하루 요약 — and
 
 This is the second way into a movie and it sits beside hand-picking rather than replacing it: picked snaps are "make a movie out of *these*", a template is "make me something like *this*". Both entries stay on the studio ([Studio and movies](studio.md)).
 
+## Status summary
+
+`Functional` — every step runs for real: the catalog ships with the build, the match is pure and unit-tested, shooting for an empty slot round-trips through `/capture`, and `이대로 만들기` creates a real editable draft. No integration or platform path is missing, which is why this is not `Partial`; the matcher's narrowness (timestamps and coordinates only) is the product's scope, not an unfinished connection. The one open defect is copy, not behavior — nothing on the screen says what the `NN%` measures (see [Known limitations](#known-limitations)).
+
 ## What the match can and cannot do
 
 **The app has never looked at a picture.** It has no scene classifier, no object detection, and no server to ask. Everything the match knows is a timestamp and, when one was recorded, a pair of coordinates ([Capture flow](capture-flow.md), [Snap library](snaps.md)).
 
 So the match answers one question — *which snaps were shot on the same outing* — and lays that outing into the template's slots in the order it happened. A slot's name (`골목`, `가게`) is shooting direction for a person, never a claim about what the snap in it contains.
 
-The screen used to say so in as many words. The `AI가 고른 이유` panel that carried the sentence was removed on 2026-08-03 — it ran four lines deep and pushed the slots themselves under the fold, which is the one thing the screen exists to show. The disclosure that remains is the per-row `같은 외출 확신 NN%`, which names its own basis and so still declines to claim recognition, but it states the basis rather than the limit. That gap is recorded under [Known limitations](#known-limitations).
+The screen used to say so in as many words. Two edits on 2026-08-03 removed both places it said it: the `AI가 고른 이유` panel that carried the sentence (four lines deep, pushing the slots themselves — the one thing the screen exists to show — under the fold), and then the per-row `같은 외출 확신 NN%` caption, which at least named the number's basis. What is left is a bare `NN%` and a layout that keeps it away from the slot label. **No words on the screen state the limit or the basis any more**; that gap is the screen's one open issue, recorded under [Known limitations](#known-limitations).
 
 | Step | Rule |
 | --- | --- |

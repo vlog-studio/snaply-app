@@ -111,7 +111,7 @@ Index:
 
 `Toss Principle` — ambiguous CTA labels are a published prohibition; the first writing principle asks whether the copy hints at the next screen ([UI/UX 가이드](https://developers-apps-in-toss.toss.im/design/consumer-ux-guide), [8 writing principles](https://toss.tech/article/8-writing-principles-of-toss)) · derives from P2, P3
 
-**Definition.** A CTA names the result it produces, in the user's words: `알림 받기`, `무비 만들기`, `스냅 담기`. Generic labels (`확인`, `완료`, `계속`, `다음`) are allowed only where the result is already unambiguous from context.
+**Definition.** A CTA names the result it produces, in the user's words: `알림 받기`, `무비 만들기`, `이 스냅으로 새 무비`. Generic labels (`확인`, `완료`, `계속`, `다음`) are allowed only where the result is already unambiguous from context.
 
 **User Problem.** A user who cannot predict a button's result hesitates, taps to find out, and then needs to undo — or does not tap at all. Ambiguity is worst exactly where the action is consequential.
 
@@ -352,7 +352,7 @@ Index:
 **Exceptions.**
 - **Diagnostics deliberately surfaced for support** (a short error reference under a disclosure) — clearly separated from the human message.
 - **Established real-world domain terms** the user already owns.
-- **Our own coined product terms** (`스냅`, `트레이`, `무비`, `스튜디오`), which are allowed and must stay consistent.
+- **Our own coined product terms** (`스냅`, `무비`, `컷`, `스튜디오`), which are allowed and must stay consistent. `트레이` left this list with the tray's removal (2026-08-12) — see [UX writing](ux-writing.md#terminology).
 
 ---
 

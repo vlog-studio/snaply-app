@@ -39,7 +39,7 @@ Options must be mutually exclusive and collectively cover the user's cases — o
 - **Knows.** How many are selected right now, and what the next step will do with them.
 - **First.** The items, with selection state unmistakable (not color alone).
 - **Default.** Nothing pre-selected, unless resuming a prior selection the user made. Provide select-all / clear only when lists are long.
-- **CTA.** One commit CTA carrying the count and the outcome: `스냅 6개 담기`. Disabled at zero, with the reason evident from the count read-out.
+- **CTA.** One commit CTA naming what the selection becomes: `이 스냅으로 새 무비`, `이 무비에 넣기`. Disabled at zero, with the reason evident from the count read-out pinned beside it.
 - **Disclosure.** Keep the selection count pinned to the commit control so the user never scrolls to check (`Recall Tax`).
 
 Entry into selection mode is one app-wide pattern (`Consistent Interaction Pattern`), and exiting it must not lose the selection unintentionally.

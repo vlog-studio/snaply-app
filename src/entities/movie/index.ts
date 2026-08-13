@@ -2,6 +2,7 @@ export {
   getMovieById,
   useAdvanceMovieJob,
   useBeginMovieJob,
+  useCancelMovieJob,
   useCreateMovie,
   useDeleteMovie,
   useFailMovieJob,

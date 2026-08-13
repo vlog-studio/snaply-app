@@ -4,6 +4,7 @@ import { AppState } from 'react-native';
 import {
   cutsDurationSec,
   useAdvanceMovieJob,
+  useCancelMovieJob,
   useFailMovieJob,
   useFinishMovieJob,
   useMovies,
@@ -18,6 +19,7 @@ import { getEditedVideo } from '../api/get-edited-video';
 import { getEditJob } from '../api/get-edit-job';
 import { subscribeEditProgress } from '../api/subscribe-edit-progress';
 import { announceJobEnd } from '../lib/announce-job-end';
+import { editFailureMessage } from '../lib/edit-failure-copy';
 
 /**
  * How often a running job is asked about over HTTP, on top of its socket.
@@ -35,9 +37,6 @@ const LostMaterialError = '이 무비가 쓰던 스냅 원본이 모두 지워�
 
 /** The backend has never heard of this job — see the stale-job note below. */
 const UnknownJobError = '이 무비의 편집 작업을 서버에서 찾을 수 없어요. 다시 만들어주세요.';
-
-/** A run that failed without saying why. */
-const UnexplainedError = '만들지 못했어요. 다시 시도해주세요.';
 
 export type GenerationRunnerOptions = {
   /** Whether a job ending should raise a notification. Off unless asked for. */
@@ -80,6 +79,7 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
   const advanceMovieJob = useAdvanceMovieJob();
   const finishMovieJob = useFinishMovieJob();
   const failMovieJob = useFailMovieJob();
+  const cancelMovieJob = useCancelMovieJob();
   const setRenderThumbnail = useSetRenderThumbnail();
 
   // Only jobs in flight matter, and the identity of this list is what re-opens
@@ -128,10 +128,18 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
         (snapId) => latest.current.snapIndex.get(snapId)?.durationSec,
       );
 
-    const fail = (movie: Movie, error: string) => {
+    const fail = (movie: Movie, error: string, detail?: string) => {
       settled.add(movie.id);
-      failMovieJob(movie.id, error);
+      failMovieJob(movie.id, error, detail);
       if (latest.current.announce) announceJobEnd('failed', movie, error);
+    };
+
+    // A canceled run is not a failure: the movie goes back to being the draft
+    // it was, and nobody is notified — the stop was asked for, on this device
+    // or another session of the same account (account deletion cancels too).
+    const cancel = (movieId: string) => {
+      settled.add(movieId);
+      cancelMovieJob(movieId);
     };
 
     const finish = (
@@ -212,7 +220,14 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
       if (!current || current.status !== 'generating') return;
 
       if (state.status === 'failed') {
-        fail(current, state.errorMessage ?? UnexplainedError);
+        // The reason is worded from the classification code — the server's
+        // `errorMessage` is its own diagnostic, carried along as the demoted
+        // detail line rather than spoken as the reason (2026-08-13).
+        fail(current, editFailureMessage(state.errorCode), state.errorMessage);
+        return;
+      }
+      if (state.status === 'canceled') {
+        cancel(movieId);
         return;
       }
       if (state.status !== 'done') {
@@ -262,7 +277,11 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
           }
           if (event.kind === 'failed') {
             const movie = movieById(movieId);
-            if (movie) fail(movie, event.error ?? UnexplainedError);
+            if (movie) fail(movie, editFailureMessage(event.code), event.error);
+            return;
+          }
+          if (event.kind === 'canceled') {
+            cancel(movieId);
             return;
           }
           // `done` carries the file's URL, but not the thumbnail, the measured
@@ -303,6 +322,7 @@ export function useGenerationRunner({ announce = false }: GenerationRunnerOption
     advanceMovieJob,
     finishMovieJob,
     failMovieJob,
+    cancelMovieJob,
     setRenderThumbnail,
   ]);
 }

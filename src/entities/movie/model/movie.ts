@@ -196,4 +196,12 @@ export type Movie = {
   render?: MovieRender;
   /** Why the last generation failed, for the recovery UI. */
   error?: string;
+  /**
+   * The server's own diagnostic for that failure, when it sent one. **Not user
+   * copy** — the backend is explicit that `errorMessage` is for diagnosis and
+   * the app words `error` from the failure's classification code instead
+   * (2026-08-13). Kept because "서버 오류" alone is nothing to report a bug
+   * with; shown only as a demoted detail line under the worded reason.
+   */
+  errorDetail?: string;
 };

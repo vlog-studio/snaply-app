@@ -14,6 +14,8 @@ const mockGetMovieById = jest.fn<Movie | undefined, [string]>();
 const mockSnapIndex = jest.fn<[string, { capturedAt: number }][], []>();
 const mockSyncEntries = jest.fn<Record<string, { status: string; videoId?: string }>, []>();
 const mockCreateEditJob = jest.fn();
+const mockCancelEditJob = jest.fn();
+const mockCancelMovieJob = jest.fn();
 
 // Mock each dependency at its slice Public API so the test stays at the seam.
 jest.mock('@/entities/movie', () => {
@@ -30,6 +32,7 @@ jest.mock('@/entities/movie', () => {
     useUpdateMovieStyle: () => mockUpdateMovieStyle,
     useSetMovieArranger: () => mockSetMovieArranger,
     useBeginMovieJob: () => mockBeginMovieJob,
+    useCancelMovieJob: () => mockCancelMovieJob,
   };
 });
 jest.mock('@/entities/snap', () => ({
@@ -41,6 +44,9 @@ jest.mock('@/shared/lib/supabase', () => ({
 }));
 jest.mock('../api/create-edit-job', () => ({
   createEditJob: (...args: unknown[]) => mockCreateEditJob(...args),
+}));
+jest.mock('../api/cancel-edit-job', () => ({
+  cancelEditJob: (...args: unknown[]) => mockCancelEditJob(...args),
 }));
 
 function makeMovie(overrides: Partial<Movie> = {}): Movie {
@@ -637,5 +643,93 @@ describe('startGeneration', () => {
     expect(mockBeginMovieJob).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('network_error'));
     warnSpy.mockRestore();
+  });
+});
+
+describe('cancelGeneration', () => {
+  const startedAt = 1_754_000_000_000;
+  const generating = () =>
+    makeMovie({ status: 'generating', job: { id: 'job-1', progress: 40, startedAt } });
+
+  beforeEach(() => {
+    mockGetMovieById.mockReturnValue(generating());
+    mockCancelEditJob.mockResolvedValue(undefined);
+  });
+
+  it('cancels the run on the server, then returns the movie to a draft', async () => {
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.cancelGeneration('m1');
+    });
+
+    expect(mockCancelEditJob).toHaveBeenCalledWith('job-1');
+    expect(mockCancelMovieJob).toHaveBeenCalledWith('m1');
+    expect(outcome).toEqual({ canceled: true });
+  });
+
+  // The movie may leave `generating` only on the server's word — flipping it
+  // first would let a run that kept going finish into a state not expecting it.
+  it('leaves the movie generating when the request itself fails', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    mockCancelEditJob.mockRejectedValue(new ApiError('network_error', 'network'));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.cancelGeneration('m1');
+    });
+
+    expect(mockCancelMovieJob).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ canceled: false, refused: 'unreachable' });
+    warnSpy.mockRestore();
+  });
+
+  // A 409 means the run ended while the request was in flight; the result is
+  // already arriving through the runner, so there is nothing to change here.
+  it('reports a run that finished first as settled, changing nothing', async () => {
+    mockCancelEditJob.mockRejectedValue(new ApiError('CONFLICT', 'done', { status: 409 }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.cancelGeneration('m1');
+    });
+
+    expect(mockCancelMovieJob).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ canceled: false, refused: 'settled' });
+  });
+
+  // A job the backend has never heard of is not running — which is exactly what
+  // the user asked for, so the movie goes back to a draft all the same.
+  it('returns the movie to a draft when the backend has never heard of the job', async () => {
+    mockCancelEditJob.mockRejectedValue(new ApiError('not_found', 'no job', { status: 404 }));
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.cancelGeneration('m1');
+    });
+
+    expect(mockCancelMovieJob).toHaveBeenCalledWith('m1');
+    expect(outcome).toEqual({ canceled: true });
+  });
+
+  it.each([
+    ['a movie no job owns', makeMovie({ status: 'draft' })],
+    ['an unknown movie', undefined],
+  ])('refuses %s without asking the server', async (_label, movie) => {
+    mockGetMovieById.mockReturnValue(movie);
+    const { result } = await renderHook(() => useComposeMovie());
+
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.cancelGeneration('m1');
+    });
+
+    expect(mockCancelEditJob).not.toHaveBeenCalled();
+    expect(mockCancelMovieJob).not.toHaveBeenCalled();
+    expect(outcome).toEqual({ canceled: false, refused: 'settled' });
   });
 });

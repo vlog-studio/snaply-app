@@ -18,5 +18,10 @@ export const editedVideoQueries = {
       queryKey: [...editedVideoQueries.all(), videoId] as const,
       queryFn: ({ signal }) => getEditedVideo(videoId, signal),
       staleTime: 0,
+      // One retry rather than the client's two: the screens that ask are
+      // holding a spinner on the answer, and each attempt already carries its
+      // own deadline — so the whole wait stays inside what a user will sit
+      // through, and a real failure reaches them with a retry of their own.
+      retry: 1,
     }),
 };

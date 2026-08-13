@@ -124,7 +124,12 @@ export function MovieTile({
         {movie.dateLabel} · 스냅 {movie.snapCount}
       </ThemedText>
       {movie.status === 'failed' ? (
-        <MovieFailureNotice movieId={movie.id} error={movie.error} snapCount={movie.snapCount} />
+        <MovieFailureNotice
+          movieId={movie.id}
+          error={movie.error}
+          snapCount={movie.snapCount}
+          variant="tile"
+        />
       ) : null}
     </Pressable>
   );

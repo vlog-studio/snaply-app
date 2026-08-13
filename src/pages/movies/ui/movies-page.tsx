@@ -13,6 +13,7 @@ import { useDeleteMovie, useMovieById } from '@/entities/movie';
 import { useRenderSource } from '@/features/compose-movie';
 import { useShareMovie } from '@/features/share-movie';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
+import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
   MaxContentWidth,
@@ -37,6 +38,11 @@ const Columns = 2;
  * Drafts sit in the same grid as finished movies rather than in a separate
  * section: they are the same object at a different point in its life, and the
  * status badge is what distinguishes them.
+ *
+ * An empty library offers the way to fill it (2026-08-13): the same act the
+ * studio's 새 무비 row starts, in the same words and to the same screen. A tab
+ * whose empty state only states that it is empty makes the user go and find the
+ * entrance somewhere else, which is the one thing an empty state must not do.
  *
  * Acting on movies is selection mode, the same shape as the snap library: a
  * long press (or the header's 선택) selects instead of opening a sheet, taps
@@ -166,8 +172,11 @@ export function MoviesPage() {
           <View style={styles.titleRow}>
             <View style={styles.titleText}>
               <ThemedText type="title">무비</ThemedText>
+              {/* "모두" because the grid holds drafts and failures too: a bare
+                  count under a 무비 heading reads as a count of finished ones,
+                  and the number would then contradict what the tiles say. */}
               <ThemedText type="small" themeColor="textSecondary">
-                {movies.length}편
+                모두 {movies.length}편
               </ThemedText>
             </View>
             {movies.length > 0 ? (
@@ -206,8 +215,19 @@ export function MoviesPage() {
             ))}
           </View>
         ) : (
+          // An empty library still has to offer the one act that fills it:
+          // without this the tab is a dead end, and making a movie means
+          // knowing to go and find the studio's own entrance. Same act, same
+          // destination, and the same words the studio uses for it — this is a
+          // second door, not a second feature.
           <View style={[styles.empty, { borderColor: theme.border }]}>
             <ThemedText type="heading">아직 만든 무비가 없어요</ThemedText>
+            <SnaplyButton
+              accessibilityLabel="스냅 골라서 새 무비 만들기"
+              title="스냅 골라 새 무비"
+              onPress={() => router.push({ pathname: '/snaps', params: { select: '1' } })}
+              style={styles.emptyAction}
+            />
           </View>
         )}
       </ScrollView>
@@ -215,7 +235,8 @@ export function MoviesPage() {
       {selecting ? (
         <MovieSelectionBar
           selectedCount={picked.length}
-          shareBlocked={sharing.blocked !== undefined || sharing.busy}
+          shareBlock={sharing.blocked}
+          shareBusy={sharing.busy}
           onShare={share}
           onDelete={openDelete}
           onClear={() => setPicked([])}
@@ -264,4 +285,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
   },
+  // Wide enough to read as the block's action rather than as a chip, without
+  // stretching to the dashed border it sits inside.
+  emptyAction: { alignSelf: 'stretch', marginTop: Spacing.one },
 });

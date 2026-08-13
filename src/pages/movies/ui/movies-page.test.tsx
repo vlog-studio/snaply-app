@@ -29,6 +29,11 @@ jest.mock('@/entities/movie', () => ({
 
 jest.mock('@/features/share-movie', () => ({
   useShareMovie: () => ({ blocked: 'no-render', busy: false, failed: false, share: mockShare }),
+  // The bar words the block from this table, so the mock has to carry it.
+  ShareBlockMessages: {
+    'no-render':
+      '\uC544\uC9C1 \uC644\uC131 \uD30C\uC77C\uC774 \uB9CC\uB4E4\uC5B4\uC9C0\uC9C0 \uC54A\uC544 \uACF5\uC720\uD560 \uC218 \uC5C6\uC5B4\uC694.',
+  },
 }));
 
 jest.mock('@/features/compose-movie', () => ({
@@ -85,11 +90,23 @@ const firstTitle = '\uBB34\uBE44 \uCCAB\uC9F8'; // 무비 첫째
 const secondTitle = '\uBB34\uBE44 \uB458\uC9F8'; // 무비 둘째
 const selectLabel = '\uBB34\uBE44 \uC120\uD0DD'; // 무비 선택
 const cancelLabel = '\uC120\uD0DD \uCDE8\uC18C'; // 선택 취소
+const emptyActionLabel = '\uC2A4\uB0C5 \uACE8\uB77C\uC11C \uC0C8 \uBB34\uBE44 \uB9CC\uB4E4\uAE30'; // 스냅 골라서 새 무비 만들기
 
 describe('MoviesPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockMovies = [makeSummary(), makeSummary({ id: 'm2', title: secondTitle })];
+  });
+
+  // An empty library is where a user most needs the way to fill it; the tab
+  // has no other entrance of its own.
+  it('offers the snap picker when there are no movies', async () => {
+    mockMovies = [];
+    await render(<MoviesPage />);
+
+    await fireEvent.press(screen.getByRole('button', { name: emptyActionLabel }));
+
+    expect(mockPush).toHaveBeenCalledWith({ pathname: '/snaps', params: { select: '1' } });
   });
 
   it('opens a movie on tap while not selecting', async () => {
@@ -156,13 +173,14 @@ describe('MoviesPage', () => {
     expect(screen.queryByText('2\uD3B8 \uC120\uD0DD')).toBeNull(); // 2편 선택
   });
 
-  it('never offers rename or share in the bar while no movie has a rendered file', async () => {
+  it('never offers rename in the bar, and disables share with no rendered file', async () => {
     await render(<MoviesPage />);
 
     await fireEvent(screen.getByRole('button', { name: firstTitle }), 'longPress');
 
     // Renaming belongs to the movie screen, not the grid's selection bar.
     expect(screen.queryByRole('button', { name: '\uC774\uB984 \uBC14\uAFB8\uAE30' })).toBeNull(); // 이름 바꾸기
-    expect(screen.queryByRole('button', { name: '\uACF5\uC720' })).toBeNull(); // 공유
+    // Share stays on display and states its reason instead of disappearing.
+    expect(screen.getByRole('button', { name: '\uACF5\uC720' })).toBeDisabled(); // 공유
   });
 });

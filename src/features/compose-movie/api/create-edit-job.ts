@@ -108,10 +108,11 @@ function createMock(input: CreateEditJobInput): Promise<string> {
  * movie feature document for what that means on screen. The spec has since
  * gained a `subtitles` flag (default false) that this call does not send yet,
  * so `Movie.captions` still decides nothing. Everything
- * it *can* refuse it refuses with a `403`: a video that is not the caller's, is not
- * `ready`, or is itself a generated result, and the free plan's monthly cap.
- * Both cases share the code `FORBIDDEN` and differ only in the message, so the
- * message is what the user is shown.
+ * it *can* refuse it refuses with a `403`: a video that is not the caller's, is
+ * not `ready`, or is itself a generated result. There is no plan-based quota
+ * among them — the free plan's monthly cap was retired on the backend — but every
+ * cause there is, and every one added later, shares the code `FORBIDDEN` and
+ * differs only in the message, so the message is what the user is shown.
  *
  * Routes to the mock until an API origin is configured.
  */

@@ -18,11 +18,23 @@ const videoSchema = z.object({
   durationSeconds: z.number().nullable(),
 });
 
+/**
+ * How long to wait for the address before failing.
+ *
+ * The screens that ask hold a state on the answer — watch mode's stage says
+ * 불러오는 중… and 공유 stays disabled — so an unbounded wait is a spinner that
+ * never resolves. One row by id is a fast query when the server is there at
+ * all; when it is not, the request would otherwise hang for the platform's TCP
+ * timeout and do it again per retry.
+ */
+const AddressTimeoutMs = 8_000;
+
 async function getFromApi(videoId: string, signal?: AbortSignal): Promise<EditedVideo> {
   const dto = await apiRequest(apiPath('/videos/{id}', { id: videoId }), {
     method: 'GET',
     schema: videoSchema,
     signal,
+    timeoutMs: AddressTimeoutMs,
   });
   return {
     ...(dto.editedUrl ? { editedUrl: dto.editedUrl } : null),

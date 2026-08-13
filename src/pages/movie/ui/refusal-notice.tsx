@@ -15,8 +15,9 @@ export const CutsRefusalMessages: Record<CutsRefusal, string> = {
  * Why a run could not be started, in the user's words.
  *
  * `rejected` has no entry: that refusal carries the backend's own message, which
- * is the only thing that distinguishes an ownership problem from the free plan's
- * monthly cap — both arrive as one status with one code.
+ * is the only thing that tells one cause from another — an ownership problem, a
+ * video that is not ready, and whatever the backend refuses next all arrive as
+ * one status with one code.
  */
 export const GenerationRefusalMessages: Record<Exclude<GenerationRefusal, 'rejected'>, string> = {
   empty: '컷이 하나도 없어서 만들 수 없어요. 스냅을 먼저 넣어주세요.',

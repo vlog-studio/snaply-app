@@ -47,8 +47,10 @@ export type CutsOutcome = {
  * when one of them is missing, so this is checked here rather than discovered as
  * a `403` after the user has pressed the button.
  * `rejected` — the backend refused the run: not the caller's video, a video that
- * is not ready, or the free plan's monthly cap. It carries the server's own
- * message, because a `403` does not say which of those it was.
+ * is not ready, or one that is itself a generated result. It carries the server's
+ * own message, because a `403` does not say which of those it was — and the set
+ * can grow (a credit balance is the backend's decided next one), which is the
+ * other reason nothing here rewords it.
  * `unreachable` — the request itself failed. Nothing was queued and the movie is
  * left exactly as it was, so pressing again is the whole recovery.
  */
@@ -59,8 +61,8 @@ export type GenerationOutcome = {
   refused?: GenerationRefusal;
   /**
    * What the backend said, for the refusals only it can explain (`rejected`).
-   * Shown as-is: the server distinguishes an ownership problem from a plan limit
-   * in the message and nowhere else.
+   * Shown as-is: the server distinguishes one cause from another in the message
+   * and nowhere else, so wording it here would mean guessing which one it was.
    */
   message?: string;
 };

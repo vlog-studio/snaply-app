@@ -16,6 +16,8 @@ export type CutInspectorProps = {
   onMove: (index: number, direction: -1 | 1) => void;
   onRemove: (index: number) => void;
   onResetTrim: (index: number) => void;
+  /** Lets the cut go, which brings the generate button back to this slot. */
+  onDeselect: () => void;
 };
 
 /**
@@ -32,6 +34,15 @@ export type CutInspectorProps = {
  * is changed with ◀ ▶ rather than by dragging: two buttons are reachable
  * one-handed, work with assistive touch, and need no gesture arbitration; a
  * drag strip can replace them later without changing what is committed.
+ *
+ * Two things about the row's edges (2026-08-13). Removing a cut is a **trash**
+ * icon, not the ✕ it used to be: ✕ closes things everywhere else in the app, so
+ * the one control here that destroys something was wearing the app's dismiss
+ * sign. And the row now opens with that dismissal for real — the leading ✕ lets
+ * the cut go, which is what puts the generate button back in this slot. Letting
+ * go was previously only a tap on the strip's empty space, which is a thing to
+ * know rather than a thing to see, and it is the way back to the screen's own
+ * next step.
  */
 export function CutInspector({
   cut,
@@ -41,6 +52,7 @@ export function CutInspector({
   onMove,
   onRemove,
   onResetTrim,
+  onDeselect,
 }: CutInspectorProps) {
   const theme = useTheme();
   const number = index + 1;
@@ -71,6 +83,16 @@ export function CutInspector({
 
   return (
     <View style={styles.inspector}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="컷 선택 해제"
+        hitSlop={6}
+        onPress={onDeselect}
+        style={({ pressed }) => [styles.release, { opacity: pressed ? 0.6 : 1 }]}
+      >
+        <Ionicons name="close" size={20} color={theme.textSecondary} />
+      </Pressable>
+
       <View style={styles.meta}>
         <View style={styles.metaLine}>
           <ThemedText type="smallBold">
@@ -115,7 +137,11 @@ export function CutInspector({
           onPress={() => onRemove(index)}
           style={[styles.tool, { borderColor: theme.border }]}
         >
-          <Ionicons name="close" size={18} color={canRemove ? theme.danger : theme.textSecondary} />
+          <Ionicons
+            name="trash-outline"
+            size={18}
+            color={canRemove ? theme.danger : theme.textSecondary}
+          />
         </Pressable>
       </View>
     </View>
@@ -129,6 +155,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.three,
   },
+  // Narrower than a bordered tool and unbordered: it dismisses the row rather
+  // than acting on the cut, and the row is one button tall for every occupant.
+  release: { width: 32, height: 40, alignItems: 'flex-start', justifyContent: 'center' },
   meta: { flex: 1, gap: Spacing.half },
   metaLine: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
   readout: { flexShrink: 1 },

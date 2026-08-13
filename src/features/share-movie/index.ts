@@ -1,4 +1,5 @@
 export {
+  ShareBlockMessages,
   useShareMovie,
   type MovieSharing,
   type ShareBlock,

@@ -8,10 +8,21 @@ import { downloadRenderFile } from '../api/download-render-file';
 /**
  * Why a movie cannot be handed to the share sheet.
  *
- * `no-render` — there is no rendered file to share (the movie never produced
- * one, or its address is still being resolved).
+ * `no-render` — there is no rendered file to share: the movie never produced
+ * one (mock mode, or a render from before the backend composited anything).
+ * `unresolved` — there **is** a file and its address could not be fetched
+ * (2026-08-13). Two opposite situations arrive as the same empty `uri`, and
+ * telling the user a finished movie was never finished is the worse of the two
+ * lies; separating them also makes the fix sayable — one waits on a run, the
+ * other on a connection.
  */
-export type ShareBlock = 'no-render';
+export type ShareBlock = 'no-render' | 'unresolved';
+
+/** What each block says, so three surfaces cannot word the same rule differently. */
+export const ShareBlockMessages: Record<ShareBlock, string> = {
+  'no-render': '아직 완성 파일이 만들어지지 않아 공유할 수 없어요.',
+  unresolved: '완성 파일을 불러오지 못했어요. 연결을 확인해주세요.',
+};
 
 /**
  * The rendered file as the caller has resolved it — structurally the shape
@@ -24,6 +35,8 @@ export type ShareSource = {
   /** The file's address, fresh. `undefined` while resolving or when none exists. */
   uri: string | undefined;
   resolving: boolean;
+  /** The address could not be fetched, though the movie has a file. */
+  unresolved: boolean;
 };
 
 export type MovieSharing = {
@@ -94,5 +107,11 @@ export function useShareMovie(movie: Movie | undefined, source: ShareSource): Mo
     })();
   };
 
-  return { blocked: uri ? undefined : 'no-render', busy, failed, share };
+  const blocked: ShareBlock | undefined = uri
+    ? undefined
+    : source.unresolved
+      ? 'unresolved'
+      : 'no-render';
+
+  return { blocked, busy, failed, share };
 }

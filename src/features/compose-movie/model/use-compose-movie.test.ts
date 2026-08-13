@@ -602,12 +602,13 @@ describe('startGeneration', () => {
     expect(mockBeginMovieJob).not.toHaveBeenCalled();
   });
 
-  // A 403 is an ownership problem or the free plan's cap, and only the message
-  // says which — so it is carried through rather than reworded.
+  // Every cause of a 403 shares one code and only the message says which one it
+  // was — so it is carried through rather than reworded. The fixture is the
+  // server's own ownership/state sentence.
   it('reports the backend’s own words when it refuses the run', async () => {
     const reason =
-      '\uBB34\uB8CC \uD50C\uB79C\uC740 \uC6D4 3\uD3B8\uAE4C\uC9C0 \uD3B8\uC9D1\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.';
-    // 무료 플랜은 월 3편까지 편집할 수 있습니다.
+      '\uD3B8\uC9D1\uD560 \uC218 \uC5C6\uB294 \uC601\uC0C1\uC774 \uD3EC\uD568\uB418\uC5B4 \uC788\uC2B5\uB2C8\uB2E4.';
+    // 편집할 수 없는 영상이 포함되어 있습니다.
     mockCreateEditJob.mockRejectedValue(
       new ApiError('generation_rejected', reason, { status: 403 }),
     );

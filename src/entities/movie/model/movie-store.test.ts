@@ -414,6 +414,25 @@ describe('generating a movie', () => {
     ]);
   });
 
+  // Watch mode names the style off the render, so it has to be the preset the
+  // run was made with — a finished movie's style may be changed in the studio
+  // without the movie being made again.
+  it('freezes the style the run was made with, and keeps it through a later change', async () => {
+    useMovieStore.setState({ movies: [{ ...makeMovie('m1', ['s1']), style: 'travel' }] });
+    const { result } = await renderHook(() => ({
+      begin: useBeginMovieJob(),
+      finish: useFinishMovieJob(),
+      updateStyle: useUpdateMovieStyle(),
+    }));
+
+    await act(async () => result.current.begin('m1', 'job-abc', startedAt));
+    await act(async () => result.current.finish('m1', render, 999));
+    await act(async () => result.current.updateStyle('m1', { style: 'emotional' }, 1_000));
+
+    expect(useMovieStore.getState().movies[0].style).toBe('emotional');
+    expect(useMovieStore.getState().movies[0].render?.style).toBe('travel');
+  });
+
   // The cover arrives after the movie is already `ready` (the download does not
   // gate the result), so it is written by its own action — and only onto the
   // render it was made for.

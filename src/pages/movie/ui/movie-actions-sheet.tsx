@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import type { Movie } from '@/entities/movie';
+import { RenameMovieForm } from '@/features/rename-movie';
+import { ShareBlockMessages, type ShareBlock } from '@/features/share-movie';
 import { formatSeconds } from '@/shared/lib/datetime';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -16,10 +18,9 @@ export type MovieActionsSheetProps = {
   cutCount: number;
   /** How long it plays, for the delete step. */
   totalSec: number;
-  /** True while the movie has no rendered file to hand to the share sheet. */
-  shareBlocked: boolean;
+  /** Why the movie cannot be handed to the share sheet, if it cannot. */
+  shareBlock: ShareBlock | undefined;
   onEdit: () => void;
-  onRename: () => void;
   onShare: () => void;
   /** Actually deletes — the confirm step inside this sheet has been passed. */
   onConfirmDelete: () => void;
@@ -31,33 +32,38 @@ export type MovieActionsSheetProps = {
  * back bar's ⋯ — so the mode's own surface stays a player, and switching to
  * the studio is a named choice rather than the screen's default.
  *
- * Deleting confirms as a second step *inside the same sheet* instead of a
- * second sheet: two platform Modals swapping visibility race each other's
- * animations, and the movie tab's grid never has this problem because its
- * delete sheet is its only one. The step resets whenever the sheet is left,
- * so it always reopens on the menu.
+ * Deleting and renaming both happen as a second step *inside this sheet*
+ * instead of in a sheet of their own: two platform Modals swapping visibility
+ * race each other's animations, and the movie tab's grid never has this problem
+ * because its delete sheet is its only one. Renaming joined the rule on
+ * 2026-08-13 — it had been opening `RenameMovieSheet` as this one closed, which
+ * is the very trade the delete step exists to avoid; the form was already split
+ * from its sheet (`RenameMovieForm`) for a host in exactly this position. The
+ * studio face keeps opening the sheet, because there it is the only modal.
+ * Every step resets whenever the sheet is left, so it always reopens on the
+ * menu.
  */
 export function MovieActionsSheet({
   visible,
   movie,
   cutCount,
   totalSec,
-  shareBlocked,
+  shareBlock,
   onEdit,
-  onRename,
   onShare,
   onConfirmDelete,
   onClose,
 }: MovieActionsSheetProps) {
   const theme = useTheme();
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [step, setStep] = useState<'menu' | 'delete' | 'rename'>('menu');
+  const confirmingDelete = step === 'delete';
 
   const close = () => {
-    setConfirmingDelete(false);
+    setStep('menu');
     onClose();
   };
   const act = (action: () => void) => () => {
-    setConfirmingDelete(false);
+    setStep('menu');
     action();
   };
 
@@ -65,9 +71,21 @@ export function MovieActionsSheet({
     <BottomSheet
       visible={visible}
       onClose={close}
-      accessibilityLabel={confirmingDelete ? '무비 삭제 확인' : '무비 더보기'}
+      accessibilityLabel={
+        confirmingDelete ? '무비 삭제 확인' : step === 'rename' ? '무비 이름 바꾸기' : '무비 더보기'
+      }
     >
-      {confirmingDelete ? (
+      {step === 'rename' ? (
+        // Keyed by the stored name so reopening the step starts from what the
+        // movie is called now rather than from the last edit's leftovers.
+        <RenameMovieForm
+          key={movie.title}
+          movieId={movie.id}
+          title={movie.title}
+          onCancel={() => setStep('menu')}
+          onSaved={close}
+        />
+      ) : confirmingDelete ? (
         <View style={styles.step}>
           <ThemedText type="note" themeColor="danger">
             무비 삭제
@@ -91,7 +109,7 @@ export function MovieActionsSheet({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="삭제 취소"
-              onPress={() => setConfirmingDelete(false)}
+              onPress={() => setStep('menu')}
               style={[styles.confirmAction, { borderColor: theme.border }]}
             >
               <ThemedText selectable={false} type="button">
@@ -121,12 +139,17 @@ export function MovieActionsSheet({
         <View style={styles.step}>
           <View style={[styles.group, { borderColor: theme.border }]}>
             <ActionRow icon="film" label="무비 편집하기" onPress={act(onEdit)} />
-            <ActionRow icon="pencil" label="이름 바꾸기" divider onPress={act(onRename)} />
+            <ActionRow
+              icon="pencil"
+              label="이름 바꾸기"
+              divider
+              onPress={() => setStep('rename')}
+            />
             <ActionRow
               icon="share-social"
               label="공유하기"
-              note={shareBlocked ? '아직 완성 파일이 만들어지지 않았어요' : undefined}
-              disabled={shareBlocked}
+              note={shareBlock === undefined ? undefined : ShareBlockMessages[shareBlock]}
+              disabled={shareBlock !== undefined}
               divider
               onPress={act(onShare)}
             />
@@ -136,7 +159,7 @@ export function MovieActionsSheet({
               icon="trash"
               label="무비 삭제하기"
               danger
-              onPress={() => setConfirmingDelete(true)}
+              onPress={() => setStep('delete')}
             />
           </View>
         </View>

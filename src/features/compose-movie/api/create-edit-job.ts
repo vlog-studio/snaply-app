@@ -107,12 +107,13 @@ function createMock(input: CreateEditJobInput): Promise<string> {
  * output shape; a movie's BGM choice and title do not travel with it — see the
  * movie feature document for what that means on screen. The spec has since
  * gained a `subtitles` flag (default false) that this call does not send yet,
- * so `Movie.captions` still decides nothing. Everything
- * it *can* refuse it refuses with a `403`: a video that is not the caller's, is
- * not `ready`, or is itself a generated result. There is no plan-based quota
- * among them — the free plan's monthly cap was retired on the backend — but every
- * cause there is, and every one added later, shares the code `FORBIDDEN` and
- * differs only in the message, so the message is what the user is shown.
+ * so `Movie.captions` still decides nothing. It refuses two ways: a `403` for
+ * a video that is not the caller's, is not `ready`, or is itself a generated
+ * result — every cause there shares one code and differs only in the message,
+ * so the message is what the user is shown — and a `402 INSUFFICIENT_CREDITS`
+ * when the run's 100-credit reservation does not fit the balance, carrying
+ * `error.required`/`error.balance` (read by `readCreditShortfall`). The
+ * reservation is refunded automatically when a run fails or is cancelled.
  *
  * Routes to the mock until an API origin is configured.
  */

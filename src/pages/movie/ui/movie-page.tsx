@@ -195,7 +195,9 @@ export function MoviePage({ movieId }: MoviePageProps) {
   const runGeneration = async () => {
     const outcome = await startGeneration(movie.id);
     setRefusalMessage(
-      outcome.refused ? generationRefusalMessage(outcome.refused, outcome.message) : undefined,
+      outcome.refused
+        ? generationRefusalMessage(outcome.refused, outcome.message, outcome.shortfall)
+        : undefined,
     );
     // The result of this run should open as a result: back to watch mode when
     // the job lands on `ready`.

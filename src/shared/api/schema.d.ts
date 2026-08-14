@@ -291,8 +291,6 @@ export interface paths {
                                 notificationEnabled: boolean;
                                 quietStart: number;
                                 quietEnd: number;
-                                /** @enum {string} */
-                                plan: "free" | "standard" | "premium";
                             };
                         };
                     };
@@ -520,8 +518,6 @@ export interface paths {
                                 notificationEnabled: boolean;
                                 quietStart: number;
                                 quietEnd: number;
-                                /** @enum {string} */
-                                plan: "free" | "standard" | "premium";
                             };
                         };
                     };
@@ -1652,8 +1648,9 @@ export interface paths {
          *     1. 참조된 영상 전부가 **내 소유 + `source` + `ready` 상태**인지 검증 (하나라도 아니면 403)
          *     2. 결과물이 담길 새 영상 레코드를 `kind: result`, `processing`으로 생성
          *     3. `edit_jobs` 레코드를 `queued`로 생성하고 (editSpec/renderSpec 스냅샷 포함) BullMQ 큐에 적재
+         *     4. 크레딧을 예약(차감)한다 — 2·3·4는 한 트랜잭션이라 잔액이 모자라면 작업 자체가 만들어지지 않는다
          *
-         *     _플랜별 편집 횟수/해상도/워터마크 제한은 기획 확정 시까지 미적용 (docs/plan-limits.md)._
+         *     **크레딧**: export 1회에 100크레딧을 예약한다. 잔액이 모자라면 `402 INSUFFICIENT_CREDITS` 이며 응답의 `required`·`balance`로 부족분을 표시할 수 있다. 작업이 실패하거나 취소되면 예약분은 자동 환급된다.
          *
          *     **진행 상황 확인** — 둘 중 하나:
          *     - `GET /edit-jobs/{id}` 폴링 (Swagger에서 가능)
@@ -1754,6 +1751,24 @@ export interface paths {
                             error: {
                                 code: string;
                                 message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                402: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                required?: number;
+                                balance?: number;
                             };
                         };
                     };
@@ -2005,7 +2020,7 @@ export interface paths {
          *     - 결과물 영상 레코드는 삭제 처리되어 목록에 나타나지 않는다.
          *     - 열려 있는 진행률 WebSocket에는 `{"status":"canceled"}` 메시지 후 연결이 종료된다.
          *     - 이미 취소된 작업의 재취소는 200(멱등). `done`/`failed`로 끝난 작업은 409.
-         *     - 크레딧 차감/환급 규칙은 크레딧 결제 정책 확정 후 이 엔드포인트에 연결된다.
+         *     - 예약된 크레딧은 전액 환급된다. 재취소해도 환급은 한 번만 기록된다.
          */
         delete: {
             parameters: {
@@ -3434,14 +3449,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/plans": {
+    "/billing/products": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 플랜 목록 */
+        /**
+         * 크레딧 팩 목록
+         * @description 크레딧 팩의 상품 ID와 지급 크레딧 수. **가격은 스토어가 원천이므로 응답에 없다.**
+         */
         get: {
             parameters: {
                 query?: never;
@@ -3461,11 +3479,9 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                /** @enum {string} */
-                                plan: "free" | "standard" | "premium";
-                                name: string;
-                                priceKrw: number;
-                                features: string[];
+                                productId: string;
+                                credits: number;
+                                displayOrder: number;
                             }[];
                         };
                     };
@@ -3512,14 +3528,19 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/subscription": {
+    "/billing/credits": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** 내 구독 상태 */
+        /**
+         * 크레딧 잔액과 내역
+         * @description 잔액의 원천은 항상 백엔드다. 클라이언트·RevenueCat 의 상태는 표시·동기화용이다.
+         *
+         *     `entries` 는 최신순 **최대 50건**이며 전체 내역이 아니다(페이지네이션 없음).
+         */
         get: {
             parameters: {
                 query?: never;
@@ -3539,11 +3560,17 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                /** @enum {string} */
-                                plan: "free" | "standard" | "premium";
-                                status: string;
-                                /** Format: date-time */
-                                currentPeriodEnd: string | null;
+                                balance: number;
+                                /** @description 최신순 **최대 50건**. 전체 내역이 아니다 — 페이지네이션은 없다. */
+                                entries: {
+                                    /** Format: uuid */
+                                    id: string;
+                                    delta: number;
+                                    /** @enum {string} */
+                                    reason: "purchase" | "signup_bonus" | "export_reserve" | "export_refund" | "store_refund_revoke" | "promo" | "ad_reward";
+                                    /** Format: date-time */
+                                    createdAt: string;
+                                }[];
                             };
                         };
                     };
@@ -3624,7 +3651,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/checkout": {
+    "/billing/sync": {
         parameters: {
             query?: never;
             header?: never;
@@ -3633,138 +3660,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Checkout Session 생성 */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        plan: "standard" | "premium";
-                    };
-                };
-            };
-            responses: {
-                /** @description Default Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: true;
-                            data: {
-                                checkoutUrl: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
-                                /** Format: date-time */
-                                purgeAfter?: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
-                            };
-                        };
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/billing/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 구독 해지(기간말) */
+        /**
+         * 구매 동기화
+         * @description 스토어 구매 이력을 조회해 웹훅이 유실된 지급을 보정한다. 멱등하다.
+         */
         post: {
             parameters: {
                 query?: never;
@@ -3784,24 +3683,8 @@ export interface paths {
                             /** @enum {boolean} */
                             success: true;
                             data: {
-                                /** @enum {boolean} */
-                                canceling: true;
-                            };
-                        };
-                    };
-                };
-                /** @description Default Response */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            /** @enum {boolean} */
-                            success: false;
-                            error: {
-                                code: string;
-                                message: string;
+                                granted: number;
+                                balance: number;
                             };
                         };
                     };
@@ -3880,7 +3763,399 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/billing/webhook": {
+    "/billing/ad-rewards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 광고 보상 가용성
+         * @description 앱이 "광고 보고 +N크레딧" 버튼의 표시·비활성·남은 횟수를 정하는 유일한 근거다.
+         *
+         *     **앱은 보상량·한도·쿨다운을 하드코딩하지 않는다.** `enabled: false` 면 진입점 자체를 숨긴다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                enabled: boolean;
+                                rewardCredits: number;
+                                dailyLimit: number;
+                                remainingToday: number;
+                                /** Format: date-time */
+                                nextAvailableAt: string | null;
+                                /** Format: date-time */
+                                resetsAt: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * 광고 보상 세션 발급
+         * @description `nonce` 는 AdMob SDK 의 `customData`, `ssvUserId` 는 `userId` 로 전달한다.
+         *
+         *     거절: `409 AD_REWARD_COOLDOWN`(+`nextAvailableAt`) · `409 AD_REWARD_LIMIT_REACHED`(+`resetsAt`) · `409 AD_REWARD_SESSION_ACTIVE`(+`rewardId`) · `503 AD_REWARDS_DISABLED`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                rewardId: string;
+                                nonce: string;
+                                ssvUserId: string;
+                                rewardCredits: number;
+                                /** Format: date-time */
+                                expiresAt: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                nextAvailableAt?: string;
+                                /** Format: date-time */
+                                resetsAt?: string;
+                                /** Format: uuid */
+                                rewardId?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/ad-rewards/{rewardId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 광고 보상 지급 상태 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rewardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                rewardId: string;
+                                /** @enum {string} */
+                                status: "pending" | "granted" | "expired" | "rejected";
+                                credits: number | null;
+                                balance: number;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/webhook/revenuecat": {
         parameters: {
             query?: never;
             header?: never;
@@ -3889,7 +4164,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Stripe 웹훅 */
+        /** RevenueCat 웹훅 */
         post: {
             parameters: {
                 query?: never;
@@ -3961,6 +4236,93 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/billing/webhook/admob": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AdMob 보상형 광고 SSV 콜백 */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            received: true;
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

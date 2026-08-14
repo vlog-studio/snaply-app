@@ -74,6 +74,18 @@ The edit-progress WebSocket (`/edit-jobs/:id/progress`) is not representable in 
 - `src/shared/api/schema.d.ts` is a **generated artifact**: commit it, never edit it by hand.
 - Reference the generated types **only** inside `shared/api` and at the input boundary of each entity's `api` segment. Do not let a DTO type escape into `ui` or `model` — those see domain models only.
 
+### Reading the generated file
+
+It is a single file by design, and it stays one file as the API grows. `ApiPath` and `apiRequest` derive every path, body, and response type from one `paths` interface (see [`paths.ts`](../../src/shared/api/paths.ts)); splitting it per tag would require a hand-maintained file to intersect the fragments back together, which `npm run api:check` could no longer verify. Its size is not a type-checking cost — `tsc` pays for the type graph, not the file count.
+
+It is a cost to *read*, though: it is already several thousand lines and grows about 110 lines per operation. So:
+
+- **Do not open `schema.d.ts` whole.** Grep it for the endpoint path (`"/edit-jobs"`) or the operation you need, and read that block.
+- To understand a contract — the fields, the enums, the error codes — read [`docs/api/openapi.json`](../api/openapi.json), which is the source of truth the file is generated from.
+- To see how an endpoint is actually called, read the calling slice's `api` segment; no code outside `shared/api` imports the generated types directly.
+
+`.gitattributes` marks the file `-diff`, so `git diff` reports it as changed without printing it (`git diff --text` overrides that). Review the spec's diff instead — the generated file follows from it, and `npm run api:check` is what proves the two agree.
+
 ## Layered data flow
 
 ```text

@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useRouter, useScrollToTop } from 'expo-router';
 import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { creditQueries } from '@/entities/credit';
 import { useMovies } from '@/entities/movie';
 import { useClearSession, useCurrentUser } from '@/entities/session';
 import { useSnaps } from '@/entities/snap';
@@ -58,6 +60,7 @@ export function MePage() {
   const reminderFrequency = useReminderFrequency();
   const themeMode = useThemeMode();
   const interests = useInterests();
+  const creditBalance = useQuery(creditQueries.balance());
 
   const days = weekRecord(snaps.map((snap) => snap.capturedAt));
   const recordedDays = recordedDayCount(days);
@@ -102,6 +105,21 @@ export function MePage() {
           { backgroundColor: theme.backgroundElement, borderColor: theme.border },
         ]}
       >
+        <SettingRow
+          icon="ticket-outline"
+          title="크레딧"
+          // The read-out is the current balance; while it loads or fails the
+          // row stays a plain doorway rather than showing a number that lies.
+          sub={
+            creditBalance.data
+              ? `${creditBalance.data.balance.toLocaleString('ko-KR')} 크레딧`
+              : undefined
+          }
+          subLines={1}
+          right={<Chevron />}
+          onPress={() => router.push('/settings/credits')}
+        />
+        <RowDivider />
         <SettingRow
           icon="notifications-outline"
           title="알림"

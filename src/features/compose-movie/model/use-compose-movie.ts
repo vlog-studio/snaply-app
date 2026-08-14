@@ -21,6 +21,7 @@ import { ApiError } from '@/shared/api';
 
 import { cancelEditJob } from '../api/cancel-edit-job';
 import { createEditJob, type EditJobClip } from '../api/create-edit-job';
+import { readCreditShortfall, type CreditShortfall } from '../lib/read-credit-shortfall';
 
 /**
  * Why a cut edit was refused, or `undefined` when it landed.
@@ -51,12 +52,16 @@ export type CutsOutcome = {
  * `rejected` — the backend refused the run: not the caller's video, a video that
  * is not ready, or one that is itself a generated result. It carries the server's
  * own message, because a `403` does not say which of those it was — and the set
- * can grow (a credit balance is the backend's decided next one), which is the
- * other reason nothing here rewords it.
+ * can grow, which is the other reason nothing here rewords it.
+ * `no-credit` — the backend refused to reserve the run's 100 credits
+ * (`402 INSUFFICIENT_CREDITS`). Its own refusal rather than a `rejected`,
+ * because it is the one the screen can do something about: say the numbers and
+ * point at where credits come from.
  * `unreachable` — the request itself failed. Nothing was queued and the movie is
  * left exactly as it was, so pressing again is the whole recovery.
  */
-export type GenerationRefusal = 'frozen' | 'empty' | 'uploading' | 'rejected' | 'unreachable';
+export type GenerationRefusal =
+  'frozen' | 'empty' | 'uploading' | 'rejected' | 'no-credit' | 'unreachable';
 
 export type GenerationOutcome = {
   started: boolean;
@@ -67,6 +72,8 @@ export type GenerationOutcome = {
    * and nowhere else, so wording it here would mean guessing which one it was.
    */
   message?: string;
+  /** The 402's numbers, when a `no-credit` refusal carried them. */
+  shortfall?: CreditShortfall;
 };
 
 /**
@@ -369,10 +376,14 @@ export function useComposeMovie() {
         if (error instanceof ApiError && error.status === 403) {
           return { started: false, refused: 'rejected', message: error.message };
         }
+        if (error instanceof ApiError && error.status === 402) {
+          return { started: false, refused: 'no-credit', shortfall: readCreditShortfall(error) };
+        }
         // The status and code are logged, not just the message: everything that
-        // is not a 403 lands in one refusal the user is told is a connection
-        // problem, and a 401, a 429 (the endpoint allows five runs a minute), and
-        // a genuinely unreachable server are indistinguishable on screen.
+        // is not a 403 or 402 lands in one refusal the user is told is a
+        // connection problem, and a 401, a 429 (the endpoint allows five runs a
+        // minute), and a genuinely unreachable server are indistinguishable on
+        // screen.
         if (__DEV__) {
           const detail =
             error instanceof ApiError

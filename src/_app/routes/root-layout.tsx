@@ -142,6 +142,7 @@ function RootStack() {
             state the tab shows as a one-line summary row; they are pushed
             screens with the stack's own titled header, because unlike the
             movie screen the title here is not one line above the same words. */}
+        <Stack.Screen name="settings/credits" options={{ title: '크레딧' }} />
         <Stack.Screen name="settings/notifications" options={{ title: '알림' }} />
         <Stack.Screen name="settings/theme" options={{ title: '화면 테마' }} />
         <Stack.Screen name="settings/interests" options={{ title: '관심사' }} />

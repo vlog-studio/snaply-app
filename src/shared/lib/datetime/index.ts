@@ -5,5 +5,4 @@ export {
   formatFullDate,
   formatSeconds,
   formatTimestamp,
-  relativeDayLabel,
 } from './datetime';

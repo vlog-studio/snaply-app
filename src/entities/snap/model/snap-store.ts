@@ -116,13 +116,3 @@ export function useSetMeasuredSnapDuration(): (id: string, durationSec: number) 
 export function getSnaps(): Snap[] {
   return useSnapStore.getState().snaps;
 }
-
-/**
- * Non-reactive read of the snaps for a set of ids, preserving the id order.
- * Used to resolve a movie's snap references from an imperative context (a
- * page's join, the compose flow) without subscribing to the store.
- */
-export function getSnapsByIds(ids: string[]): Snap[] {
-  const byId = new Map(useSnapStore.getState().snaps.map((snap) => [snap.id, snap]));
-  return ids.map((id) => byId.get(id)).filter((snap): snap is Snap => snap !== undefined);
-}

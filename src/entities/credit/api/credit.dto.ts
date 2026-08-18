@@ -10,14 +10,12 @@ import type { CreditBalance } from '../model/credit';
  * same call as `location.dto.ts`'s `category`): a reason added on the backend
  * must not fail the whole balance response and blank the screen that shows it.
  */
-export const creditEntryDtoSchema = z.object({
+const creditEntryDtoSchema = z.object({
   id: z.string(),
   delta: z.number().int(),
   reason: z.string(),
   createdAt: z.string(),
 });
-
-export type CreditEntryDto = z.infer<typeof creditEntryDtoSchema>;
 
 export const creditBalanceDtoSchema = z.object({
   balance: z.number().int(),

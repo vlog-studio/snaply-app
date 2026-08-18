@@ -2,7 +2,6 @@ export {
   canEditMovie,
   useComposeMovie,
   type CancellationOutcome,
-  type CancellationRefusal,
   type CutsOutcome,
   type CutsRefusal,
   type GenerationOutcome,

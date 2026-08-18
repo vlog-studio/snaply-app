@@ -1,10 +1,6 @@
 // Web has no FCM. These inert stubs mirror the native adapter's contract so
 // shared consumers can call them without platform branching; permission simply
 // resolves false, which stops any downstream token work.
-export function requestNotificationPermission(): Promise<boolean> {
-  return Promise.resolve(false);
-}
-
 export function hasNotificationPermission(): Promise<boolean> {
   return Promise.resolve(false);
 }

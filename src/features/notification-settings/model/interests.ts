@@ -4,5 +4,3 @@
  * app's presented options and can be extended without a schema change.
  */
 export const INTEREST_OPTIONS = ['여행', '일상', '카페', '맛집', '감성'] as const;
-
-export type Interest = (typeof INTEREST_OPTIONS)[number];

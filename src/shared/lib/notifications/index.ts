@@ -1,5 +1,4 @@
 export {
-  requestNotificationPermission,
   hasNotificationPermission,
   registerForRemoteMessages,
   getFcmToken,

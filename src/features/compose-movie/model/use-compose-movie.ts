@@ -86,7 +86,7 @@ export type GenerationOutcome = {
  * `unreachable` — the request itself failed. The run is untouched and still
  * going, so pressing again is the whole recovery.
  */
-export type CancellationRefusal = 'settled' | 'unreachable';
+type CancellationRefusal = 'settled' | 'unreachable';
 
 export type CancellationOutcome = {
   /** True when the movie is back to `draft` — the run will produce nothing. */

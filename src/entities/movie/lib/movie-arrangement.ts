@@ -1,4 +1,4 @@
-import type { Movie, MovieArranger, SnapRef } from '../model/movie';
+import type { Movie, SnapRef } from '../model/movie';
 
 /**
  * Whether the AI still owns this movie's cut order.
@@ -10,10 +10,6 @@ import type { Movie, MovieArranger, SnapRef } from '../model/movie';
  */
 export function isAiArranged(movie: Pick<Movie, 'arranger'>): boolean {
   return movie.arranger === 'ai';
-}
-
-export function movieArranger(movie: Pick<Movie, 'arranger'>): MovieArranger {
-  return isAiArranged(movie) ? 'ai' : 'user';
 }
 
 /**

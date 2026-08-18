@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react-native';
 
 import type { Snap } from './snap';
 import {
-  getSnapsByIds,
   useAddSnap,
   useRemoveSnaps,
   useSetMeasuredSnapDuration,
@@ -134,16 +133,5 @@ describe('snap store', () => {
 
       expect(useSnapStore.getState().snaps).toBe(before);
     });
-  });
-
-  it('resolves ids to snaps in id order, skipping unknown ids', async () => {
-    useSnapStore.setState({
-      snaps: [makeSnap({ id: 'snap-1' }), makeSnap({ id: 'snap-2' })],
-    });
-
-    expect(getSnapsByIds(['snap-2', 'nope', 'snap-1']).map((snap) => snap.id)).toEqual([
-      'snap-2',
-      'snap-1',
-    ]);
   });
 });

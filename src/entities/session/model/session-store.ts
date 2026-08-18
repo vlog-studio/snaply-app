@@ -72,12 +72,12 @@ export function initSession(): () => void {
  * immediate feedback (and by the offline mock provider, which never reaches the
  * backend); the auth listener reconciles the same value for real sign-ins.
  */
-export function setSessionUser(user: User): void {
+function setSessionUser(user: User): void {
   useSessionStore.setState({ user });
 }
 
 /** End the backend session; the auth listener clears the mirrored user too. */
-export async function signOut(): Promise<void> {
+async function signOut(): Promise<void> {
   await endSession();
   // Pending deletion is a property of the account that was signed in; the next
   // sign-in (possibly another account) re-detects it from the backend's 403.
@@ -116,11 +116,11 @@ export function clearPendingDeletion(): void {
  * deep-link handler when a reset link lands; `finishPasswordRecovery` is called
  * by the update-password action once the new password is saved.
  */
-export function setRecovering(value: boolean): void {
+function setRecovering(value: boolean): void {
   useSessionStore.setState({ isRecovering: value });
 }
 
-export function finishPasswordRecovery(): void {
+function finishPasswordRecovery(): void {
   useSessionStore.setState({ isRecovering: false });
 }
 

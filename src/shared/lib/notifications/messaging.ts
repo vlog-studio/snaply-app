@@ -30,22 +30,12 @@ const messaging: FirebaseMessaging | null = (() => {
 })();
 
 /**
- * Request notification permission. Required on iOS before any FCM delivery; on
- * Android 13+ it maps to the POST_NOTIFICATIONS runtime prompt (a no-op that
- * resolves authorized on older Android). Returns true when authorized.
- */
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (!messaging) return false;
-  const status = await messaging.requestPermission(messaging.getMessaging());
-  return (
-    status === messaging.AuthorizationStatus.AUTHORIZED ||
-    status === messaging.AuthorizationStatus.PROVISIONAL
-  );
-}
-
-/**
- * Check-only variant: read the current notification grant without ever
- * prompting. Same authorization the request resolves, minus the ask.
+ * Read the current notification grant without ever prompting.
+ *
+ * Check-only on purpose, and the only permission call this adapter offers: the
+ * OS ask belongs to the 무비 완성 알림 switch the user just touched
+ * (`local.ts`'s `requestLocalNotificationPermission`), never to push
+ * registration, which runs unattended at app start.
  */
 export async function hasNotificationPermission(): Promise<boolean> {
   if (!messaging) return false;

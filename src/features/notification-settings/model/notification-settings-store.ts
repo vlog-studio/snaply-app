@@ -22,7 +22,7 @@ import { secureStorage } from '@/shared/lib/secure-storage';
  * restarts instead of silently resetting.
  */
 
-export const REMINDER_WINDOW_IDS = ['morning', 'lunch', 'evening'] as const;
+const REMINDER_WINDOW_IDS = ['morning', 'lunch', 'evening'] as const;
 
 export type ReminderWindowId = (typeof REMINDER_WINDOW_IDS)[number];
 

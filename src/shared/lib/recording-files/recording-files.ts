@@ -53,24 +53,6 @@ export async function listLocalRecordings(): Promise<LocalRecording[]> {
     .sort((left, right) => right.createdAt - left.createdAt);
 }
 
-/**
- * Whether a recording's file is still on disk.
- *
- * Clip metadata can outlive its file: a delete removes the file first and only
- * then commits the store write, so an interruption in between leaves metadata
- * pointing at nothing. A surface that offers playback asks this first instead of
- * handing a missing URI to the player. Synchronous — a stat, not a read — so a
- * caller can decide in the same event that opens the sheet.
- */
-export function localRecordingExists(uri: string): boolean {
-  try {
-    return new File(uri).exists;
-  } catch {
-    // A malformed URI has no file behind it either.
-    return false;
-  }
-}
-
 export async function deleteLocalRecording(uri: string): Promise<void> {
   ensureRecordingsDirectory();
 

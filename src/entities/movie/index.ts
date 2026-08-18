@@ -19,7 +19,7 @@ export {
   type CreateMovieInput,
   type MovieStylePatch,
 } from './model/movie-store';
-export { isAiArranged, movieArranger, sameArrangement } from './lib/movie-arrangement';
+export { isAiArranged, sameArrangement } from './lib/movie-arrangement';
 export { isEditedSinceRender, sameCuts } from './lib/movie-render';
 export { MovieSnapLimit } from './model/movie';
 export { MovieTitleMaxLength } from './lib/movie-title';

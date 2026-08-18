@@ -21,7 +21,7 @@ const EdgeInset = Spacing.five - (TargetSize - IconSize) / 2;
 const BackIcon = Platform.OS === 'ios' ? 'chevron-back' : 'arrow-back';
 
 /** The one action a titled bar may carry, on the trailing edge. */
-export type BackBarAction = {
+type BackBarAction = {
   icon: ComponentProps<typeof Ionicons>['name'];
   /** Names the action for screen readers — the glyph alone does not. */
   label: string;

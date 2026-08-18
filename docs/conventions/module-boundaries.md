@@ -65,6 +65,10 @@ export * from './ui/photo-card';
 export * from './model/photo';
 ```
 
+**A type that appears in an exported value's signature is part of the contract, even when no consumer imports it by name.** Props types, option objects, and domain models reach consumers through inference, so a dead-export scan will report them as unused — that report is not actionable. Do not prune a type for that reason alone; prune it when the value it describes is gone.
+
+The inverse *is* actionable: a value or type that no external consumer uses **and** that only its own module reads has no place in `index.ts`, and the `export` keyword on it inside the module is noise. Keep the declaration module-private instead.
+
 ### Do not import a slice's own Public API from inside that slice
 
 If `index.ts` re-exports an internal file and that file imports `index.ts`, the slice creates a circular dependency.

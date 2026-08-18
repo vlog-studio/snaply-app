@@ -16,7 +16,7 @@ export type MatchableSnap = {
 export const SessionGapMs = 3 * 60 * 60 * 1000;
 
 /** …and so do snaps further than this from where the outing started. */
-export const SessionRadiusM = 2_000;
+const SessionRadiusM = 2_000;
 
 /** Inside this, a snap is unmistakably part of the same outing. */
 const CloseEnoughM = 300;

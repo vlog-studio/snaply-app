@@ -1,7 +1,6 @@
 export { snapsByRefs, useSnapIndex, type SnapIndex } from './model/snap-refs';
 export {
   getSnaps,
-  getSnapsByIds,
   useAddSnap,
   useRemoveSnaps,
   useSetMeasuredSnapDuration,

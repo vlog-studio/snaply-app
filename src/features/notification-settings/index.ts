@@ -16,4 +16,4 @@ export {
 } from './model/notification-settings-store';
 export { useMovieReadyAlerts, type MovieReadyAlerts } from './model/use-movie-ready-alerts';
 export { useLocationAlerts, type LocationAlerts } from './model/use-location-alerts';
-export { INTEREST_OPTIONS, type Interest } from './model/interests';
+export { INTEREST_OPTIONS } from './model/interests';

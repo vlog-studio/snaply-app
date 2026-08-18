@@ -10,7 +10,7 @@ export type RowIconName = keyof typeof Ionicons.glyphMap;
  * Leading icon badge shared by every settings row, so the rows read as one
  * list instead of a mix of platform emoji weights and colors.
  */
-export function RowIcon({ name }: { name: RowIconName }) {
+function RowIcon({ name }: { name: RowIconName }) {
   const theme = useTheme();
 
   return (

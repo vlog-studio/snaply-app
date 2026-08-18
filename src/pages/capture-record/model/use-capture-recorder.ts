@@ -8,7 +8,7 @@ import { useRecordingLibrary } from './use-recording-library';
 import { useRecordingPermissions } from './use-recording-permissions';
 
 /** What the screen is showing: a capture run, or a saved recording being reviewed. */
-export type CaptureStage = RecordingStage | 'review';
+type CaptureStage = RecordingStage | 'review';
 
 /**
  * Composes the capture screen out of its four concerns — permissions, the

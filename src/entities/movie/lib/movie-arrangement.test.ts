@@ -1,4 +1,4 @@
-import { isAiArranged, movieArranger, sameArrangement } from './movie-arrangement';
+import { isAiArranged, sameArrangement } from './movie-arrangement';
 
 describe('isAiArranged', () => {
   it.each([
@@ -7,10 +7,6 @@ describe('isAiArranged', () => {
     [undefined, false],
   ] as const)('reads %s as %s', (arranger, expected) => {
     expect(isAiArranged({ arranger })).toBe(expected);
-  });
-
-  it('reports a movie stored before the field existed as the user’s', () => {
-    expect(movieArranger({})).toBe('user');
   });
 });
 

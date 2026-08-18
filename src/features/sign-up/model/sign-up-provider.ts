@@ -7,7 +7,7 @@ export class EmailAlreadyRegisteredError extends Error {
 }
 
 /** Outcome of a sign-up request. */
-export type SignUpResult = {
+type SignUpResult = {
   /**
    * True when the project requires email confirmation, so no session was issued
    * and the user must confirm via the emailed link. False when confirmation is

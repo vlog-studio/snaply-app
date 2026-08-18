@@ -1,5 +1,5 @@
 /** What the ad SDK must carry so the SSV callback can find the session. */
-export type RewardAdRequest = {
+type RewardAdRequest = {
   /** Rides the SDK's `customData`. */
   nonce: string;
   /** Rides the SDK's `userId`. */
@@ -15,7 +15,7 @@ export type RewardAdRequest = {
  * `dismissed` — the user closed the ad before the reward point.
  * `unavailable` — no ad to show (no fill, not loaded, SDK error).
  */
-export type RewardAdResult = 'earned' | 'dismissed' | 'unavailable';
+type RewardAdResult = 'earned' | 'dismissed' | 'unavailable';
 
 /**
  * The seam in front of the rewarded-ad SDK, so screens and the flow hook

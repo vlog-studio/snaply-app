@@ -4,6 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { creditQueries } from '@/entities/credit';
 import { ApiError } from '@/shared/api';
 
+import { abandonAdReward } from '../api/abandon-ad-reward';
 import { getAdRewardStatus } from '../api/get-ad-reward-status';
 import { adRewardQueries } from '../api/ad-reward.queries';
 import { startAdReward } from '../api/start-ad-reward';
@@ -71,6 +72,11 @@ const rewardAdProvider: RewardAdProvider = mockRewardAdProvider;
  * query families are invalidated on every settle, even `pending`: the balance
  * may already be newer than what is cached, and a grant that lands after the
  * window is picked up by the next refetch.
+ *
+ * The one thing the app does report is the *negative*: an ad that never
+ * reached its reward point hands the session's slot back (`releaseSession`).
+ * That direction is safe — it can only cost the user credits, never create
+ * them — and it is what keeps a dismissed ad from locking the next one out.
  */
 export function useWatchRewardAd() {
   const queryClient = useQueryClient();
@@ -88,9 +94,11 @@ export function useWatchRewardAd() {
         continue;
       }
       if (status.status === 'granted') return { granted: true, credits: status.credits };
-      if (status.status === 'rejected' || status.status === 'expired') {
-        return { granted: false, refused: 'unavailable' };
-      }
+      // Anything else that is not `pending` has settled without paying —
+      // `abandoned` is this app giving the slot back, `expired` and `rejected`
+      // are the server's. Checked as "not pending" rather than by listing them,
+      // so a status added later cannot quietly become "keep polling".
+      if (status.status !== 'pending') return { granted: false, refused: 'unavailable' };
     }
     return { granted: false, refused: 'pending' };
   }, []);
@@ -131,6 +139,10 @@ export function useWatchRewardAd() {
         ssvUserId: session.ssvUserId,
       });
       if (result !== 'earned') {
+        // No callback is coming for an ad that never reached its reward point,
+        // so hand the slot back instead of leaving the user unable to start
+        // another one until the session times out.
+        await releaseSession(session.rewardId);
         return { granted: false, refused: result === 'dismissed' ? 'dismissed' : 'unavailable' };
       }
 
@@ -145,6 +157,19 @@ export function useWatchRewardAd() {
   }, [queryClient, settle]);
 
   return { watchAd, phase };
+}
+
+/**
+ * Best-effort slot release. A failure changes nothing the user can see: the
+ * session expires on its own, which is exactly the behavior this call exists
+ * to shorten, so there is nothing to report and nothing to retry.
+ */
+async function releaseSession(rewardId: string): Promise<void> {
+  try {
+    await abandonAdReward(rewardId);
+  } catch {
+    if (__DEV__) console.warn('[watch-reward-ad] could not release the reward slot');
+  }
 }
 
 function invalidateRewardQueries(queryClient: ReturnType<typeof useQueryClient>): Promise<void> {

@@ -49,7 +49,7 @@ export function mapAdRewardSession(dto: AdRewardSessionDto): AdRewardSession {
 /** Wire shape of `GET /billing/ad-rewards/{rewardId}` (`data`). */
 export const adRewardStatusDtoSchema = z.object({
   rewardId: z.string(),
-  status: z.enum(['pending', 'granted', 'expired', 'rejected']),
+  status: z.enum(['pending', 'abandoned', 'granted', 'expired', 'rejected']),
   credits: z.number().int().nullable(),
   balance: z.number().int(),
 });

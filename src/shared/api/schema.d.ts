@@ -4055,8 +4055,11 @@ export interface paths {
                             data: {
                                 /** Format: uuid */
                                 rewardId: string;
-                                /** @enum {string} */
-                                status: "pending" | "granted" | "expired" | "rejected";
+                                /**
+                                 * @description `pending` 은 실패가 아니다(SSV 대기). `abandoned` 는 앱이 슬롯을 비운 상태이며, 만료 전에 SSV 가 도착하면 그대로 `granted` 가 된다.
+                                 * @enum {string}
+                                 */
+                                status: "pending" | "abandoned" | "granted" | "expired" | "rejected";
                                 credits: number | null;
                                 balance: number;
                             };
@@ -4149,7 +4152,130 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * 광고 보상 세션 포기
+         * @description 진행 중 슬롯을 즉시 비워 TTL 을 기다리지 않고 다음 세션을 발급받게 한다.
+         *
+         *     **지급 자격은 남는다** — 만료 전에 SSV 가 도착하면 `granted` 가 된다. 이미 확정된 세션에 호출해도 현재 상태를 그대로 돌려준다(멱등).
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    rewardId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                rewardId: string;
+                                /**
+                                 * @description `pending` 은 실패가 아니다(SSV 대기). `abandoned` 는 앱이 슬롯을 비운 상태이며, 만료 전에 SSV 가 도착하면 그대로 `granted` 가 된다.
+                                 * @enum {string}
+                                 */
+                                status: "pending" | "abandoned" | "granted" | "expired" | "rejected";
+                                credits: number | null;
+                                balance: number;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;

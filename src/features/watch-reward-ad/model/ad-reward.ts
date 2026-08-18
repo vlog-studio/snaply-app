@@ -32,13 +32,16 @@ export type AdRewardSession = {
 };
 
 /**
- * Where a session stands (`GET /billing/ad-rewards/{rewardId}`). `pending` is
- * a normal state, not a failure — the grant travels ad network → backend and
- * may land after the app stops watching.
+ * Where a session stands (`GET /billing/ad-rewards/{rewardId}`).
+ *
+ * `pending` is a normal state, not a failure — the grant travels ad network →
+ * backend and may land after the app stops watching. `abandoned` is a session
+ * the app gave the slot back for (see `abandonAdReward`); it keeps its grant
+ * eligibility, so a late callback still turns it into `granted`.
  */
 export type AdRewardStatus = {
   rewardId: string;
-  status: 'pending' | 'granted' | 'expired' | 'rejected';
+  status: 'pending' | 'abandoned' | 'granted' | 'expired' | 'rejected';
   /** Credits actually granted; only present once `granted`. */
   credits?: number;
   /** The current balance, so a settled poll needs no second request. */

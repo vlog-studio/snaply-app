@@ -1,4 +1,4 @@
-export { snapsByRefs, useSnapIndex, useSnapsByRefs, type SnapIndex } from './model/snap-refs';
+export { snapsByRefs, useSnapIndex, type SnapIndex } from './model/snap-refs';
 export {
   getSnaps,
   getSnapsByIds,

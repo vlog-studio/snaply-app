@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react-native';
 
 import type { Snap } from './snap';
-import { snapsByRefs, useSnapIndex, useSnapsByRefs } from './snap-refs';
+import { snapsByRefs, useSnapIndex } from './snap-refs';
 import { useSnapStore } from './snap-store';
 
 // Mock the persistence backend so no native file system is touched.
@@ -108,43 +108,5 @@ describe('useSnapIndex', () => {
     expect(result.current.get('s1')).toBe(s1);
     expect(result.current.get('s2')).toBe(s2);
     expect(result.current.size).toBe(2);
-  });
-});
-
-describe('useSnapsByRefs', () => {
-  beforeEach(() => {
-    useSnapStore.setState({ snaps: [] });
-  });
-
-  it('resolves references against the live library, in order', async () => {
-    useSnapStore.setState({ snaps: [s2, s1] });
-
-    const { result } = await renderHook(() =>
-      useSnapsByRefs([
-        { snapId: 's2', order: 1 },
-        { snapId: 's1', order: 0 },
-      ]),
-    );
-
-    expect(ids(result.current)).toEqual(['s1', 's2']);
-  });
-
-  it('skips a reference the library no longer holds', async () => {
-    useSnapStore.setState({ snaps: [s1] });
-
-    const { result } = await renderHook(() =>
-      useSnapsByRefs([
-        { snapId: 's1', order: 0 },
-        { snapId: 'deleted', order: 1 },
-      ]),
-    );
-
-    expect(ids(result.current)).toEqual(['s1']);
-  });
-
-  it('resolves undefined references to nothing, so a missing movie needs no guard', async () => {
-    const { result } = await renderHook(() => useSnapsByRefs(undefined));
-
-    expect(result.current).toEqual([]);
   });
 });

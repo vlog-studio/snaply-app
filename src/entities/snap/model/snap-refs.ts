@@ -52,9 +52,3 @@ export function useSnapIndex(): SnapIndex {
   const snaps = useSnaps();
   return useMemo(() => indexSnapsById(snaps), [snaps]);
 }
-
-/** Reactive `snapsByRefs` for a single movie. Pass `movie?.snapRefs`. */
-export function useSnapsByRefs(refs: readonly SnapRefLike[] | undefined): Snap[] {
-  const index = useSnapIndex();
-  return useMemo(() => snapsByRefs(refs, index), [refs, index]);
-}

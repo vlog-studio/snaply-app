@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { MovieSnapLimit, useMovieById } from '@/entities/movie';
 import type { Snap } from '@/entities/snap';
 import { canEditMovie, useComposeMovie } from '@/features/compose-movie';
+import { movieHref } from '@/shared/routes';
 import { BackBar } from '@/shared/ui/back-bar';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
@@ -62,7 +63,7 @@ export function AddSnapsPage({ movieId }: AddSnapsPageProps) {
   // nothing behind it, in which case the movie is where "back" should still go.
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else if (movieId) router.replace({ pathname: '/movie/[id]', params: { id: movieId } });
+    else if (movieId) router.replace(movieHref(movieId));
     else router.replace('/');
   };
 

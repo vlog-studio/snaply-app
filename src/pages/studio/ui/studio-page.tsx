@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTemplateOffers } from '@/features/fill-template';
+import { movieHref, snapPickerHref } from '@/shared/routes';
 import { FadeInView } from '@/shared/ui/fade-in-view';
 import {
   MaxContentWidth,
@@ -51,11 +52,10 @@ export function StudioPage() {
   const templateOffers = useTemplateOffers();
   const boardMovies = useBoardMovies();
 
-  const pickSnaps = () => router.push({ pathname: '/snaps', params: { select: '1' } });
+  const pickSnaps = () => router.push(snapPickerHref());
   // Every movie opens on the same screen, whatever it is waiting for: watching a
   // finished one and fixing it happen in the same place.
-  const openMovie = (movieId: string) =>
-    router.push({ pathname: '/movie/[id]', params: { id: movieId } });
+  const openMovie = (movieId: string) => router.push(movieHref(movieId));
 
   const openTemplate = (templateId: string) =>
     router.push({ pathname: '/template/[id]', params: { id: templateId } });

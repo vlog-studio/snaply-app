@@ -2,7 +2,9 @@
 
 > 이 문서는 사람 개발자를 위한 한글 가이드입니다. 에이전트용 문서가 아니므로 `AGENTS.md` 색인에 포함하지 않습니다.
 
-USB 케이블 없이 실제 Android 기기를 Wi-Fi로 adb에 연결하고, Expo Go로 이 앱을 실행·디버깅하는 절차를 정리합니다. 에뮬레이터 기반 기본 워크플로는 [`docs/workflows/local-development-and-testing.md`](../workflows/local-development-and-testing.md)(영문, 에이전트용)를 참고하세요.
+USB 케이블 없이 실제 Android 기기를 Wi-Fi로 adb에 연결하고 이 앱을 실행·디버깅하는 절차를 정리합니다. 검증 정책과 기기 연결 규칙은 [`docs/workflows/local-development-and-testing.md`](../workflows/local-development-and-testing.md)(영문, 에이전트용)가 기준입니다.
+
+> **이 앱은 Android Expo Go에서 부팅되지 않습니다.** 시작 시 `expo-notifications`를 import하는데 SDK 53부터 Android Expo Go에서 제거된 모듈이라 렌더 이전에 죽습니다. 아래 **1~2단계(무선 adb 연결)** 는 그대로 유효하고, 앱 실행은 [네이티브 개발 빌드](#네이티브-개발-빌드가-필요한-경우) 절차를 쓰세요. 3~4단계의 Expo Go 절차는 iOS 시뮬레이터와 과거 이력을 위해 남겨둔 참고 자료입니다.
 
 ## 사전 준비
 
@@ -104,11 +106,13 @@ adb -s 192.168.0.42:40913 shell am start \
 
 ## 네이티브 개발 빌드가 필요한 경우
 
-Expo Go에 포함되지 않은 네이티브 모듈을 검증해야 하면, 무선 adb 연결 상태에서 로컬 네이티브 빌드를 실기기에 설치할 수 있습니다(iOS와 달리 Android 로컬 빌드는 이 Mac에서 가능):
+**Android에서는 이 경로가 기본입니다** (위 경고 참고). 무선 adb 연결 상태에서 로컬 네이티브 빌드를 실기기에 설치합니다(iOS와 달리 Android 로컬 빌드는 이 Mac에서 가능):
 
 ```bash
 npx expo run:android --device        # 연결된 기기 목록에서 실기기 선택
 ```
+
+이후 Metro는 `npx expo start --dev-client`로 붙입니다.
 
 빌드 중 `packageDebug` 단계에서 `IncrementalSplitterRunnable` 오류가 나면 일시적인 문제이므로 같은 명령을 다시 실행하면 됩니다.
 

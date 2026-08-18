@@ -87,8 +87,8 @@ bypass.
 
 **When:** every file under `src/app`. Routes wire a URL to a page; they hold no logic.
 
-**Canonical:** [`src/app/(tabs)/index.tsx`](../../src/app/(tabs)/index.tsx),
-[`src/app/(tabs)/snaps.tsx`](../../src/app/(tabs)/snaps.tsx),
+**Canonical:** [`src/app/(tabs)/index.tsx`](<../../src/app/(tabs)/index.tsx>),
+[`src/app/(tabs)/snaps.tsx`](<../../src/app/(tabs)/snaps.tsx>),
 [`src/app/_layout.tsx`](../../src/app/_layout.tsx).
 
 ```ts

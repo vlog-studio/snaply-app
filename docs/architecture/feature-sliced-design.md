@@ -122,7 +122,7 @@ Shared code can be explained without knowing a specific product use case.
 - `ui`: UI kit without business logic
 - `lib`: focused independent libraries for concerns such as dates, colors, or storage
 - `config`: environment variables, app-wide configuration, and global feature flags
-- `routes`: route constants and route-parameter helpers
+- `routes`: href builders for targets more than one screen navigates to
 - `assets`: runtime assets reused across slices
 
 `shared` is not a dumping ground for `utils`, `helpers`, `types`, `components`, or `hooks`. Use focused responsibilities such as `shared/lib/date` or `shared/lib/secure-storage`.
@@ -170,6 +170,10 @@ Place new code at the highest location matching its actual scope, using this seq
 7. Is it business-agnostic foundational code? Put it in `shared`.
 
 Do not move code to a lower layer because it might be reused later. Start in the page and extract when a second real consumer appears.
+
+### Starter files reintroduced by an upgrade
+
+The starter's technical directories — `src/components`, `src/hooks`, `src/constants` — were dissolved into this structure on 2026-07-15 and removed. They are not allowed paths. If an Expo upgrade or a template regenerates files there, classify each file individually with the algorithm above instead of restoring the directory: generic UI without business logic goes to `shared/ui`, a single screen's block stays in that page, and navigation composition goes to `_app/routes`.
 
 ## Important differences in the current FSD version
 

@@ -12,6 +12,7 @@ import {
 import { useDeleteMovie, useMovieById } from '@/entities/movie';
 import { useRenderSource } from '@/features/compose-movie';
 import { useShareMovie } from '@/features/share-movie';
+import { movieHref, snapPickerHref } from '@/shared/routes';
 import { BottomSheet } from '@/shared/ui/bottom-sheet';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
@@ -123,7 +124,7 @@ export function MoviesPage() {
     if (selecting) toggle(movieId);
     // One destination for every status: the movie screen is where a finished
     // movie is watched and where an unfinished one is run.
-    else router.push({ pathname: '/movie/[id]', params: { id: movieId } });
+    else router.push(movieHref(movieId));
   };
 
   const handleLongPress = (movie: MovieSummary) => {
@@ -225,7 +226,7 @@ export function MoviesPage() {
             <SnaplyButton
               accessibilityLabel="스냅 골라서 새 무비 만들기"
               title="스냅 골라 새 무비"
-              onPress={() => router.push({ pathname: '/snaps', params: { select: '1' } })}
+              onPress={() => router.push(snapPickerHref())}
               style={styles.emptyAction}
             />
           </View>

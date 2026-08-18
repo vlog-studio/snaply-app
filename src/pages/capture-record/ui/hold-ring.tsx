@@ -26,7 +26,7 @@ type HoldRingProps = {
 };
 
 /**
- * 담기 링 (concept §7): the safelight progress ring around the shutter. While
+ * 담기 링: the safelight progress ring around the shutter. While
  * the shutter is held it fills linearly over the selected clip duration
  * (stroke-dashoffset), and on release it snaps back over 250ms.
  */

@@ -8,6 +8,7 @@ import { useSnaps } from '@/entities/snap';
 import { useComposeMovie } from '@/features/compose-movie';
 import { useTemplateFill } from '@/features/fill-template';
 import { formatSeconds } from '@/shared/lib/datetime';
+import { movieHref } from '@/shared/routes';
 import { BackBar } from '@/shared/ui/back-bar';
 import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
@@ -95,7 +96,7 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
       setError('채워진 컷이 하나도 없어요. 빈 자리를 찍어서 채워주세요.');
       return;
     }
-    router.replace({ pathname: '/movie/[id]', params: { id: movie.id } });
+    router.replace(movieHref(movie.id));
   };
 
   return (

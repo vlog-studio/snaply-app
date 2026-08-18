@@ -4,6 +4,8 @@ Thirteen worked cases. They are **illustrative**, not an audit of the current bu
 
 Each case uses the same shape: Before wireframe → Problems (smell names) → Applied principles → After wireframe → Why → Trade-off. Weight levels (`L1`…) follow [`visual-hierarchy.md`](visual-hierarchy.md).
 
+An "after" is a recommendation, so it must never stand on a concept the product has since dropped — a reader cannot tell a proposal from a fossil, and an agent will build what it reads. When a shipped screen or its vocabulary changes, correct the affected "after" and state what changed and why (case 1 is the worked example of that correction). A "before" may keep a dead concept: it is the rejected design.
+
 ---
 
 ## 1 — Studio (home tab)
@@ -21,23 +23,20 @@ Each case uses the same shape: Before wireframe → Problems (smell names) → A
 
 **Applied principles** — 1 One Thing per Page, 3 Action First, 9 Clear Visual Hierarchy, 13 Show State Not Instructions.
 
-**After**
+**After** (what shipped)
 ```text
 [스튜디오]
-  L1  담긴 스냅 6                  ← the deciding state
-  L2  [이 스냅으로 새 무비]         ← single primary
-  L3  담긴 스냅 썸네일 스트립 (탭 → 트레이 편집)
-  --- fold ---
-  L4  작업 중 (2)                  ← in-progress movies, resumable
-  L4  템플릿으로 시작 →            ← section, not a peer button
-  L5  최근 완성 (5)
+  L2  [새 무비 · 스냅 고르기]      ← single primary, the whole row is the target
+  L3  템플릿으로 시작 (카드 목록)   ← section, not a peer button
+  L4  무비 — 미완성 먼저, 앞의 3편 + 전체 보기 →
+        · 무비가 하나도 없으면 이 블록 자체가 없음
   [removed] banner → no user decision depended on it
 ```
-**Why** — Cognitive Load at entry drops to one fact and one action; the tray count now *is* the reason to tap. Templates stay discoverable as a section (Discoverability preserved), so nothing was truncated.
+**Why** — Cognitive Load at entry drops to one action; the banner and the three peer CTAs are gone. Templates stay discoverable as a section (Discoverability preserved), so nothing was truncated.
 
-**Trade-off** — Template start loses its button-level prominence, costing template-first users one extra glance. Accepted because the tray path is the majority path; revisit if template starts dominate.
+**Trade-off** — Template start loses its button-level prominence, costing template-first users one extra glance. Accepted because picking snaps is the majority path; revisit if template starts dominate.
 
-**Empty variant** — `담긴 스냅 0` with `[첫 스냅 찍기]` as L2 and `템플릿으로 시작` promoted to L3; no explanatory paragraph.
+> **This After was revised once.** Its first version led with `담긴 스냅 6` as L1 — "the deciding state" — because the 담기 트레이 made *how much material is waiting* a single readable number. The tray was removed on 2026-08-12: picks become a draft movie immediately, so that number no longer exists and the board's unfinished-first ordering carries "what is waiting" instead. The principles the case demonstrates are unchanged; only the fact available to lead with is. Do not reintroduce `트레이` from this example ([`ux-writing.md`](ux-writing.md)).
 
 ---
 
@@ -347,7 +346,8 @@ Each case uses the same shape: Before wireframe → Problems (smell names) → A
 (첫 실행)
   L1  viewfinder, 바로 촬영 가능
   L3  길게 눌러 스냅 찍기      ← one-time hint at the point of use, dismissible
-  (첫 스냅 후) 담긴 스냅 1  [이 스냅으로 새 무비]
+  (첫 스냅 후) 스냅 1개 카운터가 튀고 뷰파인더 유지 — 스냅은 라이브러리에 쌓이고,
+              무비로 엮는 것은 스냅 탭에서 하는 별개의 행위
   권한: 촬영 시점에 카메라, 그 외는 각 기능을 켤 때
   건너뛰기: always available
 ```

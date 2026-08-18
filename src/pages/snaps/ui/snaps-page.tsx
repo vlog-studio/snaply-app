@@ -7,6 +7,7 @@ import { useFailedUploadCount, useRetryFailedUploads, type Snap } from '@/entiti
 import { useComposeMovie } from '@/features/compose-movie';
 import { useDeleteSnaps } from '@/features/delete-snap';
 import { formatDuration, formatSeconds } from '@/shared/lib/datetime';
+import { movieHref } from '@/shared/routes';
 import { pickVideoFromLibrary } from '@/shared/lib/video-picker';
 import { useSetTabBarHidden } from '@/shared/ui/tab-bar-chrome';
 import {
@@ -174,7 +175,7 @@ export function SnapsPage({ startSelecting = false }: SnapsPageProps) {
     const movie = startMovieFromSnaps(picked);
     if (!movie) return;
     exitSelection();
-    router.push({ pathname: '/movie/[id]', params: { id: movie.id } });
+    router.push(movieHref(movie.id));
   };
 
   const confirmDelete = async () => {

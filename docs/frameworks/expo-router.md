@@ -52,7 +52,7 @@ src/_app/
 | --- | --- |
 | Route filenames, route groups, and `_layout.tsx` | `src/app` |
 | Root navigator composition and global auth routing policy | `src/_app/routes` |
-| Href constants and parameter builders or parsers | `src/shared/routes` |
+| Href builders for a target more than one screen navigates to | `src/shared/routes` |
 | Navigation after a specific user action | The relevant `feature/model` or calling page |
 | Screen UI and screen-level loading or error states | `src/pages/<page>` |
 
@@ -86,7 +86,7 @@ This project enables `typedRoutes: true` in `app.json`.
 
 - Prefer Expo Router's typed `Href` and static pathnames for navigation targets.
 - Do not trust parsed URL parameters; validate them at the page or model boundary.
-- Do not scatter raw URL strings through business code. Put reused builders in `shared/routes`.
+- Do not scatter raw URL strings through business code. A typed pathname object used by one screen stays inline — it is already checked against the route tree; a target assembled the same way in two or more screens becomes a builder in `shared/routes` (`movieHref`, `snapPickerHref`).
 - Do not use route names as business entity identifiers.
 
 ## Platform-specific code

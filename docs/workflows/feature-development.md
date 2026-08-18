@@ -118,4 +118,4 @@ Update the relevant documentation together with code when a change:
 - Changes the state-management or API standard.
 - Completes a migration stage and changes the allowed legacy paths.
 
-For product behavior, update the affected document under `docs/features`. Cross-feature changes may require more than one document. For example, persisting an edited capture in the archive requires updates to both the capture-flow and recording-archive documents. If review confirms that existing feature documentation remains accurate, record that review result in the task or pull-request notes.
+For product behavior, update the affected document under `docs/features`. Cross-feature changes may require more than one document. For example, changing how a captured snap enters the library requires updates to both `capture-flow.md` and `snaps.md`. If review confirms that existing feature documentation remains accurate, record that review result in the task or pull-request notes.

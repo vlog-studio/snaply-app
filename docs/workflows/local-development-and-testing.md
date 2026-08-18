@@ -45,7 +45,9 @@ The command examples below were validated with this legacy-machine profile. Adju
 - Android: Android SDK at `~/Library/Android/sdk`, Android Studio, JDK 17, system image `system-images;android-35;default;x86_64`, and the AVD **`Pixel_API_35`**.
 - Expo CLI 57.x.
 
-## Default procedure — Expo Go on both simulators
+## Expo Go on the simulators — human-developer reference
+
+**This is not the agent's verification path** (see the policy at the top), and it is not a working Android path either: Expo Go no longer boots this app on Android ([below](#expo-go-limitations)). What remains usable here is the iOS simulator. The Android emulator commands are kept only because the two platforms share one Metro server.
 
 One Metro server serves both platforms. Boot the two devices, start Metro once, then open the app on each.
 
@@ -142,4 +144,4 @@ When Expo Go is insufficient, build a simulator/emulator dev client in the cloud
 ## Notes
 
 - `ios/` and `android/` are git-ignored (managed workflow). A `prebuild` may generate `ios/`; do not commit it.
-- To stop: Metro — free port 8081 (`lsof -ti :8081 | xargs kill`); Android — `adb -s emulator-5554 emu kill`; iOS — `xcrun simctl shutdown "iPhone 16"`.
+- To stop: Android — `adb -s emulator-5554 emu kill`; iOS — `xcrun simctl shutdown "iPhone 16"`. **Metro is the owner's process, not the agent's**: never free port 8081 without asking (policy 3 above), because the server on it is usually the one the owner started for their own device session.

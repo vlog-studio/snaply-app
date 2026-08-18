@@ -1,7 +1,7 @@
 # FCM 푸시 알림 설정 가이드 (네이티브 FCM 토큰)
 
 > 이 문서는 사람 개발자를 위한 한글 가이드입니다. 에이전트용 문서가 아니므로 `AGENTS.md` 색인에 포함하지 않습니다.
-> 전체 위치 알림 기능의 선행 개발 계획과 단계는 [`location-notifications-plan.md`](location-notifications-plan.md)를 참고하세요. 이 문서는 그중 **3단계(FCM 토큰)** 의 Firebase 준비 작업만 다룹니다.
+> 이 문서는 **Firebase 콘솔 준비 작업**만 다룹니다. 위치·푸시 기능이 현재 무엇까지 동작하고 어느 계층이 소유하는지는 [`../features/location-and-push-notifications.md`](../features/location-and-push-notifications.md)가 기준입니다.
 
 이 앱은 **네이티브 FCM 토큰** 방식(`@react-native-firebase/messaging`)을 사용합니다. Firebase 프로젝트 등록과 설정 파일이 있어야 토큰을 발급받을 수 있고, **이 파일들이 없으면 Android 빌드 자체가 실패**하므로, 아래 준비 작업이 코드 배선보다 먼저입니다.
 
@@ -53,13 +53,13 @@
 1. [Apple Developer → Certificates, Identifiers & Profiles → Keys](https://developer.apple.com/account/resources/authkeys/list)에서 **APNs 인증 키(.p8)** 를 생성하고 Key ID를 기록합니다(팀 ID도 필요).
 2. Firebase → **프로젝트 설정 → Cloud Messaging → Apple 앱 구성**에 `.p8` 키, Key ID, 팀 ID를 업로드합니다.
 
-> iOS는 이 앱 기준 **로컬 네이티브 빌드가 불가**하고 실기기 공기계도 아직 없어, 실제 수신 검증은 **EAS Build + 실제 iOS 기기**에서 진행합니다. (자세한 검증 제약은 [`location-notifications-plan.md`](location-notifications-plan.md) §8 참고)
+> iOS는 이 앱 기준 **로컬 네이티브 빌드가 불가**하고 실기기 공기계도 아직 없어, 실제 수신 검증은 **EAS Build + 실제 iOS 기기**에서 진행합니다. (검증 환경 제약은 [`../workflows/local-development-and-testing.md`](../workflows/local-development-and-testing.md) 참고)
 
 ---
 
-## 5. 파일 확보 후 — 코드/설정 배선 (에이전트가 진행)
+## 5. 코드/설정 배선 — **이미 완료됨**
 
-`google-services.json`이 레포 루트에 놓이면, 다음 작업을 이어서 진행합니다. **이 단계 전에는 패키지를 설치하지 않습니다**(설정 파일 없이 설치하면 Android 빌드가 깨짐).
+아래 배선은 모두 끝나 있습니다. 새로 할 일이 아니라, Firebase 파일을 교체하거나 다른 프로젝트로 옮길 때 무엇이 이미 연결돼 있는지 확인하는 목록입니다. 동작 범위는 [`../features/location-and-push-notifications.md`](../features/location-and-push-notifications.md)를 보세요.
 
 1. 패키지 설치: `npx expo install @react-native-firebase/app @react-native-firebase/messaging expo-build-properties`
 2. `app.json` 반영:
@@ -67,19 +67,14 @@
    - `plugins`에 `"@react-native-firebase/app"` 추가
    - `expo-build-properties` 플러그인으로 iOS `useFrameworks: "static"` + `ios.forceStaticLinking: ["RNFBApp", "RNFBMessaging"]`
 3. `shared/lib/notifications` 어댑터: `getToken`, `onTokenRefresh`, `onMessage`(포그라운드 수신 → `expo-notifications`로 로컬 알림 표시), iOS `requestPermission`/`registerDeviceForRemoteMessages`
-4. `features/register-push-token`: 토큰 발급 → `registerFcmToken`(이미 작성됨, 현재 mock) 호출, 토큰 갱신 시 재등록
+4. `features/register-push-token`: 토큰 발급 → `registerFcmToken` 호출, 토큰 갱신 시 재등록
 5. `expo prebuild --clean` 후 Android dev build로 검증: 실제 FCM 토큰 발급 + Firebase 콘솔 테스트 발송으로 포그라운드/백그라운드 수신 확인
 
----
-
-## 지금까지 준비된 코드
-
-- `src/features/register-push-token/api/register-fcm-token.ts` — `POST /auth/fcm-token` 등록 요청(현재 mock, API 나오면 자동 실호출). RNFirebase에 의존하지 않아 빌드 안전.
-- 나머지(토큰 발급 어댑터·플러그인·네이티브 설정)는 위 5단계에서 Firebase 파일 확보 후 배선.
+> 남은 미검증 항목은 **end-to-end 푸시 표시**뿐입니다. 백엔드에 알림 발송 파이프라인이 없어 실제 도착 푸시를 띄워본 적이 없습니다.
 
 ---
 
 ## 관련 문서
 
-- [`location-notifications-plan.md`](location-notifications-plan.md) — 위치 알림 전체 선행 개발 계획과 단계별 로드맵
+- [`../features/location-and-push-notifications.md`](../features/location-and-push-notifications.md) — 현재 동작하는 범위, 소유 계층, 남은 제약
 - React Native Firebase (Expo): https://rnfirebase.io

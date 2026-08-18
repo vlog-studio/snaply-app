@@ -47,8 +47,10 @@ Imitate the closest existing implementation instead of inventing a new shape.
 
 Every signature animation reads `useReducedMotion()` from `@/shared/ui/theme` and
 presents the final state immediately (or a static equivalent, like `HoldRing`'s
-partial arc) instead of animating. This is a product rule (concept §7 저감 모션),
-not an optimization.
+partial arc) instead of animating. This is a product rule owned here — 저감 모션 —
+not an optimization. The surfaces that apply it are recorded in their feature
+documents (for example the tab switch in
+[`../features/app-shell-and-navigation.md`](../features/app-shell-and-navigation.md)).
 
 ### Prefer runtime shared-value animations over `entering`/`exiting` presets
 

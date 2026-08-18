@@ -1,6 +1,6 @@
 # Snaply
 
-Snaply는 짧게 여러 번 찍어두면 AI가 한 편의 숏폼 브이로그로 만들어 주는 앱입니다. 3초 또는 5초짜리 **스냅**을 모아두고, 스냅 탭에서 골라 **트레이**에 담고, 스튜디오에서 **무비** 한 편으로 엮습니다. 무비 화면은 타임라인 스튜디오입니다: 컷 순서·트림·스타일을 정리한 뒤 생성을 실행하고, 완성본을 같은 화면에서 감상·공유합니다. 촬영 원본은 앱의 문서 디렉터리에 저장되고, 생성에 쓰일 수 있도록 백그라운드에서 백엔드에 업로드됩니다.
+Snaply는 짧게 여러 번 찍어두면 AI가 한 편의 숏폼 브이로그로 만들어 주는 앱입니다. 3초 또는 5초짜리 **스냅**을 모아두고, 스냅 탭에서 골라 확정하면 곧바로 초안 **무비**가 만들어집니다. 무비 화면은 타임라인 스튜디오입니다: 컷 순서·트림·스타일을 정리한 뒤 생성을 실행하고, 완성본을 같은 화면에서 감상·공유합니다. 촬영 원본은 앱의 문서 디렉터리에 저장되고, 생성에 쓰일 수 있도록 백그라운드에서 백엔드에 업로드됩니다.
 
 > **AI 합성은 실제 백엔드 잡으로 동작합니다** (`POST /edit-jobs`, 2026-08-07). 백엔드가 컷을 자르고 스타일을 입히고 음악·자막을 붙여 렌더 파일을 만들며, 완성 무비는 그 파일을 재생하고 공유합니다. 백엔드 없이(mock 모드) 실행하면 합성 없이 컷을 순서대로 이어 재생합니다. 무엇이 실제로 동작하는지는 [`docs/features/`](docs/features)를 보세요.
 
@@ -8,14 +8,19 @@ Expo SDK 57(React Native 0.86, Expo Router)을 사용하며, Feature-Sliced Desi
 
 ## 시작하기
 
-의존성을 설치하고 Expo Go 개발 서버를 실행합니다.
+의존성을 설치하고, Android 기기(또는 에뮬레이터)에 개발 빌드를 올린 뒤 Metro를 붙입니다. **이 앱은 Expo Go에서 Android가 부팅되지 않습니다** — 시작 시 `expo-notifications`를 import하는데 SDK 53부터 Android Expo Go에서 제거된 모듈이라 렌더 이전에 죽습니다. 따라서 Android의 기준 런타임은 dev build입니다.
 
 ```bash
 npm install
-npx expo start --go
+npm run android:device     # 실기기. 에뮬레이터는 npm run android
+npx expo start --dev-client
 ```
 
+iOS 시뮬레이터는 Expo Go(`npx expo start --go`)로 띄울 수 있습니다.
+
 > **Xcode 16.4까지만 사용할 수 있는 구형 macOS 장비에서는 `npx expo run:ios`를 실행할 수 없습니다.** Expo SDK 57은 Swift 6.2 도구 모음이 필요하므로, 이 조건에 해당하는 장비에서는 iOS 시뮬레이터를 Expo Go로 실행하세요. 최신 macOS와 Swift 6.2를 지원하는 Xcode가 설치된 장비에는 이 제한이 적용되지 않습니다.
+>
+> 에이전트의 검증 경로와 기기 연결 규칙은 [`docs/workflows/local-development-and-testing.md`](docs/workflows/local-development-and-testing.md)가 기준입니다.
 
 웹(`npm run web`)도 실행할 수 있지만 기준 개발 환경은 아닙니다. 웹에서는 영상 촬영 기능을 사용할 수 없습니다.
 
@@ -49,15 +54,13 @@ src/
 | [`docs/workflows/`](docs/workflows) | 기능 개발, 검증, 브랜딩 변경 절차 |
 | [`docs/features/`](docs/features) | 현재 사용자 기능, 구현 상태, 소유 계층 기록 |
 | [`docs/api/`](docs/api) | 백엔드 OpenAPI 스펙 사본(`openapi.json`) — `npm run api:pull`로 갱신, `npm run api:gen`으로 타입 생성 |
-| [`docs/migration/`](docs/migration) | 구조 이전 현황과 점진적 마이그레이션 규칙 |
 
 ### 개발자 가이드
 
-- [`Android 실기기 무선 연동 가이드`](docs/guides/android-wireless-debugging.md): 실제 Android 기기의 Wi-Fi 디버깅 연결과 Expo Go 실행 방법
+- [`Android 실기기 무선 연동 가이드`](docs/guides/android-wireless-debugging.md): 실제 Android 기기의 Wi-Fi 디버깅 연결과 개발 빌드 실행 방법
 - [`Supabase 소셜 로그인 설정 가이드`](docs/guides/supabase-auth-setup.md): Google·Apple 로그인을 켜기 위한 `.env` 값, Supabase·Google·Apple 콘솔 설정, 개발 빌드 실행 절차
-- [`위치 기반 FCM 알림 선행 개발 계획`](docs/guides/location-notifications-plan.md): 백엔드 API 이전에 프론트에서 만들 수 있는 범위, FSD 배치, 단계별 계획, 네이티브 설정 체크리스트
 - [`FCM 푸시 알림 설정 가이드`](docs/guides/fcm-push-setup.md): 네이티브 FCM 토큰용 Firebase 프로젝트·앱 등록, `google-services.json`/`GoogleService-Info.plist`/APNs 준비 절차
-- [`Snaply 스튜디오 — AI 숏폼 브이로그 기획`](docs/guides/ai-vlog-studio/concept.md): **현재 확정 기획이자 구현 기준.** 스냅↔무비 재정의, 4탭 + 담기 트레이 정보 구조, 편집기 3단계, 백엔드 계약 초안 (인터랙티브 목업 HTML 포함). 기획과 실제 구현 상태가 다를 수 있으므로, 지금 무엇이 동작하는지는 [`docs/features/`](docs/features)를 기준으로 봅니다
+- [`Snaply 스튜디오 — AI 숏폼 브이로그 기획`](docs/guides/ai-vlog-studio/concept.md): **왜 이 제품 방향인지에 대한 결정 기록.** 스냅↔무비 재정의, 4탭 정보 구조, 용어, 감수한 트레이드오프, 백엔드 계약 초안 (인터랙티브 목업 HTML 포함 — 목업은 옛 화면 구성입니다). **구현 기준이 아닙니다** — 지금 무엇이 어떻게 동작하는지는 항상 [`docs/features/`](docs/features)가 정답입니다
 
 에이전트용 문서는 [`AGENTS.md`](AGENTS.md)에서 작업 유형별로 찾을 수 있습니다.
 
@@ -65,7 +68,8 @@ src/
 
 | 명령어 | 용도 |
 | --- | --- |
-| `npx expo start --go` | 기본 개발 환경인 Expo Go용 Metro 서버 실행 |
+| `npx expo start --dev-client` | 개발 빌드용 Metro 서버 실행(Android 기준 런타임) |
+| `npx expo start --go` | Expo Go용 Metro 서버 실행(iOS 시뮬레이터 전용 — Android Expo Go는 부팅 불가) |
 | `npm run android` / `npm run android:device` | Android 개발 빌드를 에뮬레이터/실기기에 빌드·실행 |
 | `npm run android:device:release` | 릴리스 APK를 빌드해 실기기에 설치 |
 | `npm run web` | 웹 환경 실행(기준 개발 환경 아님) |
@@ -82,7 +86,7 @@ src/
 
 ## 런타임 의존성
 
-`dependencies`는 앱 번들에 포함되어 실제 기능을 구성하는 패키지입니다. 버전은 Expo SDK 57에 맞춰 고정합니다. 일부 Expo 모듈은 코드에서 직접 `import`하지 않고 [`app.json`](app.json)의 `plugins`로 네이티브 설정만 주입하며, 표에 `(app.json 플러그인)`으로 표시했습니다. 아직 화면에 연결하지 않고 예정 기능을 위해 설치해 둔 패키지는 `(예약)`으로 표시했습니다.
+`dependencies`는 앱 번들에 포함되어 실제 기능을 구성하는 패키지입니다. 버전은 Expo SDK 57에 맞춰 고정합니다. 일부 Expo 모듈은 코드에서 직접 `import`하지 않고 [`app.json`](app.json)의 `plugins`로 네이티브 설정만 주입하며, 표에 `(app.json 플러그인)`으로 표시했습니다. 코드에서도 `app.json`에서도 쓰이지 않는 패키지는 두지 않습니다 — 예정 기능을 위해 미리 설치해 두면 네이티브 빌드 표면만 넓히고, 무엇이 실제로 쓰이는지 이 표에서 읽을 수 없게 됩니다.
 
 ### 코어 프레임워크
 
@@ -128,7 +132,6 @@ src/
 | `expo-auth-session` | OAuth 인증 세션 흐름 처리. |
 | `expo-web-browser` | 인증 시 시스템 브라우저 세션 실행. |
 | `expo-secure-store` | 세션 토큰 등 민감 정보의 암호화 저장. |
-| `expo-crypto` | 인증 논스·해시 생성용 암호 유틸리티(예약). |
 
 > 소셜 로그인 설정 절차는 [`docs/guides/supabase-auth-setup.md`](docs/guides/supabase-auth-setup.md)를 참고합니다.
 
@@ -142,7 +145,6 @@ src/
 | `expo-file-system` | 촬영 영상을 로컬 문서 디렉터리에 저장·관리. |
 | `expo-sharing` | 완성 무비 내보내기용 시스템 공유 시트 호출. 렌더 파일을 캐시에 내려받아 공유합니다. (app.json 플러그인) |
 | `expo-video-thumbnails` | 영상 첫 프레임 썸네일 생성. 스냅 그리드와 타임라인 클립에 사용합니다. |
-| `expo-media-library` | 영상을 기기 갤러리에 저장(예약). |
 
 ### 위치와 알림
 
@@ -153,9 +155,8 @@ src/
 | `expo-notifications` | 로컬 알림 표시와 권한 처리. |
 | `@react-native-firebase/app` | Firebase 네이티브 SDK 초기화. FCM의 기반입니다. (app.json 플러그인) |
 | `@react-native-firebase/messaging` | FCM 토큰 발급과 푸시 메시지 수신. (app.json 플러그인) |
-| `expo-device` | 실기기 여부·기기 정보 확인(예약). |
 
-> 위치 기반 알림 설계와 FCM 설정은 [`docs/guides/location-notifications-plan.md`](docs/guides/location-notifications-plan.md), [`docs/guides/fcm-push-setup.md`](docs/guides/fcm-push-setup.md)를 참고합니다.
+> Firebase 콘솔 준비 절차는 [`docs/guides/fcm-push-setup.md`](docs/guides/fcm-push-setup.md), 현재 동작하는 범위와 소유 계층은 [`docs/features/location-and-push-notifications.md`](docs/features/location-and-push-notifications.md)를 참고합니다.
 
 ### UI·애니메이션·피드백
 
@@ -167,9 +168,6 @@ src/
 | `expo-haptics` | 촉각 피드백(진동). |
 | `expo-blur` | 탭바 등 블러 배경 효과. |
 | `@expo/vector-icons` | 아이콘 세트. |
-| `expo-glass-effect` | iOS 리퀴드 글래스 효과(예약). |
-| `expo-symbols` | iOS SF Symbols 아이콘(예약). |
-| `@expo/ui` | 네이티브 SwiftUI/Jetpack Compose 컴포넌트(예약). |
 | `expo-font` | 본문 폰트 Pretendard GOV를 네이티브에 내장. (app.json 플러그인) |
 
 ### 앱 셸과 시스템
@@ -181,7 +179,7 @@ src/
 | `expo-navigation-bar` | Android 시스템 내비게이션 바 제어(탭바 블러 연동). (app.json 플러그인) |
 | `expo-system-ui` | 루트 배경색 등 시스템 UI 설정(설정 기반). |
 | `expo-linking` | 딥링크·OAuth 리다이렉트 URL 처리. |
-| `expo-constants` | 앱 설정·상수 접근(예약, 현재 환경 변수는 `process.env`로 직접 읽음). |
+| `expo-constants` | 앱 설정·상수 접근. 앱 코드는 직접 쓰지 않고(환경 변수는 `process.env`로 읽음) `expo-auth-session`·`expo-linking`·`expo-notifications`가 요구합니다. |
 
 ### 빌드와 개발 도구
 

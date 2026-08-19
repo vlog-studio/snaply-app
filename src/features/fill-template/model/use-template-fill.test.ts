@@ -5,10 +5,21 @@ import type { Snap } from '@/entities/snap';
 
 import { useTemplateFill } from './use-template-fill';
 
+import type { TemplateRecommendation } from './use-template-recommendation';
+
 const mockSnaps = jest.fn<Snap[], []>();
 
 jest.mock('@/entities/snap', () => ({
   useSnaps: () => mockSnaps(),
+}));
+
+// The server's half is stubbed: what this file is about is how an arriving
+// proposal is merged with what the user has already done to the screen. The
+// request/poll plumbing is covered in `use-template-recommendation.test.ts`.
+const mockRecommendation = jest.fn<TemplateRecommendation | undefined, []>();
+
+jest.mock('./use-template-recommendation', () => ({
+  useTemplateRecommendation: () => mockRecommendation(),
 }));
 
 const Noon = new Date('2026-08-03T12:00:00+09:00').getTime();
@@ -44,6 +55,7 @@ const template: MovieTemplate = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSnaps.mockReturnValue([makeSnap('a', 0), makeSnap('b', 10)]);
+  mockRecommendation.mockReturnValue(undefined);
 });
 
 describe('useTemplateFill', () => {
@@ -197,5 +209,115 @@ describe('useTemplateFill', () => {
 
     expect(result.current.slots).toEqual([]);
     expect(result.current.snapIds).toEqual([]);
+  });
+
+  it('says the number is an outing confidence while only the local match has run', async () => {
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    expect(result.current.confidenceKind).toBe('outing');
+  });
+});
+
+// The second stage: the local match has already drawn the screen, and this is
+// what happens when the server's proposal turns up afterwards.
+describe('useTemplateFill with a recommendation', () => {
+  beforeEach(() => {
+    mockSnaps.mockReturnValue([makeSnap('a', 0), makeSnap('b', 10), makeSnap('c', 20)]);
+  });
+
+  it('lays the server proposal into the slots it names', async () => {
+    // Deliberately not the order the outing happened in.
+    mockRecommendation.mockReturnValue({
+      start: { snapId: 'c', score: 0.9 },
+      alley: { snapId: 'a', score: 0.6 },
+    });
+
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['c', 'a', undefined]);
+    expect(result.current.confidenceKind).toBe('slot-fit');
+    expect(result.current.slots[0].confidence).toBe(0.9);
+  });
+
+  it('leaves a slot the server filled nothing for empty', async () => {
+    mockRecommendation.mockReturnValue({ start: { snapId: 'a', score: 0.8 } });
+
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['a', undefined, undefined]);
+  });
+
+  it('does not disturb a slot the user shot for', async () => {
+    const { result, rerender } = await renderHook(() => useTemplateFill(template));
+
+    const shot = makeSnap('d', 30);
+    await act(async () => result.current.fillSlot('start', shot));
+    // The answer arrives after the user has already filled that row by hand.
+    mockRecommendation.mockReturnValue({ start: { snapId: 'a', score: 0.9 } });
+    await act(async () => rerender({}));
+
+    expect(result.current.slots[0].snap?.id).toBe('d');
+    expect(result.current.slots[0].confidence).toBeUndefined();
+  });
+
+  it('does not put a snap back into a slot the user dropped', async () => {
+    const { result, rerender } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.dropSlot('start'));
+    mockRecommendation.mockReturnValue({ start: { snapId: 'a', score: 0.9 } });
+    await act(async () => rerender({}));
+
+    expect(result.current.slots[0].snap).toBeUndefined();
+    expect(result.current.slots[0].isDropped).toBe(true);
+  });
+
+  it('keeps the arrangement the user was working on when an answer lands mid-reorder', async () => {
+    const { result, rerender } = await renderHook(() => useTemplateFill(template));
+    // Local order is a, b, c; the user trades the first two.
+    await act(async () => result.current.moveSnap(0, 1));
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['b', 'a', 'c']);
+
+    mockRecommendation.mockReturnValue({
+      start: { snapId: 'c', score: 0.9 },
+      alley: { snapId: 'a', score: 0.6 },
+      back: { snapId: 'b', score: 0.5 },
+    });
+    await act(async () => rerender({}));
+
+    // Their swap still means what it meant when they made it.
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['b', 'a', 'c']);
+    expect(result.current.confidenceKind).toBe('outing');
+  });
+
+  it('takes the better proposal once the user undoes their edits', async () => {
+    const { result, rerender } = await renderHook(() => useTemplateFill(template));
+    await act(async () => result.current.moveSnap(0, 1));
+    mockRecommendation.mockReturnValue({
+      start: { snapId: 'c', score: 0.9 },
+      alley: { snapId: 'a', score: 0.6 },
+      back: { snapId: 'b', score: 0.5 },
+    });
+    await act(async () => rerender({}));
+
+    await act(async () => result.current.resetSlots());
+
+    expect(result.current.slots.map((slot) => slot.snap?.id)).toEqual(['c', 'a', 'b']);
+    expect(result.current.confidenceKind).toBe('slot-fit');
+  });
+
+  it('drops the number from a row moved out of the position it was scored for', async () => {
+    mockRecommendation.mockReturnValue({
+      start: { snapId: 'a', score: 0.9 },
+      alley: { snapId: 'b', score: 0.6 },
+      back: { snapId: 'c', score: 0.5 },
+    });
+    const { result } = await renderHook(() => useTemplateFill(template));
+
+    await act(async () => result.current.moveSnap(0, 1));
+
+    // `b` now sits in 출발, and 0.6 was how well it suited 골목 — not this row.
+    expect(result.current.slots[0].snap?.id).toBe('b');
+    expect(result.current.slots[0].confidence).toBeUndefined();
+    expect(result.current.slots[2].confidence).toBe(0.5);
   });
 });

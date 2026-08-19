@@ -1627,6 +1627,373 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/videos/{videoId}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 스냅 분석 상태·결과 조회
+         * @description 가장 최신 버전의 분석 1건을 반환한다. 분석을 요청한 적이 없으면 **404**.
+         *
+         *     `status` 의 의미:
+         *     - `queued` — 큐에 적재됨, 워커 대기 중
+         *     - `processing` — 워커가 프레임을 추출해 모델을 호출하는 중
+         *     - `done` — `result` 가 채워진다
+         *     - `failed` — `error.code` 와 `error.retryable` 이 채워진다.
+         *       `retryable: true` 면 같은 영상으로 `POST /videos/{videoId}/analysis` 를 다시 호출하면 재시도된다
+         *
+         *     **분석 실패는 원본 영상에 영향을 주지 않는다** — `Video.status` 는 `ready` 로 남는다.
+         *     실패해도 이 조회 자체는 성공이므로 HTTP 200 이다. 모델의 원문 오류 메시지는 노출하지 않는다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description 분석할 source 영상 id */
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** Format: uuid */
+                                videoId: string;
+                                version: number;
+                                /** @enum {string} */
+                                status: "queued" | "processing" | "done" | "failed";
+                                result: {
+                                    /** @description 워커가 FFprobe 로 실측한 길이. 클라이언트가 보고한 값이 아니다. */
+                                    durationMs: number | null;
+                                    frameTimestampsMs: number[];
+                                    summary: string;
+                                    topics: string[];
+                                    places: string[];
+                                    objects: string[];
+                                    actions: string[];
+                                    moods: string[];
+                                    visualQuality: {
+                                        score: number;
+                                        issues: string[];
+                                        /** @description 자동 편집 후보로 쓸 수 있는지. 추천이 1차로 보는 값이다. */
+                                        usableForEdit: boolean;
+                                    };
+                                    confidence: number | null;
+                                } | null;
+                                error: {
+                                    code: string;
+                                    /** @description false 면 다시 요청해도 같은 결과다(손상된 영상·정책 거절 등). */
+                                    retryable: boolean;
+                                } | null;
+                                modelVersion: string | null;
+                                promptVersion: string | null;
+                                attempts: number;
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                completedAt: string | null;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * 스냅 내용 분석 요청 (비동기)
+         * @description 업로드된 source 스냅의 대표 프레임을 AI 워커가 분석해 주제·사물·행동·분위기와
+         *     편집 사용 가능 여부를 기록한다. **비동기** — 즉시 `202`와 `analysisId`만 돌려주고,
+         *     실제 분석은 Python 분석 워커가 큐에서 꺼내 처리한다. 진행 상태는
+         *     `GET /videos/{videoId}/analysis` 로 폴링한다.
+         *
+         *     **업로드 시 자동으로 분석하지 않는다.** 스냅은 대량으로 올라오고 실제 편집에 쓰이는
+         *     것은 일부라, 업로드마다 분석하면 버려질 스냅까지 과금된다. 그래서 편집에 쓸 후보가
+         *     정해진 시점에 이 API 를 호출한다.
+         *
+         *     **멱등하다.** 같은 영상에 여러 번 호출해도 분석은 버전당 한 번만 돈다.
+         *     - 진행 중(`queued`/`processing`)이면 같은 `analysisId` 를 그대로 돌려준다
+         *     - 실패한 분석은 같은 호출로 재시도된다 (별도 retry API 가 없다)
+         *     - 이미 `done` 이면 다시 돌리지 않는다
+         *     - 다시 해도 같은 결과인 실패(손상된 영상, 정책 거절)는 **409**
+         *
+         *     분석 결과는 자동 편집 추천의 입력이며 사용자에게 보여주기 위한 문구가 아니다.
+         *
+         *     ```json
+         *     { "success": true, "data": { "analysisId": "uuid", "version": 1, "status": "queued" } }
+         *     ```
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description 분석할 source 영상 id */
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                analysisId: string;
+                                version: number;
+                                /** @enum {string} */
+                                status: "queued" | "processing" | "done";
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                nextAvailableAt?: string;
+                                /** Format: date-time */
+                                resetsAt?: string;
+                                /** Format: uuid */
+                                rewardId?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/edit-jobs": {
         parameters: {
             query?: never;
@@ -2149,6 +2516,508 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/movie-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 무비 템플릿 카탈로그 조회
+         * @description 사용자가 "템플릿으로 시작"할 때 고를 수 있는 무비의 형태들을 정렬 순서대로 준다.
+         *     내린 템플릿(`retiredAt`)은 제외된다.
+         *
+         *     **앱은 이 응답을 캐시하고, 실패하면 내장 카탈로그로 폴백한다.** 그래서 이 API 가 죽어도
+         *     템플릿 화면은 동작한다. 캐시 갱신 판단은 `updatedAt` 으로 한다.
+         *
+         *     `style` 은 `POST /edit-jobs` 가 받는 프리셋 이름 그대로다. 서버가 새 프리셋을 추가했는데
+         *     앱이 아직 모를 수 있으므로 **모르는 프리셋의 템플릿은 앱이 건너뛴다** — 서버는 거르지 않는다.
+         *
+         *     슬롯의 `label`·`hint` 는 **사람에게 보여주는 촬영 지시**이지, 그 자리에 들어간 스냅의
+         *     내용에 대한 주장이 아니다. 점수화가 쓰는 매칭 힌트는 이 응답에 포함되지 않는다.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /**
+                                 * Format: date-time
+                                 * @description 목록에서 가장 최근에 바뀐 템플릿의 시각. 앱의 캐시 갱신 판단 근거
+                                 */
+                                updatedAt: string;
+                                templates: {
+                                    /** @description 'walk' 처럼 고정된 사람이 읽는 id */
+                                    id: string;
+                                    name: string;
+                                    description: string;
+                                    /** @description POST /edit-jobs 가 받는 프리셋 이름 그대로. 앱이 모르는 프리셋이 오면 그 템플릿을 건너뛴다 */
+                                    style: string;
+                                    /** @description 앱에서만 쓰는 트랙 키. 편집 파이프라인은 받지 않는다 */
+                                    bgm: string;
+                                    /** @description 촬영 순서 */
+                                    slots: {
+                                        /** @description 템플릿 안에서만 유일한 슬롯 id */
+                                        id: string;
+                                        /** @description 장면 이름 (예: 골목) */
+                                        label: string;
+                                        /** @description 무엇을 찍을지에 대한 지시 (예: 좁은 길, 걷는 발) */
+                                        hint: string;
+                                    }[];
+                                }[];
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/movie-recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 템플릿 슬롯에 넣을 스냅 추천 요청 (비동기)
+         * @description 템플릿의 각 슬롯에 어떤 스냅을 넣을지 서버가 제안한다. **비동기** — 즉시 `202` 와
+         *     `id` 만 돌려주고, 결과는 `GET /movie-recommendations/{id}` 로 폴링한다.
+         *
+         *     **후보는 앱이 고른다.** 서버는 스냅이 언제 어디서 찍혔는지 모르므로(업로드 시
+         *     촬영 시각·좌표를 받지 않는다) 한 번의 외출을 묶는 계산은 앱만 할 수 있다.
+         *     `candidates` 는 **촬영 시간 오름차순**이어야 한다 — 이 순서가 점수화의 시간 사전값이다.
+         *
+         *     **앱은 이 결과를 기다리지 않는다.** 로컬 매칭이 먼저 화면을 채우고, 도착한 결과는
+         *     사용자가 손대지 않은 슬롯에만 얹힌다. 그래서 이 API 가 느리거나 죽어도 화면은 동작한다.
+         *
+         *     **멱등하다.** 같은 (유저·템플릿·후보 집합) 이 24시간 안에 다시 오면 새 추천을 만들지
+         *     않고 기존 것을 돌려준다. 화면을 다시 열 때마다 재분석하면 그게 그대로 비용이다.
+         *
+         *     **크레딧을 차감하지 않는다.** 추천은 채택할지 버릴지 모르는 제안이고, 제안에 과금하면
+         *     "만들기도 전에 돈부터 낸다"가 된다. 비용은 후보 수와 일일 횟수 상한으로 막는다.
+         *
+         *     후보는 한 번에 **12개**까지다. 초과분은 앱이 균등 샘플링해서 보낸다.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": {
+                        /** @description GET /movie-templates 의 템플릿 id */
+                        templateId: string;
+                        /** @description 후보 스냅의 videoId, **촬영 시간 오름차순**. 이 순서가 점수화의 시간 사전값이다. 최대 12개 */
+                        candidates: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Default Response */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                /** @enum {string} */
+                                status: "processing" | "done" | "failed";
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** @description 추천 1회에 보낼 수 있는 후보 수 */
+                                max?: number;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/movie-recommendations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 스냅 추천 상태·결과 조회
+         * @description `status` 의 의미:
+         *     - `processing` — 후보 분석이 아직 끝나지 않았다. `slots` 는 비어 있다
+         *     - `done` — `slots` 가 템플릿의 슬롯 순서대로 채워진다
+         *
+         *     **채점은 이 조회 시점에 일어난다.** 분석이 다 끝났으면 배정하고 굳히며, 아직이면
+         *     `processing` 을 돌려준다. 접수 후 일정 시간이 지나면 끝난 분석만으로 채점하고 닫는다 —
+         *     분석 워커가 죽었을 때 추천이 영원히 걸려 있으면 안 된다.
+         *
+         *     `slots[].videoId` 가 `null` 이면 그 자리에 넣을 후보가 없었다는 뜻이다. 못 쓸 스냅으로
+         *     채우는 것보다 빈 슬롯이 정직하다 — 화면에서는 `지금 찍기` 로 남는다.
+         *
+         *     `slots[].score` 는 **슬롯 적합도**이지 스냅 내용에 대한 주장이 아니다. 슬롯 이름은
+         *     사람에게 주는 촬영 지시이고, 서버는 "이 스냅이 골목이다"라고 말하지 않는다.
+         *
+         *     `excluded[].reason`: `unusable`(편집에 쓸 수 없다고 분석이 판단) ·
+         *     `analysis_failed`(분석 실패 또는 시한 초과) · `no_match`(슬롯보다 후보가 많아 자리 없음).
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Default Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: true;
+                            data: {
+                                /** Format: uuid */
+                                id: string;
+                                templateId: string;
+                                /** @enum {string} */
+                                status: "processing" | "done" | "failed";
+                                /** @description 템플릿의 슬롯 순서 그대로. done 이 되기 전에는 비어 있다 */
+                                slots: {
+                                    slotId: string;
+                                    /**
+                                     * Format: uuid
+                                     * @description null 이면 채울 후보가 없었다는 뜻
+                                     */
+                                    videoId: null | string;
+                                    /** @description 0~1 슬롯 적합도. 스냅 내용에 대한 주장이 아니다 */
+                                    score: null | number;
+                                }[];
+                                excluded: {
+                                    /** Format: uuid */
+                                    videoId: string;
+                                    /** @enum {string} */
+                                    reason: "unusable" | "analysis_failed" | "no_match";
+                                }[];
+                                /** Format: date-time */
+                                createdAt: string;
+                                /** Format: date-time */
+                                completedAt: null | string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                                /** Format: date-time */
+                                purgeAfter?: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+                /** @description Default Response */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** @enum {boolean} */
+                            success: false;
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;

@@ -14,7 +14,7 @@ import { SnaplyButton } from '@/shared/ui/snaply-button';
 import { MaxContentWidth, Radius, Spacing, useTheme } from '@/shared/ui/theme';
 import { ThemedText } from '@/shared/ui/themed-text';
 
-import { SlotRow } from './slot-row';
+import { SlotRow, confidenceLabel } from './slot-row';
 
 export type MovieTemplatePageProps = {
   templateId?: string;
@@ -110,11 +110,23 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
           </ThemedText>
         </View>
 
+        {/* The percentages have no label of their own — one heading over the
+            column they sit in says what they measure, without repeating a
+            constant down every row. Absent when no row shows a number. */}
+        {fill.slots.some((filled) => filled.confidence !== undefined) ? (
+          <View style={styles.legend}>
+            <ThemedText selectable={false} type="note" themeColor="textSecondary">
+              {confidenceLabel(fill.confidenceKind)}
+            </ThemedText>
+          </View>
+        ) : null}
+
         <View style={styles.slots}>
           {fill.slots.map((filled, index) => (
             <SlotRow
               key={filled.slot.id}
               filled={filled}
+              confidenceKind={fill.confidenceKind}
               index={index}
               onShoot={shootFor}
               onDrop={fill.dropSlot}
@@ -202,6 +214,7 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   header: { gap: Spacing.half },
+  legend: { alignItems: 'flex-end', paddingHorizontal: Spacing.one },
   slots: { gap: Spacing.one },
   reset: { alignSelf: 'center', paddingVertical: Spacing.one },
   notice: {

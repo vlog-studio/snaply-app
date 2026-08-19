@@ -3,11 +3,13 @@ import { useCallback, useRef, useState } from 'react';
 
 import { creditQueries } from '@/entities/credit';
 import { ApiError } from '@/shared/api';
+import { USE_MOCK_API } from '@/shared/config/api';
 
 import { abandonAdReward } from '../api/abandon-ad-reward';
 import { getAdRewardStatus } from '../api/get-ad-reward-status';
 import { adRewardQueries } from '../api/ad-reward.queries';
 import { startAdReward } from '../api/start-ad-reward';
+import { admobRewardAdProvider } from './admob-reward-ad-provider';
 import { mockRewardAdProvider } from './mock-reward-ad-provider';
 import type { RewardAdProvider } from './reward-ad-provider';
 
@@ -56,9 +58,13 @@ const SETTLE_POLL_ATTEMPTS = 7;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// One place selects the concrete provider; the AdMob implementation slots in
-// here when the SDK lands, and nothing above this line changes.
-const rewardAdProvider: RewardAdProvider = mockRewardAdProvider;
+// One place selects the concrete provider. AdMob is the real one; the mock
+// stands in only when the whole backend is mocked, so the in-code reward server
+// can still be exercised where no ad could be shown anyway (Expo Go, web,
+// no API origin). Neither the flow below nor any screen learns which is in use.
+const rewardAdProvider: RewardAdProvider = USE_MOCK_API
+  ? mockRewardAdProvider
+  : admobRewardAdProvider;
 
 /**
  * The whole rewarded-ad flow as one call: issue a session, show the ad with

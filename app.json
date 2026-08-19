@@ -97,6 +97,12 @@
       "expo-image",
       "expo-status-bar",
       "expo-web-browser",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-4341953141795570~1619593560"
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       [

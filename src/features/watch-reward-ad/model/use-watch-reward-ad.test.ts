@@ -16,6 +16,11 @@ jest.mock('../api/abandon-ad-reward');
 jest.mock('./mock-reward-ad-provider', () => ({
   mockRewardAdProvider: { show: jest.fn() },
 }));
+// The tests run in mock-API mode, so the flow picks the mock provider; the
+// AdMob one is stubbed anyway so no test can reach the native ad SDK.
+jest.mock('./admob-reward-ad-provider', () => ({
+  admobRewardAdProvider: { show: jest.fn().mockResolvedValue('unavailable') },
+}));
 
 const mockStart = startAdReward as jest.MockedFunction<typeof startAdReward>;
 const mockStatus = getAdRewardStatus as jest.MockedFunction<typeof getAdRewardStatus>;

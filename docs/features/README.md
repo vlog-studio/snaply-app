@@ -110,7 +110,7 @@ The run belongs to the backend, so it survives leaving the screen, backgrounding
 | [Capture flow](capture-flow.md) | Inline duration option, permissions, press-and-hold recording, saving a snap, in-camera feedback, recording library | `Functional` |
 | [Snap extraction](snap-extract.md) | Cutting snaps out of a gallery video: system picker, filmstrip with a draggable 0.5–5s window, looped window playback, native trim (media3 / AVAssetExportSession), snaps landing in the library like captures | `Partial` |
 | [Me tab](me.md) | Profile, snap/movie stats, reminder, notification, social-connection, and account controls | `Partial` |
-| [Credits and rewarded ads](credits-and-rewarded-ads.md) | The credit balance and ledger (`/settings/credits`), earning credits by watching a rewarded ad, and the movie screen's insufficient-credit refusal. **Blocked on AdMob integration** — the ad is a mock provider, so no credit can actually be earned. Purchasing credits is not implemented | `Partial` |
+| [Credits and rewarded ads](credits-and-rewarded-ads.md) | The credit balance and ledger (`/settings/credits`), earning credits by watching a rewarded ad, and the movie screen's insufficient-credit refusal. **Blocked on AdMob app review** — the SDK and provider are wired, but the AdMob app cannot be verified until Snaply is on Play, so its ad units serve nothing and no credit can be earned. Purchasing credits is not implemented | `Partial` |
 | [Location alerts and push notifications](location-and-push-notifications.md) | FCM token registration, geofence monitoring, arrival reporting, foreground notification presentation | `Partial` |
 
 ## Current FSD ownership map

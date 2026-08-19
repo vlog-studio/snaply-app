@@ -31,10 +31,18 @@ const reasonLabels: Record<string, string> = {
   ad_reward: '광고 보상',
 };
 
-/** What the row narrates while the flow is somewhere. */
+/**
+ * What the row narrates while the flow is somewhere.
+ *
+ * `preparing` and `showing` deliberately say the same thing. A rewarded ad is
+ * fullscreen, so this row is behind it the entire time one plays — "재생 중"
+ * can only ever be read in the moment before an ad arrives, or in the flash
+ * where none arrives at all, which is exactly when it is untrue. Issuing the
+ * session and waiting for an ad are one wait from where the user is standing.
+ */
 const phaseLabels: Record<Exclude<WatchRewardAdPhase, 'idle'>, string> = {
   preparing: '준비 중…',
-  showing: '광고 재생 중',
+  showing: '준비 중…',
   settling: '지급 확인 중…',
 };
 

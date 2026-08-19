@@ -240,6 +240,36 @@ export const locationQueries = {
 - Forward the TanStack `signal` into the fetch function for cancellation.
 - Never hand-write raw key arrays in UI or mutation code — go through the factory.
 
+### 4a. Start-then-poll for an async backend job
+
+**When:** the backend accepts a request, works on it, and expects the app to poll —
+and there is no progress channel to subscribe to.
+
+**Canonical:** [`recommendation.queries.ts`](../../src/features/fill-template/api/recommendation.queries.ts).
+
+Two factories, not one: a `request` query that starts the job and holds its id
+(`staleTime: Infinity`, because asking again only re-learns the same id), and a
+`result` query keyed by that id whose `refetchInterval` returns `false` as soon as
+the answer is final. The consumer chains them with `enabled`.
+
+```ts
+result: (jobId: string) =>
+  queryOptions({
+    queryKey: [...jobQueries.all(), 'result', jobId] as const,
+    queryFn: ({ signal }) => getJob(jobId, signal),
+    refetchInterval: (query) => (query.state.data?.status === 'processing' ? 2_000 : false),
+    staleTime: 0,
+    retry: false,
+  }),
+```
+
+**Rules**
+- The start request must be **idempotent server-side**, since a remount re-issues it.
+- `retry: false` on both when the screen has something to show without the answer —
+  a retry only delays a fallback that costs the user nothing.
+- Do not poll for something the backend can push. Prefer the WebSocket where one
+  exists (`subscribe-edit-progress.ts`); polling is for endpoints without a channel.
+
 ---
 
 ## 5. Mock-or-real request routing (`USE_MOCK_API`)

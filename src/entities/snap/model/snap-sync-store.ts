@@ -20,8 +20,9 @@ const SnapSyncStoreName = 'snaply.snap-sync';
 
 /**
  * Owns what the backend knows about each snap: the upload state per snap id,
- * the server `videoId` a completed upload earned, and the tombstones of remote
- * videos whose local snap is already gone.
+ * the server `videoId` a completed upload earned, the tombstones of remote
+ * videos whose local snap is already gone, and how often each of those deletes
+ * has been refused.
  *
  * Kept apart from the snap store on purpose — a snap is an immutable original,
  * and its sync state is not part of what it is. Several features meet here:
@@ -42,6 +43,14 @@ type SnapSyncState = {
   entries: Record<string, SnapSyncEntry>;
   /** Server videoIds whose local snap was deleted; `DELETE /videos/{id}` is owed. */
   deleteTombstones: string[];
+  /**
+   * How many times each owed delete has been refused, kept next to the
+   * tombstones rather than inside them so the list stays a plain id list.
+   * Persisted, because a delete that fails for good must not come back
+   * attempt-less at every launch — how many failures are too many is the
+   * upload worker's policy, not this store's.
+   */
+  deleteAttempts: Record<string, number>;
   hasHydrated: boolean;
   markUploading: (snapId: string) => void;
   markUploaded: (snapId: string, videoId: string) => void;
@@ -56,6 +65,8 @@ type SnapSyncState = {
   /** For an upload that finished after its snap was deleted mid-transfer. */
   addTombstone: (videoId: string) => void;
   clearTombstone: (videoId: string) => void;
+  /** Records one refused `DELETE /videos/{id}`; the tombstone itself stays. */
+  markDeleteFailed: (videoId: string) => void;
   setHasHydrated: (value: boolean) => void;
 };
 
@@ -64,6 +75,7 @@ export const useSnapSyncStore = create<SnapSyncState>()(
     (set) => ({
       entries: {},
       deleteTombstones: [],
+      deleteAttempts: {},
       hasHydrated: false,
       markUploading: (snapId) =>
         set((state) => ({
@@ -115,8 +127,28 @@ export const useSnapSyncStore = create<SnapSyncState>()(
           deleteTombstones: mergeTombstones(state.deleteTombstones, [videoId]),
         })),
       clearTombstone: (videoId) =>
+        set((state) => {
+          if (
+            !state.deleteTombstones.includes(videoId) &&
+            state.deleteAttempts[videoId] === undefined
+          ) {
+            // Nothing to drop. Returning the same state matters: every write
+            // here is a trigger for the upload worker, and a no-op write would
+            // kick a drain that then finds the same list it just walked.
+            return state;
+          }
+          const { [videoId]: _dropped, ...deleteAttempts } = state.deleteAttempts;
+          return {
+            deleteTombstones: state.deleteTombstones.filter((id) => id !== videoId),
+            deleteAttempts,
+          };
+        }),
+      markDeleteFailed: (videoId) =>
         set((state) => ({
-          deleteTombstones: state.deleteTombstones.filter((id) => id !== videoId),
+          deleteAttempts: {
+            ...state.deleteAttempts,
+            [videoId]: (state.deleteAttempts[videoId] ?? 0) + 1,
+          },
         })),
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
@@ -131,6 +163,7 @@ export const useSnapSyncStore = create<SnapSyncState>()(
           Object.entries(state.entries).filter(([, entry]) => entry.status !== 'uploading'),
         ),
         deleteTombstones: state.deleteTombstones,
+        deleteAttempts: state.deleteAttempts,
       }),
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
       // Sync state describes one account's uploads; see `applySnapSyncScope`.
@@ -150,7 +183,7 @@ export const useSnapSyncStore = create<SnapSyncState>()(
 export const applySnapSyncScope = createScopedPersistence(
   useSnapSyncStore,
   SnapSyncStoreName,
-  () => ({ entries: {}, deleteTombstones: [], hasHydrated: false }),
+  () => ({ entries: {}, deleteTombstones: [], deleteAttempts: {}, hasHydrated: false }),
 );
 
 /** Drops an account's sync state. For an account that is not coming back. */
@@ -236,4 +269,15 @@ export function addSnapDeleteTombstone(videoId: string): void {
 
 export function clearSnapDeleteTombstone(videoId: string): void {
   useSnapSyncStore.getState().clearTombstone(videoId);
+}
+
+/**
+ * Records a refused remote delete and answers with the attempt count that is
+ * now on file — the worker needs the number back to decide between backing off
+ * and giving the tombstone up, and reading it here keeps the count in one
+ * place instead of mirrored in the worker's memory.
+ */
+export function markSnapDeleteFailed(videoId: string): number {
+  useSnapSyncStore.getState().markDeleteFailed(videoId);
+  return useSnapSyncStore.getState().deleteAttempts[videoId] ?? 0;
 }

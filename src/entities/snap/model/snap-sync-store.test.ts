@@ -20,7 +20,7 @@ describe('snap sync store', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // The store is a module-level singleton; reset it so tests stay independent.
-    useSnapSyncStore.setState({ entries: {}, deleteTombstones: [] });
+    useSnapSyncStore.setState({ entries: {}, deleteTombstones: [], deleteAttempts: {} });
   });
 
   it('reports pending for a snap it has never heard of', async () => {
@@ -121,6 +121,31 @@ describe('snap sync store', () => {
     expect(useSnapSyncStore.getState().deleteTombstones).toEqual([]);
   });
 
+  // The count is what lets the worker stop retrying a delete the server will
+  // never accept; it must survive a restart, so it lives here rather than in
+  // the worker's memory.
+  it('counts the refusals of an owed delete and forgets them with the tombstone', async () => {
+    await act(async () => useSnapSyncStore.getState().addTombstone('video-9'));
+
+    await act(async () => useSnapSyncStore.getState().markDeleteFailed('video-9'));
+    await act(async () => useSnapSyncStore.getState().markDeleteFailed('video-9'));
+    expect(useSnapSyncStore.getState().deleteAttempts['video-9']).toBe(2);
+
+    await act(async () => useSnapSyncStore.getState().clearTombstone('video-9'));
+    expect(useSnapSyncStore.getState().deleteAttempts['video-9']).toBeUndefined();
+  });
+
+  // Every write here is a trigger for the upload worker: clearing a tombstone
+  // that is not there must not kick a drain that finds nothing to do.
+  it('leaves state untouched when clearing a tombstone it does not hold', async () => {
+    const before = useSnapSyncStore.getState();
+
+    await act(async () => useSnapSyncStore.getState().clearTombstone('video-never'));
+
+    expect(useSnapSyncStore.getState().deleteTombstones).toBe(before.deleteTombstones);
+    expect(useSnapSyncStore.getState().deleteAttempts).toBe(before.deleteAttempts);
+  });
+
   // The partialize contract is the crash recovery: an `uploading` entry must
   // never reach disk, so a transfer the app died inside rehydrates as pending.
   it('persists uploaded and failed entries but never uploading ones', () => {
@@ -131,6 +156,7 @@ describe('snap sync store', () => {
         'snap-3': { status: 'failed', attempts: 1 },
       },
       deleteTombstones: ['video-4'],
+      deleteAttempts: { 'video-4': 2 },
     });
 
     const persisted = useSnapSyncStore.persist
@@ -143,6 +169,7 @@ describe('snap sync store', () => {
         'snap-3': { status: 'failed', attempts: 1 },
       },
       deleteTombstones: ['video-4'],
+      deleteAttempts: { 'video-4': 2 },
     });
   });
 });

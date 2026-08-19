@@ -16,6 +16,7 @@ export {
   clearSnapDeleteTombstone,
   getDeleteTombstones,
   getSnapSyncEntries,
+  markSnapDeleteFailed,
   markSnapUploaded,
   markSnapUploadFailed,
   markSnapUploading,

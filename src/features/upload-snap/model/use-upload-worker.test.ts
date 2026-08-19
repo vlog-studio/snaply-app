@@ -22,7 +22,7 @@ jest.mock('@/entities/snap', () => {
   // Plain JS on purpose: the jest.mock hoist check runs before TypeScript is
   // stripped, so no type annotations may appear inside this factory.
   const { create } = jest.requireActual('zustand');
-  const store = create(() => ({ snaps: [], entries: {}, tombstones: [] }));
+  const store = create(() => ({ snaps: [], entries: {}, tombstones: [], deleteAttempts: {} }));
   const setEntry = (id: string, entry: object) =>
     store.setState((state: { entries: object }) => ({
       entries: { ...state.entries, [id]: entry },
@@ -52,9 +52,21 @@ jest.mock('@/entities/snap', () => {
         tombstones: [...state.tombstones, videoId],
       })),
     clearSnapDeleteTombstone: (videoId: string) =>
-      store.setState((state: { tombstones: string[] }) => ({
-        tombstones: state.tombstones.filter((id: string) => id !== videoId),
-      })),
+      store.setState((state: { tombstones: string[]; deleteAttempts: Record<string, number> }) => {
+        const { [videoId]: _dropped, ...deleteAttempts } = state.deleteAttempts;
+        return {
+          tombstones: state.tombstones.filter((id: string) => id !== videoId),
+          deleteAttempts,
+        };
+      }),
+    markSnapDeleteFailed: (videoId: string) => {
+      const recorded = store.getState().deleteAttempts as Record<string, number>;
+      const attempts = (recorded[videoId] ?? 0) + 1;
+      store.setState((state: { deleteAttempts: Record<string, number> }) => ({
+        deleteAttempts: { ...state.deleteAttempts, [videoId]: attempts },
+      }));
+      return attempts;
+    },
   };
 });
 
@@ -67,6 +79,7 @@ type FakeState = {
   snaps: Snap[];
   entries: Record<string, SnapSyncEntry>;
   tombstones: string[];
+  deleteAttempts: Record<string, number>;
 };
 
 const snapEntityMock = jest.requireMock('@/entities/snap') as {
@@ -107,7 +120,7 @@ describe('useUploadWorker', () => {
     mockPutRecordingFile.mockResolvedValue(undefined);
     mockRegisterVideo.mockResolvedValue(undefined);
     mockDeleteRemoteVideo.mockResolvedValue(undefined);
-    fakeStore.setState({ snaps: [], entries: {}, tombstones: [] });
+    fakeStore.setState({ snaps: [], entries: {}, tombstones: [], deleteAttempts: {} });
   });
 
   it('uploads a pending snap through all three steps and records the videoId', async () => {
@@ -208,6 +221,36 @@ describe('useUploadWorker', () => {
 
     await act(async () => {});
     expect(fakeStore.getState().tombstones).toEqual(['video-9']);
+    expect(fakeStore.getState().deleteAttempts['video-9']).toBe(1);
+  });
+
+  // Without the backoff hold, the extra pass any other write queues walked
+  // straight back into the delete that had just failed.
+  it('does not retry a refused delete again in the same drain', async () => {
+    fakeStore.setState({ snaps: [makeSnap()], tombstones: ['video-9'] });
+    mockDeleteRemoteVideo.mockRejectedValue(new Error('offline'));
+
+    await renderHook(() => useUploadWorker());
+
+    // The upload's own writes queue a second pass; the tombstone must sit it out.
+    await waitFor(() =>
+      expect(fakeStore.getState().entries['snap-1']).toMatchObject({ status: 'uploaded' }),
+    );
+    await act(async () => {});
+    expect(mockDeleteRemoteVideo).toHaveBeenCalledTimes(1);
+  });
+
+  // The regression: a delete the server would never accept was replayed at
+  // every launch, forever, because nothing ever counted its failures.
+  it('gives the tombstone up once its attempts run out', async () => {
+    fakeStore.setState({ tombstones: ['video-9'], deleteAttempts: { 'video-9': 4 } });
+    mockDeleteRemoteVideo.mockRejectedValue(new Error('gone for good'));
+
+    await renderHook(() => useUploadWorker());
+
+    await waitFor(() => expect(fakeStore.getState().tombstones).toEqual([]));
+    expect(fakeStore.getState().deleteAttempts['video-9']).toBeUndefined();
+    expect(mockDeleteRemoteVideo).toHaveBeenCalledTimes(1);
   });
 
   it('tombstones the remote copy when the snap is deleted mid-upload after registration', async () => {

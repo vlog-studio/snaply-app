@@ -8,6 +8,7 @@ import {
   getDeleteTombstones,
   getSnaps,
   getSnapSyncEntries,
+  markSnapDeleteFailed,
   markSnapUploaded,
   markSnapUploadFailed,
   markSnapUploading,
@@ -34,6 +35,20 @@ import { MaxAutoUploadAttempts, pickNextUpload } from './pick-next-upload';
  */
 const RetryDelaysMs = [5_000, 30_000, 120_000];
 
+/**
+ * A remote delete that keeps being refused is given up on after this many
+ * recorded failures, and its tombstone is dropped.
+ *
+ * Uploads can wait for a manual "다시 시도" because a snap that failed to
+ * upload is on screen with a badge on it; an owed delete has no surface and no
+ * user waiting on it, so an unbounded queue of them is only a queue of requests
+ * replayed at every launch forever. The count is persisted with the tombstone,
+ * so five launches against a delete the server will never accept end it — at
+ * the price of possibly leaving a remote copy behind, which is the cheaper
+ * failure of the two.
+ */
+const MaxRemoteDeleteAttempts = 5;
+
 /** The spec's `durationSeconds` is an integer within a day. */
 function toDurationSeconds(durationSec: number): number {
   return Math.min(86_400, Math.max(0, Math.round(durationSec)));
@@ -58,7 +73,9 @@ function isSnapGone(snapId: string): boolean {
  * {@link MaxAutoUploadAttempts} it waits for a manual retry. Deletions owe the
  * server too: the worker also drains the tombstones `features/delete-snap`
  * leaves in the sync store, and a snap deleted mid-upload leaves one behind if
- * its remote row was already registered.
+ * its remote row was already registered. Those get the same treatment as an
+ * upload — one attempt at a time, a backoff between failures, and an end after
+ * {@link MaxRemoteDeleteAttempts} of them.
  *
  * Runs only while authenticated (the endpoints tie videos to the caller) and
  * strictly serially — a few-MB file every few seconds does not need
@@ -84,22 +101,43 @@ export function useUploadWorker(): void {
     let running = false;
     let queuedPass = false;
     const blocked = new Set<string>();
+    const blockedDeletes = new Set<string>();
     const timers = new Set<ReturnType<typeof setTimeout>>();
+
+    const backOff = (attempts: number, resume: () => void) => {
+      const timer = setTimeout(
+        () => {
+          timers.delete(timer);
+          resume();
+        },
+        RetryDelaysMs[Math.min(attempts - 1, RetryDelaysMs.length - 1)],
+      );
+      timers.add(timer);
+    };
 
     const scheduleRetry = (snapId: string) => {
       const entry = getSnapSyncEntries()[snapId];
       const attempts = entry?.status === 'failed' ? entry.attempts : 1;
       if (attempts >= MaxAutoUploadAttempts) return;
       blocked.add(snapId);
-      const timer = setTimeout(
-        () => {
-          timers.delete(timer);
-          blocked.delete(snapId);
-          void drain();
-        },
-        RetryDelaysMs[Math.min(attempts - 1, RetryDelaysMs.length - 1)],
-      );
-      timers.add(timer);
+      backOff(attempts, () => {
+        blocked.delete(snapId);
+        void drain();
+      });
+    };
+
+    /**
+     * A refused delete waits out the same backoff an upload does, and is held
+     * back meanwhile — without that, a pass queued by any other write (an
+     * upload writing its progress, most of all) walks straight back into the
+     * delete that just failed, several times a second.
+     */
+    const scheduleDeleteRetry = (videoId: string, attempts: number) => {
+      blockedDeletes.add(videoId);
+      backOff(attempts, () => {
+        blockedDeletes.delete(videoId);
+        void drain();
+      });
     };
 
     const uploadOne = async (snap: Snap) => {
@@ -134,11 +172,25 @@ export function useUploadWorker(): void {
       // keep a deleted snap's remote copy alive meanwhile.
       for (const videoId of getDeleteTombstones()) {
         if (cancelled) return;
+        if (blockedDeletes.has(videoId)) continue;
         try {
           await deleteRemoteVideo(videoId);
           clearSnapDeleteTombstone(videoId);
-        } catch {
-          // Still owed; the tombstone stays and the next trigger retries it.
+        } catch (error) {
+          if (cancelled) return;
+          const attempts = markSnapDeleteFailed(videoId);
+          if (attempts >= MaxRemoteDeleteAttempts) {
+            clearSnapDeleteTombstone(videoId);
+            if (__DEV__) {
+              console.warn(
+                `[upload-snap] giving up on remote delete for ${videoId} after ${attempts} attempts:`,
+                String(error),
+              );
+            }
+            continue;
+          }
+          // Still owed: the tombstone stays, and its backoff decides when.
+          scheduleDeleteRetry(videoId, attempts);
         }
       }
       for (;;) {

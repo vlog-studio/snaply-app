@@ -1,13 +1,22 @@
 import type { MovieTemplate } from '../model/movie-template';
 
 /**
- * Every template the app offers.
+ * The templates that ship with the build.
+ *
+ * **This is the fallback, not the catalog.** The catalog moved to the server on
+ * 2026-08-19 (`GET /movie-templates`) so that a slot's matching rules and its
+ * definition live on one row; these four rows are seeded there with the same
+ * ids, labels, and hints. What is kept here answers instantly on a cold start,
+ * offline, and when the endpoint is down — a template screen with no templates
+ * is a dead end, and the build may as well carry four.
+ *
+ * Because the ids match the seed, the two never disagree about *which* template
+ * a screen is showing. Read them through `useMovieTemplates`, which prefers the
+ * server's answer; reach for this constant directly only to fall back.
  *
  * Four, deliberately. A template only earns its place if it describes an outing
  * a person actually has, and each one it does not is a card the user scrolls
  * past. They are ordered from the most ordinary day out to the most specific.
- *
- * A local constant with no operations behind it — see `MovieTemplate` for why.
  *
  * The `style` each one asks for is one of the three backend presets (2026-08-07):
  * a walk and a cafe visit want 감성's soft transitions, a day summary wants
@@ -74,8 +83,3 @@ export const MovieTemplateCatalog: readonly MovieTemplate[] = [
     ],
   },
 ];
-
-export function getMovieTemplateById(id: string | undefined): MovieTemplate | undefined {
-  if (!id) return undefined;
-  return MovieTemplateCatalog.find((template) => template.id === id);
-}

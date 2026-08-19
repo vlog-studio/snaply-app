@@ -1,6 +1,6 @@
 import { MovieBgmCatalog, MovieSnapLimit, MovieStyleCatalog } from '@/entities/movie';
 
-import { MovieTemplateCatalog, getMovieTemplateById } from './movie-template-catalog';
+import { MovieTemplateCatalog } from './movie-template-catalog';
 
 describe('MovieTemplateCatalog', () => {
   it('gives every template a unique id', () => {
@@ -31,17 +31,4 @@ describe('MovieTemplateCatalog', () => {
       });
     },
   );
-});
-
-describe('getMovieTemplateById', () => {
-  it('finds a template by id', () => {
-    expect(getMovieTemplateById('walk')?.name).toBe('동네 산책');
-  });
-
-  it.each([
-    ['an unknown id', 'nope'],
-    ['no id', undefined],
-  ] as const)('answers undefined for %s', (_case, id) => {
-    expect(getMovieTemplateById(id)).toBeUndefined();
-  });
 });

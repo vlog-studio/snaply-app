@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { MovieTemplateCatalog, type MovieTemplate } from '@/entities/movie-template';
+import { useMovieTemplates, type MovieTemplate } from '@/entities/movie-template';
 import { useSnaps } from '@/entities/snap';
 
 import { groupIntoSessions, pickBestSession } from '../lib/match-template';
@@ -28,25 +28,33 @@ export type TemplateOffer = {
  * fill today is worth more than the one that happens to be written first.
  * Templates the library fills equally are ordered by the shorter one, then by
  * the catalog, so the row stays stable while the library does.
+ *
+ * The catalog itself comes from the server now (`useMovieTemplates`), which
+ * answers with the built-in one until the request lands — so the cards are drawn
+ * from the first render and a template the server added simply appears when its
+ * answer arrives.
  */
 export function useTemplateOffers(): TemplateOffer[] {
   const snaps = useSnaps();
+  const templates = useMovieTemplates();
 
   return useMemo(
     () =>
-      MovieTemplateCatalog.map((template) => {
-        const slotCount = template.slots.length;
-        const best = pickBestSession(groupIntoSessions(snaps), slotCount);
-        return {
-          template,
-          filled: Math.min(best?.snaps.length ?? 0, slotCount),
-          slotCount,
-        };
-      }).sort(
-        (left, right) =>
-          left.slotCount - left.filled - (right.slotCount - right.filled) ||
-          left.slotCount - right.slotCount,
-      ),
-    [snaps],
+      templates
+        .map((template) => {
+          const slotCount = template.slots.length;
+          const best = pickBestSession(groupIntoSessions(snaps), slotCount);
+          return {
+            template,
+            filled: Math.min(best?.snaps.length ?? 0, slotCount),
+            slotCount,
+          };
+        })
+        .sort(
+          (left, right) =>
+            left.slotCount - left.filled - (right.slotCount - right.filled) ||
+            left.slotCount - right.slotCount,
+        ),
+    [snaps, templates],
   );
 }

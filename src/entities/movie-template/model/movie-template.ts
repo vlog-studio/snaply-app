@@ -21,11 +21,11 @@ export type TemplateSlot = {
  * A shape a movie can be made in: a fixed number of scenes, in a fixed order,
  * with the look it should start out with.
  *
- * The catalog is a small local constant on purpose. The recipe direction was set
- * aside once (concept §3) because a catalog somebody has to keep running is a
- * standing cost, and this is the version that has none: a handful of templates
- * that ship with the build and change when the build does. If it ever earns a
- * server (`GET /templates`), only the catalog module moves.
+ * The catalog is served by the backend (`GET /movie-templates`) since
+ * 2026-08-19. It was a local constant until a slot gained **matching rules**:
+ * those rules and the slot they belong to have to move together, and a slot
+ * defined in the app with its rules on the server is a pair that drifts. The
+ * constant stays as the offline fallback (`MovieTemplateCatalog`).
  */
 export type MovieTemplate = {
   id: string;

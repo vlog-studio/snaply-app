@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getMovieTemplateById } from '@/entities/movie-template';
+import { useMovieTemplate } from '@/entities/movie-template';
 import { useSnaps } from '@/entities/snap';
 import { useComposeMovie } from '@/features/compose-movie';
 import { useTemplateFill } from '@/features/fill-template';
@@ -40,7 +40,7 @@ export function MovieTemplatePage({ templateId }: MovieTemplatePageProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const snaps = useSnaps();
-  const template = getMovieTemplateById(templateId);
+  const template = useMovieTemplate(templateId);
   const fill = useTemplateFill(template);
   const { fillSlot } = fill;
   const { startMovieFromTemplate } = useComposeMovie();

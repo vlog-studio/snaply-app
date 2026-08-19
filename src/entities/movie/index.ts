@@ -1,5 +1,7 @@
 export {
+  applyMovieScope,
   getMovieById,
+  purgeMovieScope,
   useAdvanceMovieJob,
   useBeginMovieJob,
   useCancelMovieJob,

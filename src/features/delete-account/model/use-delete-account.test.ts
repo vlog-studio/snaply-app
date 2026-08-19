@@ -6,6 +6,13 @@ const mockClearSession = jest.fn();
 
 jest.mock('@/entities/session', () => ({
   useClearSession: () => mockClearSession,
+  useCurrentUser: () => ({ id: 'user-a' }),
+}));
+
+const mockRememberDeletedAccount = jest.fn();
+
+jest.mock('./deleted-account-ledger', () => ({
+  rememberDeletedAccount: (entry: unknown) => mockRememberDeletedAccount(entry),
 }));
 
 const mockDeleteAccount = jest.fn();
@@ -18,6 +25,7 @@ describe('useDeleteAccount', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockClearSession.mockResolvedValue(undefined);
+    mockRememberDeletedAccount.mockResolvedValue(undefined);
   });
 
   it('soft-deletes on the backend and then ends the session', async () => {
@@ -30,6 +38,12 @@ describe('useDeleteAccount', () => {
 
     expect(mockDeleteAccount).toHaveBeenCalledTimes(1);
     expect(mockClearSession).toHaveBeenCalledTimes(1);
+    // The local library is the account's only copy of its snaps, so the
+    // deletion is scheduled for the end of the grace period, not performed now.
+    expect(mockRememberDeletedAccount).toHaveBeenCalledWith({
+      userId: 'user-a',
+      purgeAfter: Date.parse('2026-09-11'),
+    });
     expect(result.current.isPending).toBe(false);
     expect(result.current.error).toBeNull();
   });
@@ -43,6 +57,7 @@ describe('useDeleteAccount', () => {
     });
 
     expect(mockClearSession).not.toHaveBeenCalled();
+    expect(mockRememberDeletedAccount).not.toHaveBeenCalled();
     expect(result.current.error).not.toBeNull();
     expect(result.current.isPending).toBe(false);
   });

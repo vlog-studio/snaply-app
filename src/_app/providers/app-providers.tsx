@@ -6,10 +6,12 @@ import type { PropsWithChildren } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { DeletedLibraryPurgeGate } from '@/features/delete-account';
 import { SnapUploadGate } from '@/features/upload-snap';
 import { Colors, useResolvedColorScheme } from '@/shared/ui/theme';
 
 import { GeofenceGate } from './geofence-gate';
+import { LibraryScopeGate } from './library-scope-gate';
 import { MovieGenerationBridge } from './movie-generation-bridge';
 import { PushTokenGate } from './push-token-gate';
 import { queryClient } from './query-client';
@@ -50,6 +52,13 @@ export function AppProviders({ children }: PropsWithChildren) {
             module reads it as content color (`hasLightBackground = style ==
             "dark"` -> dark glyphs), so it must track StatusBar, not invert it. */}
         <NavigationBar style={scheme === 'dark' ? 'light' : 'dark'} />
+        {/* First of the headless gates: everything below reads snaps, movies,
+            or the query cache, and none of it may run against the account that
+            just signed out. */}
+        <LibraryScopeGate />
+        {/* Deleted accounts leave their library behind for the length of the
+            grace period; this is what collects it once that has run out. */}
+        <DeletedLibraryPurgeGate />
         <PushTokenGate />
         <GeofenceGate />
         {/* Movie generation runs here rather than on the movie screen: a job is meant

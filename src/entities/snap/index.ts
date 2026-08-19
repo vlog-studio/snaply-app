@@ -1,6 +1,9 @@
 export { snapsByRefs, useSnapIndex, type SnapIndex } from './model/snap-refs';
 export {
+  applySnapScope,
   getSnaps,
+  purgeSnapScope,
+  readScopedSnaps,
   useAddSnap,
   useRemoveSnaps,
   useSetMeasuredSnapDuration,
@@ -9,12 +12,14 @@ export {
 } from './model/snap-store';
 export {
   addSnapDeleteTombstone,
+  applySnapSyncScope,
   clearSnapDeleteTombstone,
   getDeleteTombstones,
   getSnapSyncEntries,
   markSnapUploaded,
   markSnapUploadFailed,
   markSnapUploading,
+  purgeSnapSyncScope,
   useDeleteTombstones,
   useFailedUploadCount,
   useForgetSnapSync,

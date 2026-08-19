@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
+import { createScopedPersistence, deleteScopedState } from '@/shared/lib/scoped-store';
 
 /**
  * How far a snap has gotten toward the backend. `pending` is the absence of an
@@ -14,6 +15,8 @@ export type SnapSyncEntry =
   | { status: 'failed'; attempts: number };
 
 export type SnapSyncStatus = SnapSyncEntry['status'] | 'pending';
+
+const SnapSyncStoreName = 'snaply.snap-sync';
 
 /**
  * Owns what the backend knows about each snap: the upload state per snap id,
@@ -118,7 +121,7 @@ export const useSnapSyncStore = create<SnapSyncState>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
-      name: 'snaply.snap-sync',
+      name: SnapSyncStoreName,
       storage: createJSONStorage(() => localStore),
       // `uploading` is a claim about a transfer in this process; persisting it
       // would resurrect it as a lie after a crash. Dropping it here *is* the
@@ -130,9 +133,30 @@ export const useSnapSyncStore = create<SnapSyncState>()(
         deleteTombstones: state.deleteTombstones,
       }),
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
+      // Sync state describes one account's uploads; see `applySnapSyncScope`.
+      skipHydration: true,
     },
   ),
 );
+
+/**
+ * Points the sync state at the signed-in account's uploads, and empties it when
+ * nobody is signed in. Called by `_app/providers` as the session user changes.
+ *
+ * This one is not only about what the user sees: an unscoped queue would upload
+ * the previous account's snaps under the new account's token, and owe
+ * `DELETE /videos/{id}` on videos that account never had.
+ */
+export const applySnapSyncScope = createScopedPersistence(
+  useSnapSyncStore,
+  SnapSyncStoreName,
+  () => ({ entries: {}, deleteTombstones: [], hasHydrated: false }),
+);
+
+/** Drops an account's sync state. For an account that is not coming back. */
+export function purgeSnapSyncScope(scope: string): Promise<void> {
+  return deleteScopedState(SnapSyncStoreName, scope);
+}
 
 function mergeTombstones(existing: string[], added: string[]): string[] {
   const merged = new Set(existing);

@@ -28,7 +28,7 @@ rather than letting two copies drift apart.
 - Adding a screen → §1, §14.
 - Reading data from the backend → §2, §3, §4 (in that order), consumed via §5-adjacent code.
 - Writing data / firing a server action → §5.
-- Sharing client state across components → §7, §8.
+- Sharing client state across components → §7, §8 (§8a when the data belongs to the signed-in account rather than to the device).
 - Swapping an external dependency (auth, storage) behind an interface → §9.
 - Orchestrating a user action with pending/error state → §10.
 - Loading/mutating a device-local resource → §11.
@@ -402,6 +402,52 @@ const useXStore = create<XState>()(
 - Back persistence with the `secureStorage` adapter, not `AsyncStorage` directly.
 - If the state mirrors a future backend field, document how it becomes a server query
   once the endpoint exists (see the file's header comment).
+- Decide whose data it is. A device preference (theme, notification switches) is the
+  device's and stays one file. **Anything the signed-in user created or the backend
+  answered for them is that account's**, and belongs in §8a instead — one device holds
+  several accounts.
+
+---
+
+## 8a. Account-scoped persisted slice
+
+**When:** a persisted store holds user content rather than a device preference —
+snaps, movies, upload state.
+
+**Canonical:** [`snap-store.ts`](../../src/entities/snap/model/snap-store.ts) with
+[`scoped-store.ts`](../../src/shared/lib/scoped-store/scoped-store.ts), bound by
+[`library-scope-gate.tsx`](../../src/_app/providers/library-scope-gate.tsx).
+
+```ts
+const StoreName = 'snaply.x';
+
+export const useXStore = create<XState>()(
+  persist((set) => ({ items: [], hasHydrated: false, /* … */ }), {
+    name: StoreName,
+    storage: createJSONStorage(() => localStore),
+    onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
+    // The account owns the data, so nothing is read before one is known.
+    skipHydration: true,
+  }),
+);
+
+// The slice owns *how* to change hands; `_app` owns *when*.
+export const applyXScope = createScopedPersistence(useXStore, StoreName, () => ({
+  items: [],
+  hasHydrated: false,
+}));
+```
+
+**Rules**
+- `skipHydration: true`. A store that loads at import has already loaded the wrong
+  account's data by the time anyone knows who is signed in.
+- The empty state passed to `createScopedPersistence` must put `hasHydrated` back to
+  `false`, so nothing reads the gap between accounts as an empty library.
+- Export the `applyXScope` binder from the slice Public API and call it from
+  `_app/providers/library-scope-gate.tsx` — the session is a higher layer than the
+  entity that holds the data, so the entity may not watch it.
+- Never clear a scoped store by hand. Clearing persists, and a hand-rolled clear
+  writes the empty state over whichever account's file is currently bound.
 
 ---
 

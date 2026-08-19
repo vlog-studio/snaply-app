@@ -2,14 +2,25 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
+import {
+  createScopedPersistence,
+  deleteScopedState,
+  readScopedState,
+} from '@/shared/lib/scoped-store';
 
 import type { Snap } from './snap';
+
+const SnapStoreName = 'snaply.snaps';
 
 /**
  * Owns the library of captured snaps (their metadata). The source video files
  * live on disk via `shared/lib/recording-files`; this store keeps the snap
  * metadata and is persisted to a document-directory JSON file through
  * `localStore` (snap data grows without bound, so SecureStore is unsuitable).
+ *
+ * The file belongs to one account: `applySnapScope` points persistence at the
+ * signed-in user's own store file, and nothing is read until it does. A library
+ * is what its owner captured, not what the device holds.
  *
  * Once snaps move to a backend, this becomes a server-backed query/mutation and
  * the local persistence is dropped.
@@ -70,13 +81,43 @@ export const useSnapStore = create<SnapState>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
-      name: 'snaply.snaps',
+      name: SnapStoreName,
       storage: createJSONStorage(() => localStore),
       partialize: (state) => ({ snaps: state.snaps }),
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
+      // The account owns the library, so nothing is read before one is known.
+      skipHydration: true,
     },
   ),
 );
+
+/**
+ * Points the library at the signed-in account's snaps, and empties it when
+ * nobody is signed in. Called by `_app/providers` as the session user changes;
+ * `useSnapsHydrated` stays false until the new owner's snaps are back.
+ */
+export const applySnapScope = createScopedPersistence(useSnapStore, SnapStoreName, () => ({
+  snaps: [],
+  hasHydrated: false,
+}));
+
+/**
+ * The snaps of an account nobody is signed in as. Reading the file directly is
+ * the only way to reach them — the live store is bound to whoever is signed in
+ * now — and the one caller is the cleanup that deletes a purged account's
+ * videos, which needs their file URIs before the metadata goes.
+ */
+export async function readScopedSnaps(scope: string): Promise<Snap[]> {
+  const state = await readScopedState(SnapStoreName, scope);
+  const snaps = (state as { snaps?: unknown } | null)?.snaps;
+  if (!Array.isArray(snaps)) return [];
+  return snaps.filter((snap): snap is Snap => typeof (snap as Snap | null)?.uri === 'string');
+}
+
+/** Drops an account's snap metadata. For an account that is not coming back. */
+export function purgeSnapScope(scope: string): Promise<void> {
+  return deleteScopedState(SnapStoreName, scope);
+}
 
 export function useSnaps(): Snap[] {
   return useSnapStore((state) => state.snaps);

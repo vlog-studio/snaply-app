@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { localStore } from '@/shared/lib/local-store';
+import { createScopedPersistence, deleteScopedState } from '@/shared/lib/scoped-store';
 
 import { DefaultMovieBgm } from '../lib/movie-bgm';
 import { DefaultMovieStyle } from '../lib/movie-style';
@@ -40,11 +41,16 @@ export type MovieStylePatch = {
   captions?: boolean;
 };
 
+const MovieStoreName = 'snaply.movies';
+
 /**
  * Owns movies: their cut lists, generation settings, and lifecycle state.
  * Persisted to a document-directory JSON file through `localStore` (movie data
  * grows over time, so SecureStore is unsuitable). Once movies move to a backend,
  * this becomes a server-backed query/mutation and local persistence is dropped.
+ *
+ * The file belongs to one account: `applyMovieScope` points persistence at the
+ * signed-in user's own store file, and nothing is read until it does.
  *
  * Movies reference snaps by id only (see `SnapRef`); joining a movie to its snap
  * objects is a higher-layer concern (a page, or `widgets/movie-shelf`) so this
@@ -325,13 +331,30 @@ export const useMovieStore = create<MovieState>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
-      name: 'snaply.movies',
+      name: MovieStoreName,
       storage: createJSONStorage(() => localStore),
       partialize: (state) => ({ movies: state.movies }),
       onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
+      // The account owns its movies, so nothing is read before one is known.
+      skipHydration: true,
     },
   ),
 );
+
+/**
+ * Points the movie shelf at the signed-in account's movies, and empties it when
+ * nobody is signed in. Called by `_app/providers` as the session user changes;
+ * `useMoviesHydrated` stays false until the new owner's movies are back.
+ */
+export const applyMovieScope = createScopedPersistence(useMovieStore, MovieStoreName, () => ({
+  movies: [],
+  hasHydrated: false,
+}));
+
+/** Drops an account's movies. For an account that is not coming back. */
+export function purgeMovieScope(scope: string): Promise<void> {
+  return deleteScopedState(MovieStoreName, scope);
+}
 
 /** Every movie, in storage order. Presentation order is the shelf's decision. */
 export function useMovies(): Movie[] {

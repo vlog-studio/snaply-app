@@ -10,6 +10,13 @@ const mockClearPendingDeletion = jest.fn();
 
 jest.mock('@/entities/session', () => ({
   clearPendingDeletion: () => mockClearPendingDeletion(),
+  useCurrentUser: () => ({ id: 'user-a' }),
+}));
+
+const mockForgetDeletedAccount = jest.fn();
+
+jest.mock('./deleted-account-ledger', () => ({
+  forgetDeletedAccount: (userId: string) => mockForgetDeletedAccount(userId),
 }));
 
 const mockRestoreAccount = jest.fn();
@@ -28,6 +35,7 @@ function wrapper({ children }: PropsWithChildren) {
 describe('useRestoreAccount', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockForgetDeletedAccount.mockResolvedValue(undefined);
   });
 
   it('releases the pending-deletion guard once the backend restores', async () => {
